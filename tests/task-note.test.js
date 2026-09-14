@@ -53,6 +53,26 @@ test("rejects malformed attachment metadata", () => {
   });
 });
 
+test("rejects path-like attachment display names", () => {
+  const valid = {
+    id: "file_1",
+    name: "notes.txt",
+    storageName: "file_1.txt",
+    mimeType: "text/plain",
+    size: 12,
+    addedAt: 3000
+  };
+  const pathNames = [
+    "C:\\Users\\name\\secret.pdf",
+    "\\\\server\\share\\secret.pdf",
+    "/home/name/secret.pdf"
+  ];
+
+  pathNames.forEach(name => {
+    assert.equal(taskModel.normalizeAttachment({ ...valid, name }), null, name);
+  });
+});
+
 test("a real note edit records updatedAt and preserves createdAt and completedAt", () => {
   const original = {
     id: "done", title: "任务", remarks: "旧备注", attachments: [],

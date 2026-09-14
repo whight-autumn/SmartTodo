@@ -38,13 +38,14 @@
   function normalizeAttachment(raw) {
     if (!raw || !/^[a-zA-Z0-9_-]+$/.test(String(raw.id || ""))) return null;
     if (!/^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9]{1,12})?$/.test(String(raw.storageName || ""))) return null;
+    const name = String(raw.name || "");
     const size = Number(raw.size);
     const addedAt = Number(raw.addedAt);
-    if (!String(raw.name || "").trim() || !Number.isFinite(size) || size < 0 || size > MAX_TASK_ATTACHMENT_BYTES) return null;
+    if (!name.trim() || /[\\/:]/.test(name) || !Number.isFinite(size) || size < 0 || size > MAX_TASK_ATTACHMENT_BYTES) return null;
     if (!Number.isFinite(addedAt) || addedAt <= 0) return null;
     return {
       id: String(raw.id),
-      name: String(raw.name),
+      name,
       storageName: String(raw.storageName),
       mimeType: String(raw.mimeType || "application/octet-stream"),
       size,

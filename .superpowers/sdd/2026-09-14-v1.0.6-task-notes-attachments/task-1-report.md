@@ -121,3 +121,142 @@ exit_code=0
 
 - No implementation concerns found for Task 1.
 - The worktree contains a pre-existing unstaged implementation-plan modification. It remains untouched and excluded from this task's commit.
+
+## Fix Round 1: Reject path-like attachment display names
+
+### Finding and implementation
+
+`normalizeAttachment` previously accepted any nonblank display name, so absolute Windows, UNC, and POSIX source paths could survive normalization and be persisted with task metadata. Attachment display names now fail normalization when they contain a backslash, slash, or colon. Valid filename-only display names retain their original value.
+
+### Files changed
+
+- `renderer/task-model.js`
+- `tests/task-note.test.js`
+- `.superpowers/sdd/2026-09-14-v1.0.6-task-notes-attachments/task-1-report.md`
+
+### RED evidence
+
+Command:
+
+```text
+node --test tests/task-note.test.js
+```
+
+Output before the production fix:
+
+```text
+exit_code=1
+✔ normalizes legacy tasks without changing historical timestamps (1.1253ms)
+✔ valid attachment metadata survives task normalization (0.2733ms)
+✔ rejects malformed attachment metadata (0.1741ms)
+✖ rejects path-like attachment display names (1.5234ms)
+✔ a real note edit records updatedAt and preserves createdAt and completedAt (0.1663ms)
+✔ saving an unchanged draft does not update updatedAt (0.0933ms)
+✔ applying a note edit does not mutate task or attachment inputs (0.2117ms)
+✔ linkifies only safe web URLs and trims Chinese punctuation (1.338ms)
+✔ renders HTTP and HTTPS note links with escaped attributes and line breaks (0.4086ms)
+✔ leaves invalid URL candidates as escaped text (0.235ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80.7782
+
+AssertionError [ERR_ASSERTION]: C:\Users\name\secret.pdf
+actual: normalized attachment metadata
+expected: null
+```
+
+The failing regression uses literal cases for `C:\Users\name\secret.pdf`, `\\server\share\secret.pdf`, and `/home/name/secret.pdf`.
+
+### Focused passing output
+
+Command:
+
+```text
+node --test tests/task-note.test.js
+```
+
+Exact output:
+
+```text
+exit_code=0
+✔ normalizes legacy tasks without changing historical timestamps (0.9752ms)
+✔ valid attachment metadata survives task normalization (0.2535ms)
+✔ rejects malformed attachment metadata (0.1736ms)
+✔ rejects path-like attachment display names (0.7148ms)
+✔ a real note edit records updatedAt and preserves createdAt and completedAt (0.2044ms)
+✔ saving an unchanged draft does not update updatedAt (0.0994ms)
+✔ applying a note edit does not mutate task or attachment inputs (0.2019ms)
+✔ linkifies only safe web URLs and trims Chinese punctuation (1.0473ms)
+✔ renders HTTP and HTTPS note links with escaped attributes and line breaks (0.2104ms)
+✔ leaves invalid URL candidates as escaped text (0.1876ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70.6723
+```
+
+### Full-suite passing output
+
+Command:
+
+```text
+npm test
+```
+
+Exact output:
+
+```text
+exit_code=0
+
+> smart-assistant@1.0.5 test
+> node --test tests/*.test.js
+
+✔ normalizes a DeepSeek-compatible provider (1.2393ms)
+✔ does not duplicate chat completions path (0.3321ms)
+✔ preserves custom provider values (0.233ms)
+✔ reads OpenAI-compatible SSE delta content (0.3331ms)
+✔ draft store round-trips a partially filled task form (1.2568ms)
+✔ managed runtime path is inside appData and named 运行数据 (1.2671ms)
+✔ 需关注包含置顶、高优先级、逾期及未来 24 小时内提醒任务 (1.8965ms)
+✔ 需关注中的匹配子任务保留父任务上下文并隐藏无关兄弟任务 (0.6986ms)
+✔ 筛选数量分别统计直接需关注、全部进行中和已完成任务 (0.1726ms)
+✔ markTaskDone records completedAt and undo clears it (0.5302ms)
+✔ pruneCompletedTasks removes only tasks completed more than 15 days ago (0.5935ms)
+✔ buildTaskIndex groups and sorts children once (0.1896ms)
+✔ normalizes legacy tasks without changing historical timestamps (1.0575ms)
+✔ valid attachment metadata survives task normalization (0.3268ms)
+✔ rejects malformed attachment metadata (0.2287ms)
+✔ rejects path-like attachment display names (1.0843ms)
+✔ a real note edit records updatedAt and preserves createdAt and completedAt (0.3052ms)
+✔ saving an unchanged draft does not update updatedAt (0.1292ms)
+✔ applying a note edit does not mutate task or attachment inputs (0.2772ms)
+✔ linkifies only safe web URLs and trims Chinese punctuation (1.5364ms)
+✔ renders HTTP and HTTPS note links with escaped attributes and line breaks (0.2629ms)
+✔ leaves invalid URL candidates as escaped text (0.2213ms)
+✔ brightness is constrained to the supported working range (0.7467ms)
+✔ brightness resolves to a neutral color mix around 100 percent (0.6366ms)
+✔ brightness survives a storage round trip (0.1976ms)
+✔ task timestamps include a complete local date and minute (1.412ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 140.5647
+```
+
+### Fix-round concerns
+
+- No implementation concerns found.
+- The pre-existing unstaged plan modification remains untouched and is excluded from this fix commit.
