@@ -98,14 +98,33 @@ app.whenReady().then(async () => {
         {
           id: "done",
           title: "完成时间记录",
-          remarks: "",
+          remarks: "原始备注 https://example.com/old",
           remindTime: null,
           priority: "medium",
           parentId: null,
           done: true,
           completedAt: new Date(2026, 8, 14, 10, 45).getTime(),
           pinned: false,
-          createdAt: new Date(2026, 8, 13, 16, 20).getTime()
+          createdAt: new Date(2026, 8, 13, 16, 20).getTime(),
+          updatedAt: new Date(2026, 8, 13, 17, 0).getTime(),
+          attachments: [
+            {
+              id: "image_attachment",
+              name: "界面截图.png",
+              storageName: "image_attachment.png",
+              mimeType: "image/png",
+              size: 1024,
+              addedAt: new Date(2026, 8, 14, 11, 1).getTime()
+            },
+            {
+              id: "file_attachment",
+              name: "需求说明.pdf",
+              storageName: "file_attachment.pdf",
+              mimeType: "application/pdf",
+              size: 2048,
+              addedAt: new Date(2026, 8, 14, 11, 2).getTime()
+            }
+          ]
         }
       ]));
       location.reload();
@@ -147,6 +166,62 @@ app.whenReady().then(async () => {
               resetBrightness: localStorage.getItem("smart_ui_brightness"),
               brightnessOutput: document.getElementById("brightness-value").textContent,
               lightTheme
+            });
+          }));
+        }));
+      });
+    `);
+
+    const noteResult = await window.webContents.executeJavaScript(`
+      new Promise(resolve => {
+        const originalTask = JSON.parse(localStorage.getItem("smart_tasks"))
+          .find(task => task.id === "done");
+        const originalCard = document.querySelector('[data-id="done"]');
+        const originalCreated = originalCard.querySelector(".task-stamp:not(.completed):not(.updated)").innerText;
+        const originalCompleted = originalCard.querySelector(".task-stamp.completed").innerText;
+
+        originalCard.querySelector('[data-action="edit-note"]').click();
+        document.getElementById("task-note-input").value = "更新后的备注 https://example.com/docs";
+        document.getElementById("task-note-save").click();
+
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const savedTask = JSON.parse(localStorage.getItem("smart_tasks"))
+            .find(task => task.id === "done");
+          const savedCard = document.querySelector('[data-id="done"]');
+          const savedRemarks = savedCard.querySelector(".task-note-preview").innerText;
+          const savedLink = savedCard.querySelector('.note-link[data-url="https://example.com/docs"]');
+          const savedCreated = savedCard.querySelector(".task-stamp:not(.completed):not(.updated)").innerText;
+          const savedCompleted = savedCard.querySelector(".task-stamp.completed").innerText;
+          const savedUpdated = savedCard.querySelector(".task-stamp.updated").innerText;
+          const attachmentCount = savedCard.querySelectorAll(".task-attachment").length;
+          const image = savedCard.querySelector(".task-attachment-thumb");
+          const imageUnavailable = image.closest(".task-attachment").classList.contains("is-unavailable");
+
+          savedCard.querySelector('[data-action="edit-note"]').click();
+          document.getElementById("task-note-input").value = "这次修改应被取消";
+          document.querySelector('[data-action="remove-note-attachment"]').click();
+          document.getElementById("task-note-cancel").click();
+
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            const afterCancelTask = JSON.parse(localStorage.getItem("smart_tasks"))
+              .find(task => task.id === "done");
+            resolve({
+              originalRemarks: originalTask.remarks,
+              savedRemarks,
+              savedLinkUrl: savedLink?.dataset.url || null,
+              originalCreated,
+              savedCreated,
+              originalCompleted,
+              savedCompleted,
+              originalUpdatedAt: originalTask.updatedAt,
+              savedUpdatedAt: savedTask.updatedAt,
+              savedUpdated,
+              afterCancelRemarks: afterCancelTask.remarks,
+              afterCancelUpdatedAt: afterCancelTask.updatedAt,
+              afterCancelAttachments: afterCancelTask.attachments,
+              attachmentCount,
+              imageHasSource: image.hasAttribute("src"),
+              imageUnavailable
             });
           }));
         }));
@@ -204,6 +279,22 @@ app.whenReady().then(async () => {
     assert.equal(result.resetBrightness, "100");
     assert.equal(result.brightnessOutput, "100%");
     assert.equal(result.initialFilter, "active");
+    assert.equal(noteResult.originalRemarks, "原始备注 https://example.com/old");
+    assert.equal(noteResult.savedRemarks, "更新后的备注 https://example.com/docs");
+    assert.equal(noteResult.savedLinkUrl, "https://example.com/docs");
+    assert.equal(noteResult.savedCreated, noteResult.originalCreated);
+    assert.equal(noteResult.savedCompleted, noteResult.originalCompleted);
+    assert.ok(noteResult.savedUpdatedAt > noteResult.originalUpdatedAt);
+    assert.match(noteResult.savedUpdated, /编辑\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}/);
+    assert.equal(noteResult.afterCancelRemarks, noteResult.savedRemarks);
+    assert.equal(noteResult.afterCancelUpdatedAt, noteResult.savedUpdatedAt);
+    assert.equal(noteResult.afterCancelAttachments.length, 2);
+    assert.ok(noteResult.afterCancelAttachments.every(attachment => (
+      !("file" in attachment) && !("sourcePath" in attachment)
+    )));
+    assert.equal(noteResult.attachmentCount, 2);
+    assert.equal(noteResult.imageHasSource, false);
+    assert.equal(noteResult.imageUnavailable, true);
     assert.match(filterResult.attentionText, /浅色模式与创建时间/);
     assert.match(filterResult.attentionText, /关注任务的主任务上下文/);
     assert.match(filterResult.attentionText, /需要关注的子任务/);
@@ -223,6 +314,7 @@ app.whenReady().then(async () => {
 
     process.stdout.write(JSON.stringify({
       ...result,
+      noteResult,
       filterResult,
       darkTheme,
       lightScreenshot,

@@ -131,6 +131,30 @@
   </section>
 </main>
 
+<!-- 任务备注与附件弹窗 -->
+<dialog id="task-note-dialog" class="settings-dialog task-note-dialog" aria-labelledby="task-note-heading">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="task-note-heading">编辑任务备注</h3>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" for="task-note-input">任务备注</label>
+      <textarea id="task-note-input" class="input task-note-input" rows="6" placeholder="记录补充信息，也可以粘贴 HTTP/HTTPS 链接"></textarea>
+      <div class="task-note-attachment-tools">
+        <input id="task-note-file-input" type="file" multiple hidden>
+        <label id="task-note-file-label" class="btn btn-secondary task-note-upload" for="task-note-file-input">＋ 添加附件</label>
+        <span id="task-note-limit" class="hint">最多 10 个，每个不超过 20MB</span>
+      </div>
+      <ul id="task-note-attachment-list" class="task-note-attachment-list" aria-label="任务附件"></ul>
+      <p id="task-note-status" class="hint task-note-status" role="status" aria-live="polite"></p>
+    </div>
+    <div class="modal-foot task-note-actions">
+      <button id="task-note-cancel" class="btn btn-secondary" type="button">取消</button>
+      <button id="task-note-save" class="btn btn-primary" type="button">保存</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- 设置弹窗 -->
 <dialog id="settings-modal" class="settings-dialog" aria-label="AI 设置">
   <div class="modal-card">

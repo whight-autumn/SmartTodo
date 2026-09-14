@@ -9,6 +9,7 @@ const taskModel = window.TaskModel;
 const draftStore = window.DraftStore;
 const aiProvider = window.AIProvider;
 const uiAppearance = window.UIAppearance;
+const noteUtils = window.NoteUtils;
 
 /* ---------- 数据层 ---------- */
 const STORAGE_KEYS = {
@@ -167,6 +168,9 @@ let chatScrollQueued = false;
 let chatRendered = false;
 const taskRowCache = new Map();
 let aiCollapsed = localStorage.getItem(STORAGE_KEYS.aiCollapsed) === "true";
+let taskNoteDraft = null;
+let taskNotePreviousFocus = null;
+let taskNoteReturnTaskId = null;
 
 // ===== DOM 引用 =====
 const $ = id => document.getElementById(id);
@@ -208,7 +212,17 @@ const els = {
   providerSelect: $("provider-select"),
   baseUrlInput: $("base-url-input"),
   modelInput: $("model-input"),
-  dataPathHint: $("data-path-hint")
+  dataPathHint: $("data-path-hint"),
+  noteDialog: $("task-note-dialog"),
+  noteHeading: $("task-note-heading"),
+  noteInput: $("task-note-input"),
+  noteFileInput: $("task-note-file-input"),
+  noteFileLabel: $("task-note-file-label"),
+  noteAttachmentList: $("task-note-attachment-list"),
+  noteLimit: $("task-note-limit"),
+  noteStatus: $("task-note-status"),
+  noteCancel: $("task-note-cancel"),
+  noteSave: $("task-note-save")
 };
 
 /* ==========================================================
@@ -308,11 +322,15 @@ function getTaskMeta(task) {
   const completedAt = task.done
     ? uiAppearance.formatTaskTimestamp(task.completedAt)
     : "";
+  const updatedAt = uiAppearance.formatTaskTimestamp(task.updatedAt);
   const timestamps = `
     <span class="task-timestamps">
       <span class="task-stamp"><span class="task-stamp-label">创建</span>${createdAt || "时间未知"}</span>
       ${completedAt
         ? `<span class="task-stamp completed"><span class="task-stamp-label">完成</span>${completedAt}</span>`
+        : ""}
+      ${updatedAt
+        ? `<span class="task-stamp updated"><span class="task-stamp-label">编辑</span>${updatedAt}</span>`
         : ""}
     </span>
   `;
@@ -350,8 +368,18 @@ function pruneExpiredCompletedTasks(now = Date.now()) {
     remindedSet.delete(id);
   });
   saveTasks();
+  void cleanupTaskAttachmentDirectories([...removedIds]);
   saveCollapsedMap();
   return true;
+}
+
+async function cleanupTaskAttachmentDirectories(taskIds) {
+  if (!taskIds.length || !window.desktop?.removeTaskAttachmentDirectories) return;
+  try {
+    await window.desktop.removeTaskAttachmentDirectories(taskIds);
+  } catch (error) {
+    showToast(`任务数据已删除，但附件清理失败：${error?.message || "未知错误"}`, "warning");
+  }
 }
 
 function resetTaskForm() {
@@ -438,6 +466,61 @@ function setTaskMode(mode, targetTask = null) {
   els.form.querySelector(".submit-btn").textContent = "＋ 添加主任务";
 }
 
+function renderTaskAttachments(task) {
+  if (!task.attachments?.length) return "";
+  const items = task.attachments.map(attachment => {
+    const taskId = escapeHTML(task.id);
+    const storageName = escapeHTML(attachment.storageName);
+    const name = escapeHTML(attachment.name);
+    const isImage = /^image\//i.test(attachment.mimeType);
+    const preview = isImage
+      ? `<img class="task-attachment-thumb" loading="lazy" alt="" data-task-id="${taskId}" data-storage-name="${storageName}">`
+      : "<span class=\"task-file-icon\" aria-hidden=\"true\">📄</span>";
+    return `
+      <button type="button" class="task-attachment" data-action="open-attachment"
+        data-task-id="${taskId}" data-storage-name="${storageName}" aria-label="打开附件 ${name}">
+        ${preview}
+        <span class="task-attachment-copy">
+          <span class="task-attachment-name">${name}</span>
+          <span class="task-attachment-meta">${formatBytes(attachment.size)}</span>
+          <span class="task-attachment-status">预览不可用</span>
+        </span>
+      </button>
+    `;
+  }).join("");
+  return `<div class="task-attachment-grid">${items}</div>`;
+}
+
+function markAttachmentUnavailable(image) {
+  const attachment = image.closest(".task-attachment");
+  if (attachment) attachment.classList.add("is-unavailable");
+}
+
+function hydrateTaskAttachmentPreviews() {
+  els.list.querySelectorAll(".task-attachment-thumb:not([data-preview-requested])").forEach(image => {
+    image.dataset.previewRequested = "true";
+    if (!window.desktop?.getTaskAttachmentUrl) {
+      markAttachmentUnavailable(image);
+      return;
+    }
+    window.desktop.getTaskAttachmentUrl({
+      taskId: image.dataset.taskId,
+      storageName: image.dataset.storageName
+    }).then(url => {
+      let managedUrl;
+      try {
+        managedUrl = new URL(url);
+      } catch {
+        throw new Error("附件地址无效");
+      }
+      if (managedUrl.protocol !== "file:") throw new Error("附件地址无效");
+      if (image.isConnected) image.src = managedUrl.href;
+    }).catch(() => {
+      if (image.isConnected) markAttachmentUnavailable(image);
+    });
+  });
+}
+
 
 
 function createTaskItem(task, depth, archive = false, visibleSet = null) {
@@ -475,18 +558,20 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
     + "<option value=\"low\" " + (task.priority === "low" ? "selected" : "") + ">低</option>"
     + "</select>";
   const remarksHtml = task.remarks
-    ? "<div class=\"task-desc\">" + escapeHTML(task.remarks) + "</div>"
+    ? "<div class=\"task-note-preview\">" + noteUtils.linkifyNote(task.remarks) + "</div>"
     : "";
+  const attachmentsHtml = renderTaskAttachments(task);
+  const editNoteHtml = "<button class=\"task-btn edit-note\" type=\"button\" title=\"编辑备注与附件\" data-action=\"edit-note\">📝</button>";
   const pinHtml = !archive
     ? "<button class=\"task-btn pin" + (task.pinned ? " active" : "") + "\" title=\"置顶\" data-action=\"pin\">📌</button>"
     : "";
   li.innerHTML = "<input type=\"checkbox\" class=\"task-check\" data-action=\"toggle-complete\" "
     + (task.done ? "checked" : "") + ">"
     + "<div class=\"task-content\"><div class=\"task-title\">"
-    + escapeHTML(task.title) + "</div>" + parentHtml + remarksHtml
+    + escapeHTML(task.title) + "</div>" + parentHtml + remarksHtml + attachmentsHtml
     + "<div class=\"task-meta\">" + getTaskMeta(task) + "</div></div>"
     + "<div class=\"task-actions\">" + collapseHtml + addSubHtml
-    + priorityHtml + archiveAction + pinHtml
+    + priorityHtml + archiveAction + editNoteHtml + pinHtml
     + "<button class=\"task-btn delete\" title=\"删除\" data-action=\"delete\">🗑️</button></div>";
   return li;
 }
@@ -563,6 +648,7 @@ function renderTasks() {
   for (const id of taskRowCache.keys()) {
     if (!wanted.has(id)) taskRowCache.delete(id);
   }
+  hydrateTaskAttachmentPreviews();
   // Moving or replacing the changed row must not discard keyboard focus.
   if (focusedId && focusedAction && document.activeElement !== active
       && !document.querySelector("dialog[open]")) {
@@ -589,6 +675,266 @@ function updateSummary() {
   const activeCount = tasks.filter(t => !t.done).length;
   els.summary.textContent = activeCount ? `进行中 ${activeCount}` : "0";
 }
+
+function createTaskNoteDraft(task) {
+  return {
+    taskId: task.id,
+    originalRemarks: task.remarks || "",
+    remarks: task.remarks || "",
+    retainedAttachments: [...(task.attachments || [])],
+    removedAttachments: [],
+    pendingFiles: []
+  };
+}
+
+function setTaskNoteStatus(message = "", type = "") {
+  els.noteStatus.textContent = message;
+  els.noteStatus.dataset.type = type;
+}
+
+function taskAttachmentIdentity(value) {
+  return `${String(value?.name || "").trim().toLocaleLowerCase()}\u0000${Number(value?.size) || 0}`;
+}
+
+function renderTaskNoteDraft() {
+  if (!taskNoteDraft) return;
+  const retainedItems = taskNoteDraft.retainedAttachments.map(attachment => `
+    <li class="task-note-attachment-entry">
+      <span class="task-file-icon" aria-hidden="true">📎</span>
+      <span class="task-note-attachment-detail">
+        <strong>${escapeHTML(attachment.name)}</strong>
+        <span>${formatBytes(attachment.size)} · 已保存</span>
+      </span>
+      <button type="button" class="task-note-attachment-action" data-action="remove-note-attachment"
+        data-attachment-id="${escapeHTML(attachment.id)}">移除</button>
+    </li>
+  `);
+  const pendingItems = taskNoteDraft.pendingFiles.map((pending, index) => `
+    <li class="task-note-attachment-entry is-pending">
+      <span class="task-file-icon" aria-hidden="true">＋</span>
+      <span class="task-note-attachment-detail">
+        <strong>${escapeHTML(pending.file.name)}</strong>
+        <span>${formatBytes(pending.file.size)} · 待保存</span>
+      </span>
+      <button type="button" class="task-note-attachment-action" data-action="remove-pending-attachment"
+        data-pending-index="${index}">移除</button>
+    </li>
+  `);
+  const removedItems = taskNoteDraft.removedAttachments.map(attachment => `
+    <li class="task-note-attachment-entry is-removing">
+      <span class="task-file-icon" aria-hidden="true">−</span>
+      <span class="task-note-attachment-detail">
+        <strong>${escapeHTML(attachment.name)}</strong>
+        <span>${formatBytes(attachment.size)} · 保存后移除</span>
+      </span>
+      <button type="button" class="task-note-attachment-action" data-action="restore-note-attachment"
+        data-attachment-id="${escapeHTML(attachment.id)}">撤销</button>
+    </li>
+  `);
+  const items = [...retainedItems, ...pendingItems, ...removedItems];
+  els.noteAttachmentList.innerHTML = items.length
+    ? items.join("")
+    : '<li class="task-note-empty">暂无附件</li>';
+  const total = taskNoteDraft.retainedAttachments.length + taskNoteDraft.pendingFiles.length;
+  els.noteLimit.textContent = `${total} / ${ATTACHMENT_LIMIT} 个，每个不超过 20MB`;
+}
+
+function setTaskNoteSaving(saving) {
+  const canAttach = !!(window.desktop?.getPathForFile && window.desktop?.importTaskAttachments);
+  els.noteSave.disabled = saving;
+  els.noteCancel.disabled = saving;
+  els.noteFileInput.disabled = saving || !canAttach;
+  els.noteFileLabel.classList.toggle("is-disabled", saving || !canAttach);
+  els.noteFileLabel.setAttribute("aria-disabled", String(saving || !canAttach));
+  els.noteAttachmentList.querySelectorAll("button").forEach(button => {
+    button.disabled = saving;
+  });
+}
+
+function openTaskNoteDialog(task) {
+  if (els.noteDialog.open) return;
+  taskNoteDraft = createTaskNoteDraft(task);
+  taskNotePreviousFocus = document.activeElement;
+  taskNoteReturnTaskId = task.id;
+  els.noteHeading.textContent = `编辑备注：${task.title}`;
+  els.noteInput.value = taskNoteDraft.remarks;
+  els.noteFileInput.value = "";
+  renderTaskNoteDraft();
+  setTaskNoteSaving(false);
+  if (els.noteFileInput.disabled) {
+    setTaskNoteStatus("当前环境不可添加附件，但仍可编辑并保存备注。", "warning");
+  } else {
+    setTaskNoteStatus();
+  }
+  els.noteDialog.showModal();
+  requestAnimationFrame(() => els.noteInput.focus({ preventScroll: true }));
+}
+
+function cancelTaskNoteEdit() {
+  taskNoteDraft = null;
+  els.noteFileInput.value = "";
+  if (els.noteDialog.open) els.noteDialog.close();
+}
+
+async function saveTaskNoteEdit() {
+  const draft = taskNoteDraft;
+  if (!draft) return;
+  draft.remarks = els.noteInput.value;
+  setTaskNoteSaving(true);
+  setTaskNoteStatus("正在保存…");
+
+  try {
+    let importedAttachments = [];
+    if (draft.pendingFiles.length) {
+      if (!window.desktop?.importTaskAttachments) throw new Error("当前环境无法导入附件");
+      importedAttachments = await window.desktop.importTaskAttachments({
+        taskId: draft.taskId,
+        sourcePaths: draft.pendingFiles.map(item => item.sourcePath),
+        existingCount: draft.retainedAttachments.length
+      });
+      if (!Array.isArray(importedAttachments)) throw new Error("附件导入结果无效");
+    }
+
+    const failedRemovalIds = new Set();
+    const failedRemovalNames = [];
+    for (const attachment of draft.removedAttachments) {
+      try {
+        if (!window.desktop?.removeTaskAttachment) throw new Error("当前环境无法移除附件");
+        await window.desktop.removeTaskAttachment({
+          taskId: draft.taskId,
+          storageName: attachment.storageName
+        });
+      } catch {
+        failedRemovalIds.add(attachment.id);
+        failedRemovalNames.push(attachment.name);
+      }
+    }
+
+    const task = tasks.find(item => item.id === draft.taskId);
+    if (!task) throw new Error("任务已不存在");
+    const failedAttachments = draft.removedAttachments
+      .filter(attachment => failedRemovalIds.has(attachment.id));
+    const editResult = taskModel.applyTaskNoteEdit(task, {
+      remarks: draft.remarks,
+      attachments: [
+        ...draft.retainedAttachments,
+        ...failedAttachments,
+        ...importedAttachments
+      ]
+    });
+
+    if (editResult.changed) {
+      tasks = tasks.map(item => item.id === draft.taskId ? editResult.task : item);
+      saveTasks();
+      queueTaskRender();
+    }
+
+    taskNoteDraft = null;
+    els.noteFileInput.value = "";
+    els.noteDialog.close();
+    if (failedRemovalNames.length) {
+      showToast(`以下附件未能移除，已保留记录：${failedRemovalNames.join("、")}`, "warning");
+    }
+  } catch (error) {
+    setTaskNoteStatus(`保存失败：${error?.message || "未知错误"}`, "error");
+  } finally {
+    if (taskNoteDraft === draft) setTaskNoteSaving(false);
+  }
+}
+
+els.noteInput.addEventListener("input", () => {
+  if (taskNoteDraft) taskNoteDraft.remarks = els.noteInput.value;
+});
+
+els.noteFileInput.addEventListener("change", event => {
+  try {
+    if (!taskNoteDraft) return;
+    const errors = [];
+    let added = 0;
+    const identities = new Set([
+      ...taskNoteDraft.retainedAttachments.map(taskAttachmentIdentity),
+      ...taskNoteDraft.pendingFiles.map(item => taskAttachmentIdentity(item.file))
+    ]);
+
+    for (const file of Array.from(event.target.files || [])) {
+      if (taskNoteDraft.retainedAttachments.length + taskNoteDraft.pendingFiles.length >= ATTACHMENT_LIMIT) {
+        errors.push(`最多只能保留 ${ATTACHMENT_LIMIT} 个附件`);
+        break;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name} 超过 20MB 限制`);
+        continue;
+      }
+      const identity = taskAttachmentIdentity(file);
+      if (identities.has(identity)) {
+        errors.push(`${file.name} 已在附件列表中`);
+        continue;
+      }
+      let sourcePath = "";
+      try {
+        sourcePath = window.desktop?.getPathForFile?.(file) || "";
+      } catch {
+        sourcePath = "";
+      }
+      if (!sourcePath) {
+        errors.push(`${file.name} 无法获取本地文件路径`);
+        continue;
+      }
+      taskNoteDraft.pendingFiles.push({ file, sourcePath });
+      identities.add(identity);
+      added += 1;
+    }
+    renderTaskNoteDraft();
+    setTaskNoteStatus(
+      errors.length ? errors.join("；") : (added ? `已添加 ${added} 个待保存附件` : ""),
+      errors.length ? "warning" : ""
+    );
+  } finally {
+    event.target.value = "";
+  }
+});
+
+els.noteAttachmentList.addEventListener("click", event => {
+  if (!taskNoteDraft) return;
+  const actionElement = event.target.closest("[data-action]");
+  if (!actionElement) return;
+  const action = actionElement.dataset.action;
+  if (action === "remove-note-attachment") {
+    const index = taskNoteDraft.retainedAttachments
+      .findIndex(item => item.id === actionElement.dataset.attachmentId);
+    if (index >= 0) {
+      taskNoteDraft.removedAttachments.push(taskNoteDraft.retainedAttachments.splice(index, 1)[0]);
+    }
+  } else if (action === "restore-note-attachment") {
+    const index = taskNoteDraft.removedAttachments
+      .findIndex(item => item.id === actionElement.dataset.attachmentId);
+    if (index >= 0) {
+      taskNoteDraft.retainedAttachments.push(taskNoteDraft.removedAttachments.splice(index, 1)[0]);
+      const task = tasks.find(item => item.id === taskNoteDraft.taskId);
+      const order = new Map((task?.attachments || []).map((item, itemIndex) => [item.id, itemIndex]));
+      taskNoteDraft.retainedAttachments.sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity));
+    }
+  } else if (action === "remove-pending-attachment") {
+    const index = Number(actionElement.dataset.pendingIndex);
+    if (Number.isInteger(index)) taskNoteDraft.pendingFiles.splice(index, 1);
+  }
+  renderTaskNoteDraft();
+  setTaskNoteStatus();
+});
+
+els.noteCancel.addEventListener("click", cancelTaskNoteEdit);
+els.noteSave.addEventListener("click", saveTaskNoteEdit);
+els.noteDialog.addEventListener("cancel", event => {
+  event.preventDefault();
+  cancelTaskNoteEdit();
+});
+els.noteDialog.addEventListener("close", () => {
+  const fallback = document.querySelector(`[data-id="${CSS.escape(taskNoteReturnTaskId || "")}"] [data-action="edit-note"]`)
+    || els.title;
+  const target = taskNotePreviousFocus?.isConnected ? taskNotePreviousFocus : fallback;
+  taskNotePreviousFocus = null;
+  target.focus({ preventScroll: true });
+});
 
 function findTaskFromEvent(event) {
   const item = event.target.closest(".task-item");
@@ -647,7 +993,30 @@ els.list.addEventListener("click", async event => {
   const task = findTaskFromEvent(event);
   if (!task) return;
   const action = actionElement.dataset.action;
-  if (action === "collapse") {
+  if (action === "open-note-link") {
+    try {
+      if (!window.desktop?.openExternalUrl) throw new Error("当前环境无法打开外部链接");
+      await window.desktop.openExternalUrl(actionElement.dataset.url);
+    } catch (error) {
+      showToast(`链接打开失败：${error?.message || "未知错误"}`, "error");
+    }
+    return;
+  }
+  if (action === "open-attachment") {
+    try {
+      if (!window.desktop?.openTaskAttachment) throw new Error("当前环境无法打开附件");
+      await window.desktop.openTaskAttachment({
+        taskId: task.id,
+        storageName: actionElement.dataset.storageName
+      });
+    } catch (error) {
+      showToast(`附件打开失败：${error?.message || "未知错误"}`, "error");
+    }
+    return;
+  }
+  if (action === "edit-note") {
+    openTaskNoteDialog(task);
+  } else if (action === "collapse") {
     collapsedMap[task.id] = !collapsedMap[task.id];
     saveCollapsedMap();
     queueTaskRender();
@@ -677,6 +1046,7 @@ els.list.addEventListener("click", async event => {
       remindedSet.delete(id);
     });
     saveTasks();
+    void cleanupTaskAttachmentDirectories([...idsToDelete]);
     saveCollapsedMap();
     renderParentOptions();
     queueTaskRender();
