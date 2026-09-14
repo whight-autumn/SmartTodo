@@ -18,6 +18,7 @@
     "files": [
       "main.js",
       "main-paths.js",
+      "task-attachment-store.js",
       "preload.js",
       "renderer/**/*",
       "assets/**/*"
