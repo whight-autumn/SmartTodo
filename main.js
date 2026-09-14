@@ -2,14 +2,22 @@
    智能任务管家 · 桌面版主进程
    ========================================================== */
 
-const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage } = require("electron");
+const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { buildManagedUserDataPath } = require("./main-paths");
+const { buildManagedUserDataPath, buildTaskAttachmentPath } = require("./main-paths");
+const { createTaskAttachmentStore } = require("./task-attachment-store");
+
+const TASK_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const STORAGE_NAME_PATTERN = /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9]{1,12})?$/;
+const EXTERNAL_PROTOCOLS = new Set(["http:", "https:"]);
 
 const legacyUserDataPath = path.join(app.getPath("appData"), "smart-assistant");
 const managedUserDataPath = buildManagedUserDataPath(app.getPath("appData"));
 app.setPath("userData", managedUserDataPath);
+const taskAttachmentStore = createTaskAttachmentStore({
+  rootPath: buildTaskAttachmentPath(app.getPath("userData"))
+});
 
 let mainWindow = null;
 let tray = null;
@@ -39,7 +47,9 @@ function createMainWindow() {
 
   // 新窗口打开外链时用系统浏览器
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    require("electron").shell.openExternal(url);
+    void openExternalUrl(url).catch(error => {
+      console.error("打开外部链接失败：", error.message);
+    });
     return { action: "deny" };
   });
 
@@ -125,6 +135,76 @@ function showMainWindow() {
   mainWindow.webContents.focus();
 }
 
+function validateExactPayload(value, keys, operationName) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${operationName}参数无效`);
+  }
+  const payloadKeys = Object.keys(value);
+  if (payloadKeys.length !== keys.length || keys.some(key => !Object.hasOwn(value, key))) {
+    throw new Error(`${operationName}参数无效`);
+  }
+  return value;
+}
+
+function validateTaskId(value) {
+  if (typeof value !== "string" || !TASK_ID_PATTERN.test(value)) {
+    throw new Error("任务 ID 不安全");
+  }
+  return value;
+}
+
+function validateStorageName(value) {
+  if (typeof value !== "string" || !STORAGE_NAME_PATTERN.test(value)) {
+    throw new Error("附件存储名称不安全");
+  }
+  return value;
+}
+
+function validateAttachmentPayload(value, operationName) {
+  const payload = validateExactPayload(value, ["taskId", "storageName"], operationName);
+  return {
+    taskId: validateTaskId(payload.taskId),
+    storageName: validateStorageName(payload.storageName)
+  };
+}
+
+function validateImportPayload(value) {
+  const payload = validateExactPayload(value, ["taskId", "sourcePaths", "existingCount"], "导入附件");
+  const sourcePaths = payload.sourcePaths;
+  if (!Array.isArray(sourcePaths) || sourcePaths.some(sourcePath => (
+    typeof sourcePath !== "string" || !path.isAbsolute(sourcePath)
+  ))) {
+    throw new Error("附件源路径无效");
+  }
+  if (!Number.isInteger(payload.existingCount) || payload.existingCount < 0) {
+    throw new Error("现有附件数量无效");
+  }
+  return {
+    taskId: validateTaskId(payload.taskId),
+    sourcePaths: [...sourcePaths],
+    existingCount: payload.existingCount
+  };
+}
+
+function validateTaskIds(value) {
+  if (!Array.isArray(value)) {
+    throw new Error("任务 ID 列表无效");
+  }
+  return value.map(validateTaskId);
+}
+
+async function openExternalUrl(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("外部链接无效");
+  }
+  const url = new URL(String(value));
+  if (!EXTERNAL_PROTOCOLS.has(url.protocol)) {
+    throw new Error("仅支持打开 HTTP/HTTPS 链接");
+  }
+  await shell.openExternal(url.href);
+  return true;
+}
+
 /* ---------- IPC：原生通知 ---------- */
 ipcMain.handle("notify", (event, { title, body }) => {
   try {
@@ -145,6 +225,31 @@ ipcMain.handle("notify", (event, { title, body }) => {
 
 ipcMain.handle("get-app-version", () => app.getVersion());
 ipcMain.handle("get-data-path", () => managedUserDataPath);
+ipcMain.handle("task-attachment:import", (_event, payload) => (
+  taskAttachmentStore.importFiles(validateImportPayload(payload))
+));
+ipcMain.handle("task-attachment:remove", async (_event, payload) => {
+  await taskAttachmentStore.removeAttachment(validateAttachmentPayload(payload, "删除附件"));
+  return true;
+});
+ipcMain.handle("task-attachment:remove-task-directories", async (_event, taskIds) => {
+  await Promise.all(validateTaskIds(taskIds).map(taskId => taskAttachmentStore.removeTaskAttachments(taskId)));
+  return true;
+});
+ipcMain.handle("task-attachment:get-url", (_event, payload) => (
+  taskAttachmentStore.getAttachmentUrl(validateAttachmentPayload(payload, "获取附件地址"))
+));
+ipcMain.handle("task-attachment:open", async (_event, payload) => {
+  const attachmentPath = await taskAttachmentStore.resolveAttachmentPath(
+    validateAttachmentPayload(payload, "打开附件")
+  );
+  const errorMessage = await shell.openPath(attachmentPath);
+  if (errorMessage) {
+    throw new Error(`打开附件失败：${errorMessage}`);
+  }
+  return true;
+});
+ipcMain.handle("task-attachment:open-external", (_event, value) => openExternalUrl(value));
 
 /* ---------- 应用生命周期 ---------- */
 app.whenReady().then(() => {

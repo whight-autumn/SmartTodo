@@ -4,4 +4,8 @@ function buildManagedUserDataPath(appDataPath) {
   return path.join(appDataPath, "智能任务管家", "运行数据");
 }
 
-module.exports = { buildManagedUserDataPath };
+function buildTaskAttachmentPath(managedUserDataPath) {
+  return path.join(managedUserDataPath, "task-attachments");
+}
+
+module.exports = { buildManagedUserDataPath, buildTaskAttachmentPath };
