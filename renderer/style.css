@@ -1358,10 +1358,22 @@ input[type="datetime-local"] {
   opacity: 0.62;
 }
 
-.task-note-attachment-entry .task-file-icon {
+.task-note-attachment-entry.is-unavailable {
+  border-style: dashed;
+}
+
+.task-note-attachment-entry .task-file-icon,
+.task-note-attachment-entry .task-attachment-thumb {
   width: 38px;
   height: 38px;
+}
+
+.task-note-attachment-entry .task-file-icon {
   font-size: 18px;
+}
+
+.task-note-attachment-entry.is-unavailable .task-attachment-status {
+  display: block;
 }
 
 .task-note-attachment-detail {

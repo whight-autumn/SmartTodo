@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Electron-31-blue?logo=electron&logoColor=white" alt="Electron 31">
   <img src="https://img.shields.io/badge/electron--builder-24-green?logo=electronbuilder&logoColor=white" alt="electron-builder">
   <img src="https://img.shields.io/badge/JavaScript-Vanilla%20JS-F7DF1E?logo=javascript&logoColor=black" alt="Vanilla JS">
-  <img src="https://img.shields.io/badge/Node--test-50%20tests-brightgreen" alt="node:test 50 tests">
+  <img src="https://img.shields.io/badge/Node--test-52%20tests-brightgreen" alt="node:test 52 tests">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0A7EA4" alt="Windows x64">
   <img src="https://img.shields.io/badge/License-MIT-blueviolet" alt="MIT">
 </p>
@@ -26,7 +26,7 @@
 ## ✨ 功能特性
 
 - **任务管理**：主任务 / 子任务、提醒时间、高中低优先级、置顶、折叠展开、一键完成与撤销
-- **备注与附件**：已创建任务可反复编辑备注，并可添加图片或普通文件；每个任务最多 **10 个附件**，单个不超过 **20MB**
+- **备注与附件**：已创建任务可反复编辑备注，并可添加图片或普通文件；编辑器显示图片惰性缩略图和文件 MIME/类型，每个任务最多 **10 个附件**，单个不超过 **20MB**
 - **安全链接**：备注中的 HTTP/HTTPS 地址可点击并交由系统默认浏览器打开；其他协议保持普通文本，程序不会自动访问网址
 - **重点筛选**：“需关注”自动汇集置顶、高优先级、已逾期及未来 24 小时内提醒的任务，并保留必要的父任务上下文
 - **智能归档**：完成任务自动归档，超过 **15 天**自动清理；创建、完成与最近备注编辑时间独立留痕，编辑备注不会改变 `createdAt` / `completedAt`
@@ -83,7 +83,7 @@ npm start
 │   ├── ai-provider.js    # OpenAI 兼容协议适配（SSE 流式）
 │   ├── ui-appearance.js  # 亮度调节与时间戳格式化
 │   └── note-utils.js     # 备注转义与安全 HTTP/HTTPS 链接渲染
-├── tests/                # 50 项 node:test 用例 + Electron 界面冒烟测试
+├── tests/                # 52 项 node:test 用例 + Electron 界面冒烟测试
 ├── assets/               # 应用图标（png / ico）
 ├── docs/文件说明.md       # 逐份文件功能说明 📖
 └── release/V1.0.6/       # 当前发布版 exe 与版本说明
@@ -101,7 +101,7 @@ npm test
 npm run test:ui
 ```
 
-当前 `npm test` 共收集 50 项测试，覆盖备注编辑、时间戳兼容、附件存储与 IPC 安全边界等行为；若运行环境不支持创建符号链接，对应安全用例会自动跳过，其余用例仍须零失败。
+当前 `npm test` 共收集 52 项测试，覆盖备注编辑、时间戳兼容、附件存储与 IPC 安全边界等行为；若运行环境不支持创建符号链接，对应源文件和受管文件安全用例会清晰跳过，缺失文件与非普通文件仍有确定性覆盖，其余用例须零失败。
 
 ## 📦 构建与发布
 
@@ -134,7 +134,9 @@ npm run dist
 - 全程本地运行，无任何遥测与联网上报
 - 渲染进程关闭 `nodeIntegration`，仅通过 `preload` 暴露最小化能力
 - API Key 仅存于本机 `localStorage`，错误提示不回显 Key
-- 任务附件使用随机磁盘文件名并由主进程校验路径、数量与大小；任务数据仅保存必要元数据
+- 任务附件使用随机磁盘文件名；主进程按受管目录实际状态独立执行 10 个数量限制，不信任界面传入计数，并通过 `lstat` / 真实路径检查拒绝符号链接、非普通文件与目录逃逸
+- 卡片和编辑器都会检查附件是否仍为可用普通文件；缺失或不安全时明确显示“文件已不存在”
+- 导入或删除附件失败时编辑弹窗保持打开、控件恢复可用；已成功的文件操作与任务元数据同步保存，失败删除对应的元数据继续保留
 - 备注内容按纯文本转义，仅允许用户主动通过系统浏览器打开经过校验的 HTTP/HTTPS 链接
 
 ## 📄 License

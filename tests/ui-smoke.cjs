@@ -256,6 +256,7 @@ app.whenReady().then(async () => {
           removals: [],
           openedUrls: [],
           cleanupCalls: [],
+          unavailableStorageNames: ["file_attachment.pdf"],
           selectedFiles: {},
           nextAttachmentId: 1,
           pendingImport: null
@@ -319,6 +320,9 @@ app.whenReady().then(async () => {
             return Promise.resolve(true);
           },
           getTaskAttachmentUrl(payload) {
+            if (state.unavailableStorageNames.includes(payload.storageName)) {
+              return Promise.reject(new Error("mock missing attachment"));
+            }
             return Promise.resolve("file:///managed/" + payload.storageName);
           },
           openTaskAttachment() {
@@ -366,11 +370,24 @@ app.whenReady().then(async () => {
         const attachmentCount = savedCard.querySelectorAll(".task-attachment").length;
         const image = savedCard.querySelector(".task-attachment-thumb");
         const imageUnavailable = image.closest(".task-attachment").classList.contains("is-unavailable");
+        const unavailableStatuses = [...savedCard.querySelectorAll(".task-attachment.is-unavailable .task-attachment-status")]
+          .map(item => item.textContent.trim());
 
         window.desktop = window.__desktopApi;
         savedLink.click();
         await frames();
-        savedCard.querySelector('[data-action="edit-note"]').click();
+        document.querySelector('[data-id="done"] [data-action="edit-note"]').click();
+        await frames();
+        const editorEntries = [...document.querySelectorAll("#task-note-attachment-list .task-note-attachment-entry")];
+        const editorDialogOpen = document.getElementById("task-note-dialog").open;
+        const editorImage = document.getElementById("task-note-attachment-list").getElementsByTagName("img")[0] || null;
+        const editorImageMarkup = editorImage?.outerHTML || "";
+        const editorFileText = editorEntries.find(item => item.textContent.includes("需求说明.pdf"))?.innerText || "";
+        editorImage?.dispatchEvent(new Event("error"));
+        const editorImageUnavailable = editorImage?.closest(".task-note-attachment-entry")
+          ?.classList.contains("is-unavailable") || false;
+        const editorMissingStatuses = [...document.querySelectorAll("#task-note-attachment-list .is-unavailable .task-attachment-status")]
+          .map(item => item.textContent.trim());
         document.getElementById("task-note-input").value = "这次修改应被取消";
         document.querySelector('[data-action="remove-note-attachment"]').click();
         document.getElementById("task-note-cancel").click();
@@ -387,8 +404,17 @@ app.whenReady().then(async () => {
         const afterFailedRemovalTask = JSON.parse(localStorage.getItem("smart_tasks"))
           .find(task => task.id === "done");
         const failedRemovalDialogOpen = document.getElementById("task-note-dialog").open;
+        const failedRemovalStatus = document.getElementById("task-note-status").textContent;
+        const failedRemovalControls = {
+          textareaDisabled: document.getElementById("task-note-input").disabled,
+          pickerDisabled: document.getElementById("task-note-file-button").disabled,
+          removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
+            .some(button => button.disabled)
+        };
         const failedRemovalCalls = window.__desktopMock.removals.slice(failedRemovalStart);
         window.__desktopMock.failRemovalStorageNames = [];
+        document.getElementById("task-note-cancel").click();
+        await frames();
 
         return {
           originalRemarks: originalTask.remarks,
@@ -409,10 +435,18 @@ app.whenReady().then(async () => {
           afterCancelAttachments: afterCancelTask.attachments,
           afterFailedRemovalTask,
           failedRemovalDialogOpen,
+          failedRemovalStatus,
+          failedRemovalControls,
           failedRemovalCalls,
           attachmentCount,
           imageHasSource: image.hasAttribute("src"),
-          imageUnavailable
+          imageUnavailable,
+          unavailableStatuses,
+          editorDialogOpen,
+          editorImageMarkup,
+          editorImageUnavailable,
+          editorFileText,
+          editorMissingStatuses
         };
       })()
     `);
@@ -516,8 +550,17 @@ app.whenReady().then(async () => {
         const mixedRemoval = {
           task: readTask("boundary"),
           dialogOpen: document.getElementById("task-note-dialog").open,
+          status: document.getElementById("task-note-status").textContent,
+          controls: {
+            textareaDisabled: document.getElementById("task-note-input").disabled,
+            pickerDisabled: document.getElementById("task-note-file-button").disabled,
+            removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
+              .some(button => button.disabled)
+          },
           removals: state.removals.slice(mixedRemovalStart)
         };
+        document.getElementById("task-note-cancel").click();
+        await frames();
 
         state.importMode = "pending";
         state.failRemovalStorageNames = [];
@@ -616,9 +659,21 @@ app.whenReady().then(async () => {
     assert.equal(noteResult.attachmentCount, 2);
     assert.equal(noteResult.imageHasSource, false);
     assert.equal(noteResult.imageUnavailable, true);
+    assert.deepEqual(noteResult.unavailableStatuses, ["文件已不存在", "文件已不存在"]);
+    assert.equal(noteResult.editorDialogOpen, true);
+    assert.match(noteResult.editorImageMarkup, /loading="lazy"/);
+    assert.equal(noteResult.editorImageUnavailable, true);
+    assert.match(noteResult.editorFileText, /application\/pdf/);
+    assert.deepEqual(noteResult.editorMissingStatuses, ["文件已不存在", "文件已不存在"]);
     assert.deepEqual(noteResult.afterFailedRemovalTask.attachments, noteResult.afterCancelAttachments);
     assert.equal(noteResult.afterFailedRemovalTask.updatedAt, noteResult.afterCancelUpdatedAt);
-    assert.equal(noteResult.failedRemovalDialogOpen, false);
+    assert.equal(noteResult.failedRemovalDialogOpen, true);
+    assert.match(noteResult.failedRemovalStatus, /界面截图\.png.*移除失败/);
+    assert.deepEqual(noteResult.failedRemovalControls, {
+      textareaDisabled: false,
+      pickerDisabled: false,
+      removeDisabled: false
+    });
     assert.deepEqual(noteResult.failedRemovalCalls, [{
       taskId: "done",
       storageName: "image_attachment.png"
@@ -640,7 +695,13 @@ app.whenReady().then(async () => {
     assert.equal(highRiskResult.boundaryLimit.dialogOpen, true);
     assert.match(highRiskResult.boundaryLimit.status, /已有 10 个附件.*先保存移除.*重新打开/);
     assert.deepEqual(highRiskResult.boundaryLimit.imports, []);
-    assert.equal(highRiskResult.mixedRemoval.dialogOpen, false);
+    assert.equal(highRiskResult.mixedRemoval.dialogOpen, true);
+    assert.match(highRiskResult.mixedRemoval.status, /边界附件7\.txt.*移除失败/);
+    assert.deepEqual(highRiskResult.mixedRemoval.controls, {
+      textareaDisabled: false,
+      pickerDisabled: false,
+      removeDisabled: false
+    });
     assert.deepEqual(highRiskResult.mixedRemoval.removals, [
       { taskId: "boundary", storageName: "boundary_2.txt" },
       { taskId: "boundary", storageName: "boundary_7.txt" }

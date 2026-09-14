@@ -475,7 +475,7 @@ function renderTaskAttachments(task) {
     const name = escapeHTML(attachment.name);
     const isImage = /^image\//i.test(attachment.mimeType);
     const preview = isImage
-      ? `<img class="task-attachment-thumb" loading="lazy" alt="" data-task-id="${taskId}" data-storage-name="${storageName}">`
+      ? '<img class="task-attachment-thumb" loading="lazy" alt="">'
       : "<span class=\"task-file-icon\" aria-hidden=\"true\">📄</span>";
     return `
       <button type="button" class="task-attachment" data-action="open-attachment"
@@ -483,8 +483,8 @@ function renderTaskAttachments(task) {
         ${preview}
         <span class="task-attachment-copy">
           <span class="task-attachment-name">${name}</span>
-          <span class="task-attachment-meta">${formatBytes(attachment.size)}</span>
-          <span class="task-attachment-status">预览不可用</span>
+          <span class="task-attachment-meta">${escapeHTML(formatAttachmentType(attachment))} · ${formatBytes(attachment.size)}</span>
+          <span class="task-attachment-status">文件已不存在</span>
         </span>
       </button>
     `;
@@ -492,21 +492,34 @@ function renderTaskAttachments(task) {
   return `<div class="task-attachment-grid">${items}</div>`;
 }
 
-function markAttachmentUnavailable(image) {
-  const attachment = image.closest(".task-attachment");
-  if (attachment) attachment.classList.add("is-unavailable");
+function formatAttachmentType(attachment) {
+  const mimeType = String(attachment?.mimeType || "").trim();
+  if (mimeType && mimeType !== "application/octet-stream") return mimeType;
+  const extension = String(attachment?.name || "").match(/\.([a-zA-Z0-9]{1,12})$/)?.[1];
+  return extension ? `${extension.toUpperCase()} 文件` : "普通文件";
 }
 
-function hydrateTaskAttachmentPreviews() {
-  els.list.querySelectorAll(".task-attachment-thumb:not([data-preview-requested])").forEach(image => {
-    image.dataset.previewRequested = "true";
+function markAttachmentUnavailable(attachment) {
+  if (!attachment?.isConnected) return;
+  attachment.classList.add("is-unavailable");
+  attachment.querySelector(".task-attachment-thumb")?.removeAttribute("src");
+}
+
+function hydrateManagedAttachments(container) {
+  container.querySelectorAll("[data-task-id][data-storage-name]:not([data-availability-requested])")
+    .forEach(attachment => {
+    attachment.dataset.availabilityRequested = "true";
+    const image = attachment.querySelector(".task-attachment-thumb");
+    if (image) {
+      image.addEventListener("error", () => markAttachmentUnavailable(attachment), { once: true });
+    }
     if (!window.desktop?.getTaskAttachmentUrl) {
-      markAttachmentUnavailable(image);
+      markAttachmentUnavailable(attachment);
       return;
     }
     window.desktop.getTaskAttachmentUrl({
-      taskId: image.dataset.taskId,
-      storageName: image.dataset.storageName
+      taskId: attachment.dataset.taskId,
+      storageName: attachment.dataset.storageName
     }).then(url => {
       let managedUrl;
       try {
@@ -515,11 +528,15 @@ function hydrateTaskAttachmentPreviews() {
         throw new Error("附件地址无效");
       }
       if (managedUrl.protocol !== "file:") throw new Error("附件地址无效");
-      if (image.isConnected) image.src = managedUrl.href;
+      if (image?.isConnected) image.src = managedUrl.href;
     }).catch(() => {
-      if (image.isConnected) markAttachmentUnavailable(image);
+      markAttachmentUnavailable(attachment);
     });
   });
+}
+
+function hydrateTaskAttachmentPreviews() {
+  hydrateManagedAttachments(els.list);
 }
 
 
@@ -698,47 +715,64 @@ function taskAttachmentIdentity(value) {
   return `${String(value?.name || "").trim().toLocaleLowerCase()}\u0000${Number(value?.size) || 0}`;
 }
 
+function renderTaskNoteAttachmentPreview(attachment) {
+  return /^image\//i.test(attachment.mimeType)
+    ? '<img class="task-attachment-thumb" loading="lazy" alt="">'
+    : '<span class="task-file-icon" aria-hidden="true">📎</span>';
+}
+
 function renderTaskNoteDraft() {
   if (!taskNoteDraft) return;
-  const retainedItems = taskNoteDraft.retainedAttachments.map(attachment => `
-    <li class="task-note-attachment-entry">
-      <span class="task-file-icon" aria-hidden="true">📎</span>
+  const retainedItems = taskNoteDraft.retainedAttachments.map(attachment => {
+    const taskId = escapeHTML(taskNoteDraft.taskId);
+    const storageName = escapeHTML(attachment.storageName);
+    return `
+    <li class="task-note-attachment-entry" data-task-id="${taskId}" data-storage-name="${storageName}">
+      ${renderTaskNoteAttachmentPreview(attachment)}
       <span class="task-note-attachment-detail">
         <strong>${escapeHTML(attachment.name)}</strong>
-        <span>${formatBytes(attachment.size)} · 已保存</span>
+        <span>${escapeHTML(formatAttachmentType(attachment))} · ${formatBytes(attachment.size)} · 已保存</span>
+        <span class="task-attachment-status">文件已不存在</span>
       </span>
       <button type="button" class="task-note-attachment-action" data-action="remove-note-attachment"
         data-attachment-id="${escapeHTML(attachment.id)}">移除</button>
     </li>
-  `);
+  `;
+  });
   const pendingItems = taskNoteDraft.pendingFiles.map((pending, index) => `
     <li class="task-note-attachment-entry is-pending">
       <span class="task-file-icon" aria-hidden="true">＋</span>
       <span class="task-note-attachment-detail">
         <strong>${escapeHTML(pending.file.name)}</strong>
-        <span>${formatBytes(pending.file.size)} · 待保存</span>
+        <span>${escapeHTML(formatAttachmentType(pending.file))} · ${formatBytes(pending.file.size)} · 待保存</span>
       </span>
       <button type="button" class="task-note-attachment-action" data-action="remove-pending-attachment"
         data-pending-index="${index}">移除</button>
     </li>
   `);
-  const removedItems = taskNoteDraft.removedAttachments.map(attachment => `
-    <li class="task-note-attachment-entry is-removing">
-      <span class="task-file-icon" aria-hidden="true">−</span>
+  const removedItems = taskNoteDraft.removedAttachments.map(attachment => {
+    const taskId = escapeHTML(taskNoteDraft.taskId);
+    const storageName = escapeHTML(attachment.storageName);
+    return `
+    <li class="task-note-attachment-entry is-removing" data-task-id="${taskId}" data-storage-name="${storageName}">
+      ${renderTaskNoteAttachmentPreview(attachment)}
       <span class="task-note-attachment-detail">
         <strong>${escapeHTML(attachment.name)}</strong>
-        <span>${formatBytes(attachment.size)} · 保存后移除</span>
+        <span>${escapeHTML(formatAttachmentType(attachment))} · ${formatBytes(attachment.size)} · 保存后移除</span>
+        <span class="task-attachment-status">文件已不存在</span>
       </span>
       <button type="button" class="task-note-attachment-action" data-action="restore-note-attachment"
         data-attachment-id="${escapeHTML(attachment.id)}">撤销</button>
     </li>
-  `);
+  `;
+  });
   const items = [...retainedItems, ...pendingItems, ...removedItems];
   els.noteAttachmentList.innerHTML = items.length
     ? items.join("")
     : '<li class="task-note-empty">暂无附件</li>';
   const total = taskNoteDraft.originalAttachments.length + taskNoteDraft.pendingFiles.length;
   els.noteLimit.textContent = `${total} / ${ATTACHMENT_LIMIT} 个，每个不超过 20MB`;
+  hydrateManagedAttachments(els.noteAttachmentList);
 }
 
 function setTaskNoteSaving(saving) {
@@ -837,13 +871,20 @@ async function saveTaskNoteEdit() {
       queueTaskRender();
     }
 
+    if (failedRemovalNames.length) {
+      const synchronizedTask = editResult.changed ? editResult.task : task;
+      taskNoteDraft = createTaskNoteDraft(synchronizedTask);
+      els.noteInput.value = taskNoteDraft.remarks;
+      els.noteFileInput.value = "";
+      renderTaskNoteDraft();
+      setTaskNoteSaving(false);
+      setTaskNoteStatus(`${failedRemovalNames.join("、")} 移除失败，记录已保留，请重试`, "error");
+      return;
+    }
     setTaskNoteSaving(false);
     taskNoteDraft = null;
     els.noteFileInput.value = "";
     els.noteDialog.close();
-    if (failedRemovalNames.length) {
-      showToast(`以下附件未能移除，已保留记录：${failedRemovalNames.join("、")}`, "warning");
-    }
   } catch (error) {
     setTaskNoteStatus(`保存失败：${error?.message || "未知错误"}`, "error");
   } finally {

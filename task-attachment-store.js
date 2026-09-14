@@ -29,6 +29,7 @@ function createTaskAttachmentStore({ rootPath } = {}) {
 
   const resolvedRoot = path.resolve(rootPath);
   const rootPrefix = resolvedRoot.endsWith(path.sep) ? resolvedRoot : `${resolvedRoot}${path.sep}`;
+  const taskImportQueues = new Map();
 
   function resolveContainedPath(...segments) {
     const resolvedPath = path.resolve(resolvedRoot, ...segments);
@@ -95,16 +96,17 @@ function createTaskAttachmentStore({ rootPath } = {}) {
     }
   }
 
-  async function importFiles({ taskId: taskIdValue, sourcePaths, existingCount = 0, now } = {}) {
-    const taskId = validateTaskId(taskIdValue);
+  function queueTaskImport(taskId, operation) {
+    const previous = taskImportQueues.get(taskId) || Promise.resolve();
+    const current = previous.catch(() => {}).then(operation);
+    taskImportQueues.set(taskId, current);
+    return current.finally(() => {
+      if (taskImportQueues.get(taskId) === current) taskImportQueues.delete(taskId);
+    });
+  }
+
+  async function importFilesForTask({ taskId, sourcePaths, now }) {
     const selectedPaths = Array.isArray(sourcePaths) ? sourcePaths : [];
-    const normalizedExistingCount = Number(existingCount);
-    if (!Number.isInteger(normalizedExistingCount) || normalizedExistingCount < 0) {
-      throw new AttachmentStoreError("现有附件数量无效");
-    }
-    if (normalizedExistingCount + selectedPaths.length > MAX_TASK_ATTACHMENTS) {
-      throw new AttachmentStoreError("每个任务最多只能有 10 个附件");
-    }
     if (selectedPaths.length === 0) return [];
 
     const addedAt = now === undefined ? Date.now() : Number(now);
@@ -118,6 +120,10 @@ function createTaskAttachmentStore({ rootPath } = {}) {
 
     try {
       taskDirectoryCreated = await ensureTaskDirectory(taskPath);
+      const storedEntries = await fs.promises.readdir(taskPath);
+      if (storedEntries.length + selectedPaths.length > MAX_TASK_ATTACHMENTS) {
+        throw new AttachmentStoreError("每个任务最多只能有 10 个附件");
+      }
       const attachments = [];
 
       for (const selectedPath of selectedPaths) {
@@ -168,9 +174,41 @@ function createTaskAttachmentStore({ rootPath } = {}) {
     }
   }
 
+  async function importFiles({ taskId: taskIdValue, sourcePaths, now } = {}) {
+    const taskId = validateTaskId(taskIdValue);
+    return queueTaskImport(taskId, () => importFilesForTask({ taskId, sourcePaths, now }));
+  }
+
   async function resolveAttachmentPath(value, storageNameValue) {
     const { taskId, storageName } = getAttachmentArguments(value, storageNameValue);
-    return resolveContainedPath(taskId, storageName);
+    const taskPath = resolveContainedPath(taskId);
+    const attachmentPath = resolveContainedPath(taskId, storageName);
+    let taskStats;
+    let attachmentStats;
+    try {
+      [taskStats, attachmentStats] = await Promise.all([
+        fs.promises.lstat(taskPath),
+        fs.promises.lstat(attachmentPath)
+      ]);
+    } catch (error) {
+      if (error.code === "ENOENT") throw new AttachmentStoreError("附件文件已不存在");
+      throw error;
+    }
+    if (taskStats.isSymbolicLink()) throw new AttachmentStoreError("任务附件目录不能是符号链接");
+    if (!taskStats.isDirectory()) throw new AttachmentStoreError("任务附件目录不安全");
+    if (attachmentStats.isSymbolicLink()) throw new AttachmentStoreError("附件文件不能是符号链接");
+    if (!attachmentStats.isFile()) throw new AttachmentStoreError("附件必须是普通文件");
+
+    const [realRoot, realAttachmentPath] = await Promise.all([
+      fs.promises.realpath(resolvedRoot),
+      fs.promises.realpath(attachmentPath)
+    ]);
+    const relativePath = path.relative(realRoot, realAttachmentPath);
+    if (relativePath === "" || relativePath === ".." || relativePath.startsWith(`..${path.sep}`)
+        || path.isAbsolute(relativePath)) {
+      throw new AttachmentStoreError("附件路径超出存储目录");
+    }
+    return realAttachmentPath;
   }
 
   async function getAttachmentUrl(value, storageNameValue) {
@@ -179,7 +217,13 @@ function createTaskAttachmentStore({ rootPath } = {}) {
   }
 
   async function removeAttachment(value, storageNameValue) {
-    const resolvedPath = await resolveAttachmentPath(value, storageNameValue);
+    let resolvedPath;
+    try {
+      resolvedPath = await resolveAttachmentPath(value, storageNameValue);
+    } catch (error) {
+      if (error instanceof AttachmentStoreError && error.message === "附件文件已不存在") return;
+      throw error;
+    }
     await fs.promises.rm(resolvedPath, { force: true });
   }
 

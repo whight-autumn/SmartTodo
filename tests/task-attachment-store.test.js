@@ -93,17 +93,26 @@ test("rejects a file one byte above the 20 MB limit", async t => {
   assert.equal(fs.existsSync(path.join(rootPath, "task_large")), false);
 });
 
-test("rejects imports that would exceed 10 total attachments", async t => {
+test("repeated imports cannot exceed 10 attachments when existingCount stays falsely low", async t => {
   const { rootPath, sourcePath: sourceDirectory } = createTestPaths(t);
   const sourcePath = path.join(sourceDirectory, "extra.txt");
   fs.writeFileSync(sourcePath, "extra");
   const store = createTaskAttachmentStore({ rootPath });
 
+  for (let index = 0; index < 10; index += 1) {
+    await store.importFiles({
+      taskId: "task_full",
+      sourcePaths: [sourcePath],
+      existingCount: 0,
+      now: 2000 + index
+    });
+  }
+
   await assert.rejects(
-    store.importFiles({ taskId: "task_full", sourcePaths: [sourcePath], existingCount: 10, now: 2000 }),
+    store.importFiles({ taskId: "task_full", sourcePaths: [sourcePath], existingCount: 0, now: 3000 }),
     /10/
   );
-  assert.equal(fs.existsSync(path.join(rootPath, "task_full")), false);
+  assert.equal(fs.readdirSync(path.join(rootPath, "task_full")).length, 10);
 });
 
 test("rejects symbolic-link sources where symbolic links are supported", async t => {
@@ -166,6 +175,54 @@ test("rejects unsafe storage names", async t => {
     );
   }
   assert.equal(fs.existsSync(rootPath), false);
+});
+
+test("rejects missing and non-regular managed attachment entries", async t => {
+  const { rootPath } = createTestPaths(t);
+  const taskPath = path.join(rootPath, "task_entries");
+  fs.mkdirSync(path.join(taskPath, "folder.bin"), { recursive: true });
+  const store = createTaskAttachmentStore({ rootPath });
+
+  await assert.rejects(
+    store.resolveAttachmentPath({ taskId: "task_entries", storageName: "missing.txt" }),
+    /不存在/
+  );
+  await assert.rejects(
+    store.resolveAttachmentPath({ taskId: "task_entries", storageName: "folder.bin" }),
+    /普通文件/
+  );
+  await assert.rejects(
+    store.getAttachmentUrl({ taskId: "task_entries", storageName: "folder.bin" }),
+    /普通文件/
+  );
+});
+
+test("rejects managed attachment symlinks where symbolic links are supported", async t => {
+  const { rootPath } = createTestPaths(t);
+  const taskPath = path.join(rootPath, "task_managed_link");
+  const targetPath = path.join(taskPath, "target.txt");
+  const linkPath = path.join(taskPath, "link.txt");
+  fs.mkdirSync(taskPath, { recursive: true });
+  fs.writeFileSync(targetPath, "target");
+  try {
+    fs.symlinkSync(targetPath, linkPath, "file");
+  } catch (error) {
+    if (["EPERM", "EACCES", "ENOTSUP"].includes(error.code)) {
+      t.skip("managed attachment symlinks are not supported in this environment");
+      return;
+    }
+    throw error;
+  }
+  const store = createTaskAttachmentStore({ rootPath });
+
+  await assert.rejects(
+    store.resolveAttachmentPath({ taskId: "task_managed_link", storageName: "link.txt" }),
+    /符号链接/
+  );
+  await assert.rejects(
+    store.getAttachmentUrl({ taskId: "task_managed_link", storageName: "link.txt" }),
+    /符号链接/
+  );
 });
 
 test("normalizes safe extensions and falls back for unknown MIME types", async t => {
