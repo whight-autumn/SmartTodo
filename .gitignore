@@ -20,3 +20,6 @@ win-unpacked/
 .idea/
 .DS_Store
 Thumbs.db
+
+# 隔离功能开发工作树
+.worktrees/
