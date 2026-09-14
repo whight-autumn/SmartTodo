@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智能任务管家 V1.0.4 · AI 助手 · by 萤火</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 背景装饰 -->
+<div class="bg-blobs" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<!-- Toast 通知 -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- 顶部导航 -->
+  <header class="app-header">
+    <div class="brand">
+      <img class="brand-icon" src="../assets/icon.png" alt="" width="44" height="44">
+    <div class="brand-text-wrap">
+      <div class="brand-main-line">
+        <span class="brand-name">智能任务管家</span>
+        <span id="app-version" class="brand-version">V1.0.4</span>
+      </div>
+      <span class="brand-owner">by 萤火</span>
+    </div>
+  </div>
+  <div class="header-controls">
+    <label class="brightness-control" title="拖动调节界面亮度，双击恢复 100%">
+      <span class="brightness-icon" aria-hidden="true">◐</span>
+      <input id="brightness-slider" type="range" min="75" max="125" step="5" value="100"
+        aria-label="界面亮度" aria-valuetext="100%">
+      <output id="brightness-value" for="brightness-slider">100%</output>
+    </label>
+    <button id="theme-toggle" class="icon-btn" title="切换主题">🌙</button>
+  </div>
+</header>
+
+<!-- 主内容 -->
+<main class="app-main">
+
+  <!-- 任务待办面板 -->
+  <section class="panel todo-panel">
+    <div class="panel-header">
+      <h2>📋 任务待办</h2>
+      <span id="task-summary" class="summary-badge">0</span>
+    </div>
+
+    <form id="task-form" class="task-form" autocomplete="off">
+      <input id="task-title" class="input" type="text" placeholder="要做什么？" maxlength="100" required>
+      <input id="task-desc" class="input" type="text" placeholder="备注（可选）" maxlength="200">
+      <div class="form-row">
+        <label class="time-label"><span>提醒</span>
+          <input id="task-time" class="input" type="datetime-local">
+        </label>
+        <label class="priority-label"><span>优先级</span>
+          <select id="task-priority" class="input task-select">
+            <option value="low">低</option>
+            <option value="medium" selected>中</option>
+            <option value="high">高</option>
+          </select>
+        </label>
+        <label class="type-label"><span>类型</span>
+          <select id="task-type" class="input task-select">
+            <option value="main" selected>主任务</option>
+            <option value="sub">子任务</option>
+          </select>
+        </label>
+      </div>
+      <div id="parent-task-row" class="form-row hidden">
+        <label class="parent-label"><span>选择主任务</span>
+          <select id="task-parent" class="input task-select">
+            <option value="">— 请选择一个主任务 —</option>
+          </select>
+        </label>
+      </div>
+      <p id="task-form-tip" class="task-form-tip">默认添加主任务；也可点主任务卡片上的「➕ 子任务」快速挂载。</p>
+      <button class="btn btn-primary submit-btn" type="submit">＋ 添加</button>
+    </form>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all">当前任务</button>
+      <button class="filter-btn" data-filter="active">进行中</button>
+      <button class="filter-btn" data-filter="completed">已完成</button>
+    </div>
+
+    <ul id="task-list" class="task-list"></ul>
+    <button id="task-load-more" class="btn task-load-more" type="button" hidden>显示更多任务</button>
+    <div id="empty-tip" class="empty-tip">
+      <p class="empty-icon">📝</p>
+      <p>暂无任务，添加一个吧！</p>
+    </div>
+  </section>
+
+  <!-- AI 助手面板 -->
+  <section class="panel ai-panel">
+      <div class="panel-header">
+      <h2>🤖 AI 智能助手</h2>
+      <div class="ai-actions">
+        <button id="ai-new-session-btn" class="icon-btn" title="新建会话">🆕</button>
+        <button id="ai-clear-btn" class="icon-btn" title="清理历史会话">🧹</button>
+        <button id="ai-settings-btn" class="icon-btn" title="API 设置">⚙️</button>
+        <button id="ai-collapse-btn" class="icon-btn" title="收起助手" aria-expanded="true">⌃</button>
+      </div>
+    </div>
+
+    <div id="chat-box" class="chat-box"></div>
+
+    <div id="chat-attachments" class="chat-attachments hidden"></div>
+
+    <div class="chat-footer">
+      <textarea id="user-input" class="chat-input" rows="1" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+      <label class="icon-btn upload-btn" title="上传文件">
+        <input id="file-input" type="file" multiple>
+        📎
+      </label>
+      <button id="send-tasks-btn" class="icon-btn" title="让 AI 分析我的任务">🧠</button>
+      <button id="send-btn" class="btn btn-primary send-btn" disabled>发送</button>
+    </div>
+  </section>
+</main>
+
+<!-- 设置弹窗 -->
+<dialog id="settings-modal" class="settings-dialog" aria-label="AI 设置">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>⚙️ 设置</h3>
+      <button class="icon-btn" data-close-modal>✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" for="provider-select">AI 服务商</label>
+      <select id="provider-select" class="input">
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="custom">自定义 OpenAI 兼容服务</option>
+      </select>
+      <label class="field-label" for="base-url-input">API 地址</label>
+      <input id="base-url-input" class="input" type="url" placeholder="https://api.example.com/v1">
+      <label class="field-label" for="model-input">模型名称</label>
+      <input id="model-input" class="input" type="text" placeholder="例如：deepseek-chat">
+      <label class="field-label" for="api-key-input">API Key</label>
+      <input id="api-key-input" class="input" type="password" placeholder="sk-..." autocomplete="off">
+      <p class="hint">🔒 配置仅保存在本地运行数据中，请确认 API 地址对应 OpenAI-compatible 的 /chat/completions 接口。</p>
+      <p id="data-path-hint" class="hint data-path-hint"></p>
+      <p class="hint">还没有 Key？<a href="https://platform.deepseek.com" target="_blank" rel="noopener">前往 DeepSeek 开放平台申请 →</a></p>
+    </div>
+    <div class="modal-foot">
+      <button id="save-key-btn" class="btn btn-primary">保存</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+  <form method="dialog">
+    <h3 id="confirm-title">删除任务</h3>
+    <p id="confirm-message"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" value="cancel" autofocus>取消</button>
+      <button id="confirm-accept" class="btn btn-danger" value="confirm">确认删除</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="task-model.js"></script>
+<script src="draft-store.js"></script>
+<script src="ai-provider.js"></script>
+<script src="ui-appearance.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

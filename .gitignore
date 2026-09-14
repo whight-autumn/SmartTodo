@@ -1,0 +1,22 @@
+# 依赖（npm install 可重新生成）
+node_modules/
+
+# 构建产物与打包缓存
+dist/
+out/
+win-unpacked/
+.electron-cache/
+.builder-cache/
+
+# 可执行文件（发布版本请使用 GitHub Releases，不纳入仓库）
+*.exe
+
+# 日志与运行产物
+*.log
+
+# 编辑器与系统文件
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
