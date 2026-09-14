@@ -250,68 +250,127 @@ app.whenReady().then(async () => {
     await window.webContents.executeJavaScript(`
       (() => {
         const state = {
-          importMode: "success",
+          prepareMode: "success",
           failRemovalStorageNames: [],
-          imports: [],
-          removals: [],
+          failNextTaskSave: false,
+          prepares: [],
+          commits: [],
+          rollbacks: [],
           openedUrls: [],
           cleanupCalls: [],
           unavailableStorageNames: ["file_attachment.pdf"],
-          selectedFiles: {},
           nextAttachmentId: 1,
-          pendingImport: null
+          nextTransactionId: 1,
+          pendingPrepare: null,
+          transactions: new Map(),
+          createdObjectUrls: [],
+          revokedObjectUrls: [],
+          managedFiles: {
+            done: new Set(["image_attachment.png", "file_attachment.pdf"]),
+            boundary: new Set(Array.from({ length: 10 }, (_, index) => "boundary_" + (index + 1) + ".txt"))
+          }
         };
 
         function createImportedAttachments(payload) {
-          return payload.sourcePaths.map(sourcePath => {
-            const selected = state.selectedFiles[sourcePath];
+          return payload.files.map(file => {
             const serial = state.nextAttachmentId++;
-            const name = selected?.name || sourcePath.split(/[\\/]/).pop() || ("附件" + serial);
+            const name = file.name || ("附件" + serial);
             const extension = name.match(/\.[a-zA-Z0-9]{1,12}$/)?.[0].toLowerCase() || ".bin";
             return {
               id: "imported_" + serial,
               name,
               storageName: "imported_" + serial + extension,
-              mimeType: selected?.mimeType || "application/octet-stream",
-              size: selected?.size || 0,
+              mimeType: file.type || "application/octet-stream",
+              size: file.size || 0,
               addedAt: 1800000000000 + serial
             };
           });
         }
 
+        function getManagedFiles(taskId) {
+          state.managedFiles[taskId] ||= new Set();
+          return state.managedFiles[taskId];
+        }
+
+        const nativeCreateObjectUrl = URL.createObjectURL.bind(URL);
+        const nativeRevokeObjectUrl = URL.revokeObjectURL.bind(URL);
+        URL.createObjectURL = value => {
+          const objectUrl = nativeCreateObjectUrl(value);
+          state.createdObjectUrls.push(objectUrl);
+          return objectUrl;
+        };
+        URL.revokeObjectURL = objectUrl => {
+          state.revokedObjectUrls.push(objectUrl);
+          nativeRevokeObjectUrl(objectUrl);
+        };
+
+        const nativeSetItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function(key, value) {
+          if (key === "smart_tasks" && state.failNextTaskSave) {
+            state.failNextTaskSave = false;
+            throw new Error("mock localStorage failure");
+          }
+          return nativeSetItem.call(this, key, value);
+        };
+
         window.__desktopMock = state;
         window.__desktopApi = {
-          getPathForFile(file) {
-            const sourcePath = "C:/mock/" + file.name;
-            state.selectedFiles[sourcePath] = {
-              name: file.name,
-              size: file.size,
-              mimeType: file.type || "application/octet-stream"
-            };
-            return sourcePath;
-          },
-          importTaskAttachments(payload) {
-            state.imports.push(structuredClone(payload));
-            if (state.importMode === "failure") {
-              return Promise.reject(new Error("mock import failure"));
+          prepareTaskAttachmentChanges(payload) {
+            state.prepares.push({
+              taskId: payload.taskId,
+              files: payload.files.map(file => ({ name: file.name, size: file.size, type: file.type })),
+              removeStorageNames: [...payload.removeStorageNames],
+              existingCount: payload.existingCount
+            });
+            if (state.prepareMode === "failure") {
+              return Promise.reject(new Error("mock prepare failure"));
             }
             const attachments = createImportedAttachments(payload);
-            if (state.importMode === "pending") {
+            const transactionId = "00000000-0000-4000-8000-"
+              + String(state.nextTransactionId++).padStart(12, "0");
+            const files = getManagedFiles(payload.taskId);
+            const removedStorageNames = [];
+            const failedStorageNames = [];
+            for (const storageName of payload.removeStorageNames) {
+              if (state.failRemovalStorageNames.includes(storageName) || !files.has(storageName)) {
+                failedStorageNames.push(storageName);
+              } else {
+                files.delete(storageName);
+                removedStorageNames.push(storageName);
+              }
+            }
+            attachments.forEach(attachment => files.add(attachment.storageName));
+            state.transactions.set(transactionId, {
+              taskId: payload.taskId,
+              importedStorageNames: attachments.map(attachment => attachment.storageName),
+              removedStorageNames
+            });
+            const result = { transactionId, attachments, removedStorageNames, failedStorageNames };
+            if (state.prepareMode === "pending") {
               return new Promise(resolve => {
-                state.pendingImport = {
+                state.pendingPrepare = {
                   resolve() {
-                    state.pendingImport = null;
-                    resolve(attachments);
+                    state.pendingPrepare = null;
+                    resolve(result);
                   }
                 };
               });
             }
-            return Promise.resolve(attachments);
+            return Promise.resolve(result);
           },
-          removeTaskAttachment(payload) {
-            state.removals.push(structuredClone(payload));
-            if (state.failRemovalStorageNames.includes(payload.storageName)) {
-              return Promise.reject(new Error("mock deletion failure"));
+          commitTaskAttachmentChanges(payload) {
+            state.commits.push(structuredClone(payload));
+            state.transactions.delete(payload.transactionId);
+            return Promise.resolve(true);
+          },
+          rollbackTaskAttachmentChanges(payload) {
+            state.rollbacks.push(structuredClone(payload));
+            const transaction = state.transactions.get(payload.transactionId);
+            if (transaction) {
+              const files = getManagedFiles(transaction.taskId);
+              transaction.importedStorageNames.forEach(storageName => files.delete(storageName));
+              transaction.removedStorageNames.forEach(storageName => files.add(storageName));
+              state.transactions.delete(payload.transactionId);
             }
             return Promise.resolve(true);
           },
@@ -395,7 +454,7 @@ app.whenReady().then(async () => {
         const afterCancelTask = JSON.parse(localStorage.getItem("smart_tasks"))
           .find(task => task.id === "done");
 
-        const failedRemovalStart = window.__desktopMock.removals.length;
+        const failedRemovalStart = window.__desktopMock.prepares.length;
         window.__desktopMock.failRemovalStorageNames = ["image_attachment.png"];
         document.querySelector('[data-id="done"] [data-action="edit-note"]').click();
         document.querySelector('[data-attachment-id="image_attachment"]').click();
@@ -411,7 +470,7 @@ app.whenReady().then(async () => {
           removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
             .some(button => button.disabled)
         };
-        const failedRemovalCalls = window.__desktopMock.removals.slice(failedRemovalStart);
+        const failedRemovalCalls = window.__desktopMock.prepares.slice(failedRemovalStart);
         window.__desktopMock.failRemovalStorageNames = [];
         document.getElementById("task-note-cancel").click();
         await frames();
@@ -475,10 +534,10 @@ app.whenReady().then(async () => {
         });
         const readTask = taskId => JSON.parse(localStorage.getItem("smart_tasks"))
           .find(task => task.id === taskId);
-        const selectFile = (name, contents = "selected file") => {
+        const selectFile = (name, contents = "selected file", type = "text/plain") => {
           const transfer = new DataTransfer();
           transfer.items.add(new File([contents], name, {
-            type: "text/plain",
+            type,
             lastModified: 1800000000000
           }));
           const input = document.getElementById("task-note-file-input");
@@ -491,7 +550,7 @@ app.whenReady().then(async () => {
         await frames();
 
         const importFailureBefore = structuredClone(readTask("import-failure"));
-        state.importMode = "failure";
+        state.prepareMode = "failure";
         document.querySelector('[data-id="import-failure"] [data-action="edit-note"]').click();
         const pickerButton = document.getElementById("task-note-file-button");
         const pickerInput = document.getElementById("task-note-file-input");
@@ -524,9 +583,9 @@ app.whenReady().then(async () => {
         document.getElementById("task-note-cancel").click();
 
         const boundaryBefore = structuredClone(readTask("boundary"));
-        state.importMode = "success";
+        state.prepareMode = "success";
         state.failRemovalStorageNames = [];
-        const boundaryImportStart = state.imports.length;
+        const boundaryImportStart = state.prepares.length;
         document.querySelector('[data-id="boundary"] [data-action="edit-note"]').click();
         document.querySelector('[data-attachment-id="boundary_attachment_10"]').click();
         selectFile("boundary-replacement.txt");
@@ -534,13 +593,13 @@ app.whenReady().then(async () => {
           task: readTask("boundary"),
           dialogOpen: document.getElementById("task-note-dialog").open,
           status: document.getElementById("task-note-status").textContent,
-          imports: state.imports.slice(boundaryImportStart)
+          imports: state.prepares.slice(boundaryImportStart)
         };
         document.getElementById("task-note-cancel").click();
         await frames();
 
         state.failRemovalStorageNames = ["boundary_7.txt"];
-        const mixedRemovalStart = state.removals.length;
+        const mixedRemovalStart = state.prepares.length;
         document.querySelector('[data-id="boundary"] [data-action="edit-note"]').click();
         document.querySelector('[data-attachment-id="boundary_attachment_2"]').click();
         document.querySelector('[data-attachment-id="boundary_attachment_7"]').click();
@@ -557,12 +616,61 @@ app.whenReady().then(async () => {
             removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
               .some(button => button.disabled)
           },
-          removals: state.removals.slice(mixedRemovalStart)
+          removals: state.prepares.slice(mixedRemovalStart)
         };
         document.getElementById("task-note-cancel").click();
         await frames();
 
-        state.importMode = "pending";
+        state.prepareMode = "success";
+        state.failRemovalStorageNames = ["file_attachment.pdf"];
+        document.querySelector('[data-filter="completed"]').click();
+        await frames();
+        const persistenceFailureBefore = structuredClone(readTask("done"));
+        const diskBeforePersistenceFailure = [...state.managedFiles.done].sort();
+        const rollbackStart = state.rollbacks.length;
+        const commitStart = state.commits.length;
+        document.querySelector('[data-id="done"] [data-action="edit-note"]').click();
+        document.querySelector('[data-attachment-id="image_attachment"]').click();
+        document.querySelector('[data-attachment-id="file_attachment"]').click();
+        selectFile("pending-preview.png", "preview pixels", "image/png");
+        await frames();
+        const pendingPreview = document.querySelector("#task-note-attachment-list .is-pending img");
+        const pendingPreviewState = {
+          source: pendingPreview?.getAttribute("src") || "",
+          loading: pendingPreview?.getAttribute("loading") || "",
+          alt: pendingPreview?.getAttribute("alt") || "",
+          text: pendingPreview?.closest(".task-note-attachment-entry")?.innerText || ""
+        };
+        document.getElementById("task-note-input").value = "本次持久化应失败";
+        state.failNextTaskSave = true;
+        document.getElementById("task-note-save").click();
+        await frames();
+        const previewAfterFailure = document.querySelector("#task-note-attachment-list .is-pending img")
+          ?.getAttribute("src") || "";
+        const persistenceFailure = {
+          task: readTask("done"),
+          diskFiles: [...state.managedFiles.done].sort(),
+          dialogOpen: document.getElementById("task-note-dialog").open,
+          status: document.getElementById("task-note-status").textContent,
+          controls: {
+            textareaDisabled: document.getElementById("task-note-input").disabled,
+            pickerDisabled: document.getElementById("task-note-file-button").disabled,
+            removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
+              .some(button => button.disabled)
+          },
+          rollbacks: state.rollbacks.slice(rollbackStart),
+          commits: state.commits.slice(commitStart),
+          previewAfterFailure,
+          previewRevokedBeforeCancel: state.revokedObjectUrls.includes(pendingPreviewState.source)
+        };
+        document.getElementById("task-note-cancel").click();
+        await frames();
+        persistenceFailure.previewRevokedAfterCancel = state.revokedObjectUrls
+          .includes(pendingPreviewState.source);
+
+        document.querySelector('[data-filter="active"]').click();
+        await frames();
+        state.prepareMode = "pending";
         state.failRemovalStorageNames = [];
         document.querySelector('[data-id="pending-save"] [data-action="edit-note"]').click();
         document.getElementById("task-note-input").value = "挂起保存后的备注";
@@ -578,7 +686,7 @@ app.whenReady().then(async () => {
           removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
             .every(button => button.disabled)
         };
-        state.pendingImport.resolve();
+        state.pendingPrepare.resolve();
         await frames();
         const pendingTask = readTask("pending-save");
 
@@ -594,6 +702,10 @@ app.whenReady().then(async () => {
           boundaryBefore,
           boundaryLimit,
           mixedRemoval,
+          persistenceFailureBefore,
+          diskBeforePersistenceFailure,
+          pendingPreviewState,
+          persistenceFailure,
           cancelDefaultPrevented: !cancelDispatchResult && cancelEvent.defaultPrevented,
           pendingDialogOpen,
           pendingControls,
@@ -676,7 +788,9 @@ app.whenReady().then(async () => {
     });
     assert.deepEqual(noteResult.failedRemovalCalls, [{
       taskId: "done",
-      storageName: "image_attachment.png"
+      files: [],
+      removeStorageNames: ["image_attachment.png"],
+      existingCount: 2
     }]);
     assert.deepEqual(highRiskResult.picker, {
       tagName: "BUTTON",
@@ -685,7 +799,7 @@ app.whenReady().then(async () => {
     });
     assert.deepEqual(highRiskResult.importFailure.task, highRiskResult.importFailureBefore);
     assert.equal(highRiskResult.importFailure.dialogOpen, true);
-    assert.match(highRiskResult.importFailure.status, /mock import failure/);
+    assert.match(highRiskResult.importFailure.status, /mock prepare failure/);
     assert.deepEqual(highRiskResult.importFailure.controls, {
       textareaDisabled: false,
       pickerDisabled: false,
@@ -702,10 +816,12 @@ app.whenReady().then(async () => {
       pickerDisabled: false,
       removeDisabled: false
     });
-    assert.deepEqual(highRiskResult.mixedRemoval.removals, [
-      { taskId: "boundary", storageName: "boundary_2.txt" },
-      { taskId: "boundary", storageName: "boundary_7.txt" }
-    ]);
+    assert.deepEqual(highRiskResult.mixedRemoval.removals, [{
+      taskId: "boundary",
+      files: [],
+      removeStorageNames: ["boundary_2.txt", "boundary_7.txt"],
+      existingCount: 10
+    }]);
     assert.deepEqual(
       highRiskResult.mixedRemoval.task.attachments.map(attachment => attachment.id),
       [
@@ -723,6 +839,30 @@ app.whenReady().then(async () => {
     assert.ok(highRiskResult.mixedRemoval.task.attachments.length <= 10);
     assert.equal(highRiskResult.mixedRemoval.task.remarks, "混合删除后的备注");
     assert.ok(highRiskResult.mixedRemoval.task.updatedAt > highRiskResult.boundaryBefore.updatedAt);
+    assert.match(highRiskResult.pendingPreviewState.source, /^blob:/);
+    assert.equal(highRiskResult.pendingPreviewState.loading, "lazy");
+    assert.match(highRiskResult.pendingPreviewState.alt, /pending-preview\.png/);
+    assert.match(highRiskResult.pendingPreviewState.text, /PNG 文件/);
+    assert.deepEqual(highRiskResult.persistenceFailure.task, highRiskResult.persistenceFailureBefore);
+    assert.deepEqual(
+      highRiskResult.persistenceFailure.diskFiles,
+      highRiskResult.diskBeforePersistenceFailure
+    );
+    assert.equal(highRiskResult.persistenceFailure.dialogOpen, true);
+    assert.match(highRiskResult.persistenceFailure.status, /mock localStorage failure/);
+    assert.deepEqual(highRiskResult.persistenceFailure.controls, {
+      textareaDisabled: false,
+      pickerDisabled: false,
+      removeDisabled: false
+    });
+    assert.equal(highRiskResult.persistenceFailure.rollbacks.length, 1);
+    assert.deepEqual(highRiskResult.persistenceFailure.commits, []);
+    assert.equal(
+      highRiskResult.persistenceFailure.previewAfterFailure,
+      highRiskResult.pendingPreviewState.source
+    );
+    assert.equal(highRiskResult.persistenceFailure.previewRevokedBeforeCancel, false);
+    assert.equal(highRiskResult.persistenceFailure.previewRevokedAfterCancel, true);
     assert.equal(highRiskResult.cancelDefaultPrevented, true);
     assert.equal(highRiskResult.pendingDialogOpen, true);
     assert.deepEqual(highRiskResult.pendingControls, {

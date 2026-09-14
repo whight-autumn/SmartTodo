@@ -721,6 +721,36 @@ function renderTaskNoteAttachmentPreview(attachment) {
     : '<span class="task-file-icon" aria-hidden="true">📎</span>';
 }
 
+function createPendingFilePreview(file) {
+  if (!/^image\//i.test(file?.type) || typeof URL?.createObjectURL !== "function") return "";
+  try {
+    return URL.createObjectURL(file);
+  } catch {
+    return "";
+  }
+}
+
+function releasePendingFilePreview(pending) {
+  if (!pending?.previewUrl || typeof URL?.revokeObjectURL !== "function") return;
+  URL.revokeObjectURL(pending.previewUrl);
+  pending.previewUrl = "";
+}
+
+function releaseTaskNoteDraftPreviews(draft) {
+  (draft?.pendingFiles || []).forEach(releasePendingFilePreview);
+}
+
+function renderPendingFilePreview(pending) {
+  if (!pending.previewUrl) {
+    return '<span class="task-file-icon" aria-hidden="true">＋</span>';
+  }
+  return '<img class="task-attachment-thumb" loading="lazy" src="'
+    + escapeHTML(pending.previewUrl)
+    + '" alt="'
+    + escapeHTML("待保存图片：" + pending.file.name)
+    + '">';
+}
+
 function renderTaskNoteDraft() {
   if (!taskNoteDraft) return;
   const retainedItems = taskNoteDraft.retainedAttachments.map(attachment => {
@@ -741,7 +771,7 @@ function renderTaskNoteDraft() {
   });
   const pendingItems = taskNoteDraft.pendingFiles.map((pending, index) => `
     <li class="task-note-attachment-entry is-pending">
-      <span class="task-file-icon" aria-hidden="true">＋</span>
+      ${renderPendingFilePreview(pending)}
       <span class="task-note-attachment-detail">
         <strong>${escapeHTML(pending.file.name)}</strong>
         <span>${escapeHTML(formatAttachmentType(pending.file))} · ${formatBytes(pending.file.size)} · 待保存</span>
@@ -776,7 +806,11 @@ function renderTaskNoteDraft() {
 }
 
 function setTaskNoteSaving(saving) {
-  const canAttach = !!(window.desktop?.getPathForFile && window.desktop?.importTaskAttachments);
+  const canAttach = !!(
+    window.desktop?.prepareTaskAttachmentChanges
+    && window.desktop?.commitTaskAttachmentChanges
+    && window.desktop?.rollbackTaskAttachmentChanges
+  );
   taskNoteSavePending = saving;
   els.noteInput.disabled = saving;
   els.noteSave.disabled = saving;
@@ -810,6 +844,7 @@ function openTaskNoteDialog(task) {
 
 function cancelTaskNoteEdit() {
   if (taskNoteSavePending) return;
+  releaseTaskNoteDraftPreviews(taskNoteDraft);
   taskNoteDraft = null;
   els.noteFileInput.value = "";
   if (els.noteDialog.open) els.noteDialog.close();
@@ -822,54 +857,73 @@ async function saveTaskNoteEdit() {
   setTaskNoteSaving(true);
   setTaskNoteStatus("正在保存…");
 
+  let preparedTransaction = null;
+  let metadataPersisted = false;
   try {
     const task = tasks.find(item => item.id === draft.taskId);
     if (!task) throw new Error("任务已不存在");
     if (draft.originalAttachments.length + draft.pendingFiles.length > ATTACHMENT_LIMIT) {
       throw new Error(`任务原有附件与待添加附件合计不能超过 ${ATTACHMENT_LIMIT} 个`);
     }
-    let importedAttachments = [];
-    if (draft.pendingFiles.length) {
-      if (!window.desktop?.importTaskAttachments) throw new Error("当前环境无法导入附件");
-      importedAttachments = await window.desktop.importTaskAttachments({
+    let prepared = {
+      attachments: [],
+      removedStorageNames: [],
+      failedStorageNames: []
+    };
+    if (draft.pendingFiles.length || draft.removedAttachments.length) {
+      if (!window.desktop?.prepareTaskAttachmentChanges
+          || !window.desktop?.commitTaskAttachmentChanges
+          || !window.desktop?.rollbackTaskAttachmentChanges) {
+        throw new Error("当前环境无法处理附件变更");
+      }
+      prepared = await window.desktop.prepareTaskAttachmentChanges({
         taskId: draft.taskId,
-        sourcePaths: draft.pendingFiles.map(item => item.sourcePath),
+        files: draft.pendingFiles.map(item => item.file),
+        removeStorageNames: draft.removedAttachments.map(attachment => attachment.storageName),
         existingCount: draft.originalAttachments.length
       });
-      if (!Array.isArray(importedAttachments)) throw new Error("附件导入结果无效");
-    }
-
-    const successfulRemovalIds = new Set();
-    const failedRemovalNames = [];
-    for (const attachment of draft.removedAttachments) {
-      try {
-        if (!window.desktop?.removeTaskAttachment) throw new Error("当前环境无法移除附件");
-        await window.desktop.removeTaskAttachment({
-          taskId: draft.taskId,
-          storageName: attachment.storageName
-        });
-        successfulRemovalIds.add(attachment.id);
-      } catch {
-        failedRemovalNames.push(attachment.name);
+      if (!prepared || typeof prepared.transactionId !== "string" || !prepared.transactionId
+          || !Array.isArray(prepared.attachments)
+          || !Array.isArray(prepared.removedStorageNames)
+          || !Array.isArray(prepared.failedStorageNames)) {
+        throw new Error("附件事务结果无效");
       }
+      preparedTransaction = {
+        taskId: draft.taskId,
+        transactionId: prepared.transactionId
+      };
     }
 
+    const successfulRemovalNames = new Set(prepared.removedStorageNames);
+    const failedStorageNames = new Set(prepared.failedStorageNames);
+    const failedRemovalNames = draft.removedAttachments
+      .filter(attachment => failedStorageNames.has(attachment.storageName))
+      .map(attachment => attachment.name);
     const retainedAttachments = draft.originalAttachments
-      .filter(attachment => !successfulRemovalIds.has(attachment.id));
+      .filter(attachment => !successfulRemovalNames.has(attachment.storageName));
 
     const editResult = taskModel.applyTaskNoteEdit(task, {
       remarks: draft.remarks,
       attachments: [
         ...retainedAttachments,
-        ...importedAttachments
+        ...prepared.attachments
       ]
     });
 
     if (editResult.changed) {
-      tasks = tasks.map(item => item.id === draft.taskId ? editResult.task : item);
-      saveTasks();
+      const nextTasks = tasks.map(item => item.id === draft.taskId ? editResult.task : item);
+      saveJSON(STORAGE_KEYS.tasks, nextTasks);
+      metadataPersisted = true;
+      tasks = nextTasks;
+      taskIndexDirty = true;
       queueTaskRender();
     }
+
+    if (preparedTransaction) {
+      await window.desktop.commitTaskAttachmentChanges(preparedTransaction);
+      preparedTransaction = null;
+    }
+    releaseTaskNoteDraftPreviews(draft);
 
     if (failedRemovalNames.length) {
       const synchronizedTask = editResult.changed ? editResult.task : task;
@@ -886,7 +940,16 @@ async function saveTaskNoteEdit() {
     els.noteFileInput.value = "";
     els.noteDialog.close();
   } catch (error) {
-    setTaskNoteStatus(`保存失败：${error?.message || "未知错误"}`, "error");
+    let failureMessage = error?.message || "未知错误";
+    if (preparedTransaction && !metadataPersisted) {
+      try {
+        await window.desktop?.rollbackTaskAttachmentChanges?.(preparedTransaction);
+        preparedTransaction = null;
+      } catch (rollbackError) {
+        failureMessage += `；回滚失败：${rollbackError?.message || "未知错误"}`;
+      }
+    }
+    setTaskNoteStatus(`保存失败：${failureMessage}`, "error");
   } finally {
     if (taskNoteDraft === draft) setTaskNoteSaving(false);
   }
@@ -927,17 +990,10 @@ els.noteFileInput.addEventListener("change", event => {
         errors.push(`${file.name} 已在附件列表中`);
         continue;
       }
-      let sourcePath = "";
-      try {
-        sourcePath = window.desktop?.getPathForFile?.(file) || "";
-      } catch {
-        sourcePath = "";
-      }
-      if (!sourcePath) {
-        errors.push(`${file.name} 无法获取本地文件路径`);
-        continue;
-      }
-      taskNoteDraft.pendingFiles.push({ file, sourcePath });
+      taskNoteDraft.pendingFiles.push({
+        file,
+        previewUrl: createPendingFilePreview(file)
+      });
       identities.add(identity);
       added += 1;
     }
@@ -973,10 +1029,17 @@ els.noteAttachmentList.addEventListener("click", event => {
     }
   } else if (action === "remove-pending-attachment") {
     const index = Number(actionElement.dataset.pendingIndex);
-    if (Number.isInteger(index)) taskNoteDraft.pendingFiles.splice(index, 1);
+    if (Number.isInteger(index)) {
+      const [pending] = taskNoteDraft.pendingFiles.splice(index, 1);
+      releasePendingFilePreview(pending);
+    }
   }
   renderTaskNoteDraft();
   setTaskNoteStatus();
+});
+
+window.addEventListener("beforeunload", () => {
+  releaseTaskNoteDraftPreviews(taskNoteDraft);
 });
 
 els.noteCancel.addEventListener("click", cancelTaskNoteEdit);

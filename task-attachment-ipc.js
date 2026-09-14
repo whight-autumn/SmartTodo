@@ -2,6 +2,7 @@ const path = require("node:path");
 
 const TASK_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const STORAGE_NAME_PATTERN = /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9]{1,12})?$/;
+const TRANSACTION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EXTERNAL_PROTOCOLS = new Set(["http:", "https:"]);
 
 function validateExactPayload(value, keys, operationName) {
@@ -37,12 +38,23 @@ function validateAttachmentPayload(value, operationName) {
   };
 }
 
-function validateImportPayload(value) {
-  const payload = validateExactPayload(value, ["taskId", "sourcePaths", "existingCount"], "导入附件");
+function validatePreparePayload(value) {
+  const payload = validateExactPayload(
+    value,
+    ["taskId", "sourcePaths", "removeStorageNames", "existingCount"],
+    "准备附件变更"
+  );
   if (!Array.isArray(payload.sourcePaths) || payload.sourcePaths.some(sourcePath => (
     typeof sourcePath !== "string" || !path.isAbsolute(sourcePath)
   ))) {
     throw new Error("附件源路径无效");
+  }
+  if (!Array.isArray(payload.removeStorageNames)) {
+    throw new Error("待移除附件列表无效");
+  }
+  const removeStorageNames = payload.removeStorageNames.map(validateStorageName);
+  if (new Set(removeStorageNames).size !== removeStorageNames.length) {
+    throw new Error("待移除附件列表无效");
   }
   if (!Number.isInteger(payload.existingCount) || payload.existingCount < 0) {
     throw new Error("现有附件数量无效");
@@ -50,7 +62,19 @@ function validateImportPayload(value) {
   return {
     taskId: validateTaskId(payload.taskId),
     sourcePaths: [...payload.sourcePaths],
+    removeStorageNames,
     existingCount: payload.existingCount
+  };
+}
+
+function validateTransactionPayload(value, operationName) {
+  const payload = validateExactPayload(value, ["taskId", "transactionId"], operationName);
+  if (typeof payload.transactionId !== "string" || !TRANSACTION_ID_PATTERN.test(payload.transactionId)) {
+    throw new Error("附件事务 ID 不安全");
+  }
+  return {
+    taskId: validateTaskId(payload.taskId),
+    transactionId: payload.transactionId
   };
 }
 
@@ -80,18 +104,22 @@ function registerTaskAttachmentIpc({ ipcMain, shell, attachmentStore }) {
     return true;
   }
 
-  ipcMain.handle("task-attachment:import", (_event, payload) => (
-    attachmentStore.importFiles(validateImportPayload(payload))
+  ipcMain.handle("task-attachment:prepare-changes", async (_event, payload) => (
+    attachmentStore.prepareChanges(validatePreparePayload(payload))
   ));
-  ipcMain.handle("task-attachment:remove", async (_event, payload) => {
-    await attachmentStore.removeAttachment(validateAttachmentPayload(payload, "删除附件"));
+  ipcMain.handle("task-attachment:commit-changes", async (_event, payload) => {
+    await attachmentStore.commitChanges(validateTransactionPayload(payload, "提交附件变更"));
+    return true;
+  });
+  ipcMain.handle("task-attachment:rollback-changes", async (_event, payload) => {
+    await attachmentStore.rollbackChanges(validateTransactionPayload(payload, "回滚附件变更"));
     return true;
   });
   ipcMain.handle("task-attachment:remove-task-directories", async (_event, taskIds) => {
     await Promise.all(validateTaskIds(taskIds).map(taskId => attachmentStore.removeTaskAttachments(taskId)));
     return true;
   });
-  ipcMain.handle("task-attachment:get-url", (_event, payload) => (
+  ipcMain.handle("task-attachment:get-url", async (_event, payload) => (
     attachmentStore.getAttachmentUrl(validateAttachmentPayload(payload, "获取附件地址"))
   ));
   ipcMain.handle("task-attachment:open", async (_event, payload) => {

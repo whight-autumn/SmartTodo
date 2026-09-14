@@ -12,8 +12,9 @@ const ATTACHMENT_PAYLOAD = {
 function createHarness({ openPathResult = "" } = {}) {
   const handlers = new Map();
   const calls = {
-    imports: [],
-    removals: [],
+    prepares: [],
+    commits: [],
+    rollbacks: [],
     cleanups: [],
     urls: [],
     resolutions: [],
@@ -27,12 +28,20 @@ function createHarness({ openPathResult = "" } = {}) {
     }
   };
   const attachmentStore = {
-    async importFiles(payload) {
-      calls.imports.push(payload);
-      return [{ id: "attachment_1" }];
+    async prepareChanges(payload) {
+      calls.prepares.push(payload);
+      return {
+        transactionId: "00000000-0000-4000-8000-000000000001",
+        attachments: [{ id: "attachment_1" }],
+        removedStorageNames: [],
+        failedStorageNames: []
+      };
     },
-    async removeAttachment(payload) {
-      calls.removals.push(payload);
+    async commitChanges(payload) {
+      calls.commits.push(payload);
+    },
+    async rollbackChanges(payload) {
+      calls.rollbacks.push(payload);
     },
     async removeTaskAttachments(taskId) {
       calls.cleanups.push(taskId);
@@ -64,29 +73,32 @@ test("registers only the fixed task attachment channels", () => {
   const { handlers } = createHarness();
 
   assert.deepEqual([...handlers.keys()].sort(), [
+    "task-attachment:commit-changes",
     "task-attachment:get-url",
-    "task-attachment:import",
     "task-attachment:open",
     "task-attachment:open-external",
-    "task-attachment:remove",
-    "task-attachment:remove-task-directories"
+    "task-attachment:prepare-changes",
+    "task-attachment:remove-task-directories",
+    "task-attachment:rollback-changes"
   ]);
 });
 
-test("delegates a valid import payload and returns attachment metadata", async () => {
+test("delegates a valid prepare payload and returns transaction metadata", async () => {
   const { handlers, calls } = createHarness();
   const sourcePath = path.resolve("selected.txt");
 
-  const result = await handlers.get("task-attachment:import")(null, {
+  const result = await handlers.get("task-attachment:prepare-changes")(null, {
     taskId: "task_1",
     sourcePaths: [sourcePath],
+    removeStorageNames: ["old.txt"],
     existingCount: 2
   });
 
-  assert.deepEqual(result, [{ id: "attachment_1" }]);
-  assert.deepEqual(calls.imports, [{
+  assert.deepEqual(result.attachments, [{ id: "attachment_1" }]);
+  assert.deepEqual(calls.prepares, [{
     taskId: "task_1",
     sourcePaths: [sourcePath],
+    removeStorageNames: ["old.txt"],
     existingCount: 2
   }]);
 });
@@ -95,7 +107,7 @@ test("rejects unsafe attachment identifiers before store delegation", async () =
   const { handlers, calls } = createHarness();
 
   await assert.rejects(
-    handlers.get("task-attachment:remove")(null, {
+    handlers.get("task-attachment:get-url")(null, {
       taskId: "../task",
       storageName: "stored_file.txt"
     }),
@@ -109,32 +121,55 @@ test("rejects unsafe attachment identifiers before store delegation", async () =
     /存储名称/
   );
 
-  assert.deepEqual(calls.removals, []);
   assert.deepEqual(calls.urls, []);
 });
 
-test("rejects malformed import payloads before store delegation", async () => {
+test("rejects malformed prepare payloads before store delegation", async () => {
   const { handlers, calls } = createHarness();
   const sourcePath = path.resolve("selected.txt");
   const invalidPayloads = [
-    { taskId: "../task", sourcePaths: [sourcePath], existingCount: 0 },
-    { taskId: "task_1", sourcePaths: ["relative.txt"], existingCount: 0 },
-    { taskId: "task_1", sourcePaths: [sourcePath], existingCount: -1 },
-    { taskId: "task_1", sourcePaths: [sourcePath], existingCount: 0.5 },
-    { taskId: "task_1", sourcePaths: [sourcePath], existingCount: "0" },
+    { taskId: "../task", sourcePaths: [sourcePath], removeStorageNames: [], existingCount: 0 },
+    { taskId: "task_1", sourcePaths: ["relative.txt"], removeStorageNames: [], existingCount: 0 },
+    { taskId: "task_1", sourcePaths: [sourcePath], removeStorageNames: ["../old.txt"], existingCount: 0 },
+    { taskId: "task_1", sourcePaths: [sourcePath], removeStorageNames: [], existingCount: -1 },
+    { taskId: "task_1", sourcePaths: [sourcePath], removeStorageNames: [], existingCount: 0.5 },
+    { taskId: "task_1", sourcePaths: [sourcePath], removeStorageNames: [], existingCount: "0" },
     {
       taskId: "task_1",
       sourcePaths: [sourcePath],
+      removeStorageNames: [],
       existingCount: 0,
       destinationPath: path.resolve("managed")
     }
   ];
 
   for (const payload of invalidPayloads) {
-    await assert.rejects(async () => handlers.get("task-attachment:import")(null, payload));
+    await assert.rejects(async () => handlers.get("task-attachment:prepare-changes")(null, payload));
   }
 
-  assert.deepEqual(calls.imports, []);
+  assert.deepEqual(calls.prepares, []);
+});
+
+test("validates fixed commit and rollback transaction payloads", async () => {
+  const { handlers, calls } = createHarness();
+  const payload = {
+    taskId: "task_1",
+    transactionId: "00000000-0000-4000-8000-000000000001"
+  };
+
+  assert.equal(await handlers.get("task-attachment:commit-changes")(null, payload), true);
+  assert.equal(await handlers.get("task-attachment:rollback-changes")(null, payload), true);
+  await assert.rejects(handlers.get("task-attachment:commit-changes")(null, {
+    taskId: "task_1",
+    transactionId: "../transaction"
+  }));
+  await assert.rejects(handlers.get("task-attachment:rollback-changes")(null, {
+    ...payload,
+    sourcePath: path.resolve("secret.txt")
+  }));
+
+  assert.deepEqual(calls.commits, [payload]);
+  assert.deepEqual(calls.rollbacks, [payload]);
 });
 
 test("rejects invalid task directory ID lists before cleanup", async () => {
@@ -192,15 +227,13 @@ test("turns a non-empty shell openPath result into a failure", async () => {
   assert.deepEqual(calls.openedPaths, ["C:\\managed\\task_1\\stored_file.txt"]);
 });
 
-test("delegates valid attachment removal and URL lookup", async () => {
+test("delegates valid attachment URL lookup", async () => {
   const { handlers, calls } = createHarness();
 
-  assert.equal(await handlers.get("task-attachment:remove")(null, ATTACHMENT_PAYLOAD), true);
   assert.equal(
     await handlers.get("task-attachment:get-url")(null, ATTACHMENT_PAYLOAD),
     "file:///managed/task_1/stored_file.txt"
   );
-  assert.deepEqual(calls.removals, [ATTACHMENT_PAYLOAD]);
   assert.deepEqual(calls.urls, [ATTACHMENT_PAYLOAD]);
 });
 
