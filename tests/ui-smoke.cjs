@@ -6,9 +6,9 @@ const os = require("node:os");
 const path = require("node:path");
 
 const projectRoot = path.resolve(__dirname, "..");
-const testDataPath = path.join(os.tmpdir(), `smart-task-v104-smoke-${process.pid}`);
-const lightScreenshot = path.join(os.tmpdir(), "smart-task-v104-light.png");
-const darkScreenshot = path.join(os.tmpdir(), "smart-task-v104-dark.png");
+const testDataPath = path.join(os.tmpdir(), `smart-task-ui-smoke-${process.pid}`);
+const lightScreenshot = path.join(os.tmpdir(), "smart-task-ui-light.png");
+const darkScreenshot = path.join(os.tmpdir(), "smart-task-ui-dark.png");
 
 function contrastRatio(foreground, background) {
   const rgb = value => (value.match(/\d+/g) || []).slice(0, 3).map(Number);
@@ -60,6 +60,42 @@ app.whenReady().then(async () => {
           createdAt: new Date(2026, 8, 14, 9, 5).getTime()
         },
         {
+          id: "context-parent",
+          title: "关注任务的主任务上下文",
+          remarks: "",
+          remindTime: null,
+          priority: "medium",
+          parentId: null,
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 8, 30).getTime()
+        },
+        {
+          id: "focused-child",
+          title: "需要关注的子任务",
+          remarks: "",
+          remindTime: null,
+          priority: "high",
+          parentId: "context-parent",
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 8, 40).getTime()
+        },
+        {
+          id: "other-child",
+          title: "无需关注的兄弟任务",
+          remarks: "",
+          remindTime: null,
+          priority: "medium",
+          parentId: "context-parent",
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 8, 35).getTime()
+        },
+        {
           id: "done",
           title: "完成时间记录",
           remarks: "",
@@ -80,6 +116,7 @@ app.whenReady().then(async () => {
     const result = await window.webContents.executeJavaScript(`
       new Promise(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => {
+          const initialFilter = document.querySelector(".filter-btn.active")?.dataset.filter;
           const slider = document.getElementById("brightness-slider");
           slider.value = "120";
           slider.dispatchEvent(new Event("input", { bubbles: true }));
@@ -103,6 +140,7 @@ app.whenReady().then(async () => {
           document.querySelector('[data-filter="completed"]').click();
           requestAnimationFrame(() => requestAnimationFrame(() => {
             resolve({
+              initialFilter,
               activeText,
               completedText: document.querySelector(".task-meta").innerText,
               storedBrightness,
@@ -115,8 +153,25 @@ app.whenReady().then(async () => {
       });
     `);
 
+    const filterResult = await window.webContents.executeJavaScript(`
+      new Promise(resolve => {
+        const attentionTab = document.querySelector('[data-filter="attention"]');
+        attentionTab.click();
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          const counts = Object.fromEntries(
+            [...document.querySelectorAll("[data-filter-count]")]
+              .map(item => [item.dataset.filterCount, item.textContent.trim()])
+          );
+          resolve({
+            attentionText: document.querySelector(".task-list").innerText,
+            counts
+          });
+        }));
+      });
+    `);
+
     await window.webContents.executeJavaScript(`
-      document.querySelector('[data-filter="all"]').click();
+      document.querySelector('[data-filter="active"]').click();
       new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     `);
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -148,6 +203,12 @@ app.whenReady().then(async () => {
     assert.equal(result.storedBrightness, "120");
     assert.equal(result.resetBrightness, "100");
     assert.equal(result.brightnessOutput, "100%");
+    assert.equal(result.initialFilter, "active");
+    assert.match(filterResult.attentionText, /浅色模式与创建时间/);
+    assert.match(filterResult.attentionText, /关注任务的主任务上下文/);
+    assert.match(filterResult.attentionText, /需要关注的子任务/);
+    assert.doesNotMatch(filterResult.attentionText, /无需关注的兄弟任务/);
+    assert.deepEqual(filterResult.counts, { attention: "2", active: "4", completed: "1" });
     assert.equal(result.lightTheme.theme, "light");
     assert.equal(darkTheme.theme, "dark");
     assert.ok(
@@ -162,6 +223,7 @@ app.whenReady().then(async () => {
 
     process.stdout.write(JSON.stringify({
       ...result,
+      filterResult,
       darkTheme,
       lightScreenshot,
       darkScreenshot

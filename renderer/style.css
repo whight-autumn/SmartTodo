@@ -495,6 +495,10 @@ input[type="datetime-local"] {
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
 
 .filter-btn:hover { color: var(--text-primary); }
@@ -503,6 +507,30 @@ input[type="datetime-local"] {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+}
+
+.filter-count {
+  min-width: 21px;
+  height: 21px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+}
+
+.filter-btn.active .filter-count {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.attention-filter:not(.active) .filter-count {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
 }
 
 /* ========== 任务列表 ========== */

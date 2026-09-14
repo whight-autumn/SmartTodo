@@ -1,6 +1,6 @@
 {
   "name": "smart-assistant",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "智能任务管家 · AI 助手 - 桌面版",
   "main": "main.js",
   "author": "Smart Assistant",
@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.js",
-    "test:ui": "electron tests/v104-ui-smoke.cjs",
+    "test:ui": "electron tests/ui-smoke.cjs",
     "dist": "electron-builder --win portable"
   },
   "build": {

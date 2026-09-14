@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>智能任务管家 V1.0.4 · AI 助手 · by 萤火</title>
+  <title>智能任务管家 V1.0.5 · AI 助手 · by 萤火</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,7 +25,7 @@
     <div class="brand-text-wrap">
       <div class="brand-main-line">
         <span class="brand-name">智能任务管家</span>
-        <span id="app-version" class="brand-version">V1.0.4</span>
+        <span id="app-version" class="brand-version">V1.0.5</span>
       </div>
       <span class="brand-owner">by 萤火</span>
     </div>
@@ -83,10 +83,16 @@
       <button class="btn btn-primary submit-btn" type="submit">＋ 添加</button>
     </form>
 
-    <div class="filter-bar">
-      <button class="filter-btn active" data-filter="all">当前任务</button>
-      <button class="filter-btn" data-filter="active">进行中</button>
-      <button class="filter-btn" data-filter="completed">已完成</button>
+    <div class="filter-bar" aria-label="任务筛选">
+      <button class="filter-btn attention-filter" type="button" data-filter="attention">
+        需关注 <span class="filter-count" data-filter-count="attention">0</span>
+      </button>
+      <button class="filter-btn active" type="button" data-filter="active">
+        进行中 <span class="filter-count" data-filter-count="active">0</span>
+      </button>
+      <button class="filter-btn" type="button" data-filter="completed">
+        已完成 <span class="filter-count" data-filter-count="completed">0</span>
+      </button>
     </div>
 
     <ul id="task-list" class="task-list"></ul>

@@ -135,13 +135,13 @@ function sanitizeTasks(rawTasks) {
 }
 
 function pickTaskVersion(v) {
-  if (!v) return "1.0.4";
+  if (!v) return "1.0.5";
   return String(v).replace(/^v/i, "");
 }
 
 /* ===== 状态 ===== */
 let tasks = sanitizeTasks(loadJSON(STORAGE_KEYS.tasks, []));
-let currentFilter = "all";
+let currentFilter = "active";
 let remindersEnabled = true;
 let reminderInterval = null;
 let maintenanceInterval = null;
@@ -282,11 +282,7 @@ function getMainTasks() {
 }
 
 function getActiveTaskSet() {
-  return new Set(
-    tasks.filter(task => {
-      return currentFilter === "completed" ? task.done : !task.done;
-    }).map(t => t.id)
-  );
+  return taskModel.getVisibleTaskIds(tasks, currentFilter, Date.now());
 }
 
 function sortTasksForDisplay(list) {
@@ -454,7 +450,7 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
   li.dataset.id = task.id;
   const children = taskIndex.childrenByParent.get(task.id) || [];
   const hasChildren = children.some(child => !visibleSet || visibleSet.has(child.id));
-  const collapsed = !!collapsedMap[task.id];
+  const collapsed = currentFilter === "attention" ? false : !!collapsedMap[task.id];
   const parent = task.parentId ? taskIndex.byId.get(task.parentId) : null;
   const parentHtml = archive && parent
     ? "<div class=\"archive-parent\">归属：" + escapeHTML(parent.title) + "</div>"
@@ -513,7 +509,7 @@ function getTaskRows(visibleSet) {
     if (visited.has(row.task.id) || !visibleSet.has(row.task.id)) continue;
     visited.add(row.task.id);
     rows.push(row);
-    if (collapsedMap[row.task.id]) continue;
+    if (collapsedMap[row.task.id] && currentFilter !== "attention") continue;
     const children = taskIndex.childrenByParent.get(row.task.id) || [];
     for (let i = children.length - 1; i >= 0; i -= 1) {
       stack.push({ task: children[i], depth: row.depth + 1, archive: false });
@@ -522,7 +518,15 @@ function getTaskRows(visibleSet) {
   return rows;
 }
 
+function updateFilterCounts() {
+  const counts = taskModel.getTaskFilterCounts(tasks, Date.now());
+  document.querySelectorAll("[data-filter-count]").forEach(element => {
+    element.textContent = String(counts[element.dataset.filterCount] || 0);
+  });
+}
+
 function renderTasks() {
+  updateFilterCounts();
   refreshTaskIndex();
   const visibleSet = getActiveTaskSet();
   const rows = getTaskRows(visibleSet);
@@ -537,7 +541,7 @@ function renderTasks() {
     const children = taskIndex.childrenByParent.get(task.id) || [];
     const hasChildren = children.some(child => visibleSet.has(child.id));
     const signature = JSON.stringify([
-      task, depth, archive, !!collapsedMap[task.id], hasChildren,
+      task, depth, archive, currentFilter, !!collapsedMap[task.id], hasChildren,
       taskIndex.byId.get(task.parentId)?.title || "", minute
     ]);
     let cached = taskRowCache.get(task.id);
@@ -570,7 +574,10 @@ function renderTasks() {
     + " 项（已显示 " + nodes.length + " / " + rows.length + "）";
   els.emptyTip.style.display = rows.length ? "none" : "block";
   els.emptyTip.querySelector("p:last-child").textContent = currentFilter === "completed"
-    ? "暂无已完成任务" : "暂无进行中的任务，添加一个吧！";
+    ? "暂无已完成任务"
+    : currentFilter === "attention"
+      ? "目前没有需要优先处理的任务"
+      : "暂无进行中的任务，添加一个吧！";
 }
 
 els.loadMore.addEventListener("click", () => {
@@ -1417,7 +1424,7 @@ if (window.desktop?.onWindowShown) {
 }
 
 function renderInitialVersion() {
-  const fallback = window.desktop?.version || "1.0.4";
+  const fallback = window.desktop?.version || "1.0.5";
   const current = pickTaskVersion(fallback);
   if (els.version) els.version.textContent = `V${current}`;
 

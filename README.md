@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Electron-31-blue?logo=electron&logoColor=white" alt="Electron 31">
   <img src="https://img.shields.io/badge/electron--builder-24-green?logo=electronbuilder&logoColor=white" alt="electron-builder">
   <img src="https://img.shields.io/badge/JavaScript-Vanilla%20JS-F7DF1E?logo=javascript&logoColor=black" alt="Vanilla JS">
-  <img src="https://img.shields.io/badge/Node--test-13%20passed-brightgreen" alt="node:test">
+  <img src="https://img.shields.io/badge/Node--test-16%20passed-brightgreen" alt="node:test">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0A7EA4" alt="Windows x64">
   <img src="https://img.shields.io/badge/License-MIT-blueviolet" alt="MIT">
 </p>
@@ -26,6 +26,7 @@
 ## ✨ 功能特性
 
 - **任务管理**：主任务 / 子任务、备注、提醒时间、高中低优先级、置顶、折叠展开、一键完成与撤销
+- **重点筛选**：“需关注”自动汇集置顶、高优先级、已逾期及未来 24 小时内提醒的任务，并保留必要的父任务上下文
 - **智能归档**：完成任务自动归档，超过 **15 天**自动清理；创建时间 / 完成时间全程留痕
 - **智能排序**：主任务与其子任务分别在层级内按「置顶 → 未完成 → 优先级 → 时间」自动排序
 - **AI 智能助手**：接入 DeepSeek / OpenAI / 任意 OpenAI 兼容服务，支持会话管理、流式输出、任务清单分析、附件上传（≤10 个，单个 ≤20MB）
@@ -73,14 +74,14 @@ npm start
 │   ├── index.html        # 界面骨架
 │   ├── style.css         # 深浅主题与全部样式
 │   ├── app.js            # 渲染主逻辑（任务 / 提醒 / AI 会话）
-│   ├── task-model.js     # 任务纯逻辑模块（排序 / 归档 / 索引）
+│   ├── task-model.js     # 任务纯逻辑模块（排序 / 归档 / 关注筛选）
 │   ├── draft-store.js    # 表单草稿恢复
 │   ├── ai-provider.js    # OpenAI 兼容协议适配（SSE 流式）
 │   └── ui-appearance.js  # 亮度调节与时间戳格式化
 ├── tests/                # node:test 单元测试 + Electron 界面冒烟测试
 ├── assets/               # 应用图标（png / ico）
 ├── docs/文件说明.md       # 逐份文件功能说明 📖
-└── release/V1.0.4/       # 发布版 exe 与版本说明
+└── release/V1.0.5/       # 当前发布版 exe 与版本说明
 ```
 
 > 📖 完整的逐文件功能说明见 [`docs/文件说明.md`](docs/文件说明.md)
@@ -91,7 +92,7 @@ npm start
 # 纯逻辑单元测试（无需 Electron）
 npm test
 
-# 真实窗口界面冒烟测试（主题/时间戳/亮度/对比度）
+# 真实窗口界面冒烟测试（筛选/主题/时间戳/亮度/对比度）
 npm run test:ui
 ```
 
@@ -103,7 +104,7 @@ npm run dist
 
 构建 Windows x64 便携版，产物输出到 `dist/`。正式发布的 exe 建议通过 **GitHub Releases** 分发（仓库内不提交二进制文件）。
 
-历史交付：`release/V1.0.4/智能任务管家-1.0.4.exe`（免安装，双击即用）。
+当前交付：`release/V1.0.5/智能任务管家-1.0.5.exe`（免安装，双击即用）。历史版本建议通过 GitHub Releases 留存，避免二进制文件占用源码仓库空间。
 
 ## 💾 运行数据
 

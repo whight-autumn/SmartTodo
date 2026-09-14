@@ -7,11 +7,21 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function createTaskModel() {
   const PRIORITY_WEIGHT = { high: 3, medium: 2, low: 1 };
   const COMPLETED_RETENTION_MS = 15 * 24 * 60 * 60 * 1000;
+  const ATTENTION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
   function normalizePriority(priority) {
     return Object.prototype.hasOwnProperty.call(PRIORITY_WEIGHT, priority)
       ? priority
       : "medium";
+  }
+
+  function taskNeedsAttention(task, now = Date.now()) {
+    if (!task || task.done) return false;
+    if (task.pinned || normalizePriority(task.priority) === "high") return true;
+    if (!task.remindTime) return false;
+
+    const reminderAt = new Date(task.remindTime).getTime();
+    return Number.isFinite(reminderAt) && reminderAt <= now + ATTENTION_WINDOW_MS;
   }
 
   function compareTasks(a, b) {
@@ -101,14 +111,57 @@
     return depth;
   }
 
+  function getVisibleTaskIds(taskList, filter = "active", now = Date.now()) {
+    const normalizedTasks = normalizeTasks(taskList);
+
+    if (filter === "completed") {
+      return new Set(normalizedTasks.filter(task => task.done).map(task => task.id));
+    }
+
+    if (filter !== "attention") {
+      return new Set(normalizedTasks.filter(task => !task.done).map(task => task.id));
+    }
+
+    const taskMap = new Map(normalizedTasks.map(task => [task.id, task]));
+    const visibleIds = new Set();
+
+    normalizedTasks
+      .filter(task => taskNeedsAttention(task, now))
+      .forEach(task => {
+        let current = task;
+        const ancestry = new Set();
+
+        while (current && !current.done && !ancestry.has(current.id)) {
+          visibleIds.add(current.id);
+          ancestry.add(current.id);
+          current = current.parentId ? taskMap.get(current.parentId) : null;
+        }
+      });
+
+    return visibleIds;
+  }
+
+  function getTaskFilterCounts(taskList, now = Date.now()) {
+    const normalizedTasks = normalizeTasks(taskList);
+    return {
+      attention: normalizedTasks.filter(task => taskNeedsAttention(task, now)).length,
+      active: normalizedTasks.filter(task => !task.done).length,
+      completed: normalizedTasks.filter(task => task.done).length
+    };
+  }
+
   return {
     COMPLETED_RETENTION_MS,
+    ATTENTION_WINDOW_MS,
     normalizePriority,
     normalizeTasks,
     sortTasks,
     buildTaskIndex,
     markTaskDone,
     pruneCompletedTasks,
-    getTaskDepth
+    getTaskDepth,
+    taskNeedsAttention,
+    getVisibleTaskIds,
+    getTaskFilterCounts
   };
 });
