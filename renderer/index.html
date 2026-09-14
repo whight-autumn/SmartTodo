@@ -141,8 +141,9 @@
       <label class="field-label" for="task-note-input">任务备注</label>
       <textarea id="task-note-input" class="input task-note-input" rows="6" placeholder="记录补充信息，也可以粘贴 HTTP/HTTPS 链接"></textarea>
       <div class="task-note-attachment-tools">
+        <label class="field-label" for="task-note-file-input">任务附件</label>
         <input id="task-note-file-input" type="file" multiple hidden>
-        <label id="task-note-file-label" class="btn btn-secondary task-note-upload" for="task-note-file-input">＋ 添加附件</label>
+        <button id="task-note-file-button" class="btn btn-secondary task-note-upload" type="button" aria-describedby="task-note-limit">＋ 添加附件</button>
         <span id="task-note-limit" class="hint">最多 10 个，每个不超过 20MB</span>
       </div>
       <ul id="task-note-attachment-list" class="task-note-attachment-list" aria-label="任务附件"></ul>

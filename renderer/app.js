@@ -171,6 +171,7 @@ let aiCollapsed = localStorage.getItem(STORAGE_KEYS.aiCollapsed) === "true";
 let taskNoteDraft = null;
 let taskNotePreviousFocus = null;
 let taskNoteReturnTaskId = null;
+let taskNoteSavePending = false;
 
 // ===== DOM 引用 =====
 const $ = id => document.getElementById(id);
@@ -217,7 +218,7 @@ const els = {
   noteHeading: $("task-note-heading"),
   noteInput: $("task-note-input"),
   noteFileInput: $("task-note-file-input"),
-  noteFileLabel: $("task-note-file-label"),
+  noteFileButton: $("task-note-file-button"),
   noteAttachmentList: $("task-note-attachment-list"),
   noteLimit: $("task-note-limit"),
   noteStatus: $("task-note-status"),
@@ -741,11 +742,12 @@ function renderTaskNoteDraft() {
 
 function setTaskNoteSaving(saving) {
   const canAttach = !!(window.desktop?.getPathForFile && window.desktop?.importTaskAttachments);
+  taskNoteSavePending = saving;
   els.noteSave.disabled = saving;
   els.noteCancel.disabled = saving;
   els.noteFileInput.disabled = saving || !canAttach;
-  els.noteFileLabel.classList.toggle("is-disabled", saving || !canAttach);
-  els.noteFileLabel.setAttribute("aria-disabled", String(saving || !canAttach));
+  els.noteFileButton.disabled = saving || !canAttach;
+  els.noteFileButton.classList.toggle("is-disabled", saving || !canAttach);
   els.noteAttachmentList.querySelectorAll("button").forEach(button => {
     button.disabled = saving;
   });
@@ -771,6 +773,7 @@ function openTaskNoteDialog(task) {
 }
 
 function cancelTaskNoteEdit() {
+  if (taskNoteSavePending) return;
   taskNoteDraft = null;
   els.noteFileInput.value = "";
   if (els.noteDialog.open) els.noteDialog.close();
@@ -784,6 +787,8 @@ async function saveTaskNoteEdit() {
   setTaskNoteStatus("正在保存…");
 
   try {
+    const task = tasks.find(item => item.id === draft.taskId);
+    if (!task) throw new Error("任务已不存在");
     let importedAttachments = [];
     if (draft.pendingFiles.length) {
       if (!window.desktop?.importTaskAttachments) throw new Error("当前环境无法导入附件");
@@ -795,7 +800,7 @@ async function saveTaskNoteEdit() {
       if (!Array.isArray(importedAttachments)) throw new Error("附件导入结果无效");
     }
 
-    const failedRemovalIds = new Set();
+    const successfulRemovalIds = new Set();
     const failedRemovalNames = [];
     for (const attachment of draft.removedAttachments) {
       try {
@@ -804,21 +809,37 @@ async function saveTaskNoteEdit() {
           taskId: draft.taskId,
           storageName: attachment.storageName
         });
+        successfulRemovalIds.add(attachment.id);
       } catch {
-        failedRemovalIds.add(attachment.id);
         failedRemovalNames.push(attachment.name);
       }
     }
 
-    const task = tasks.find(item => item.id === draft.taskId);
-    if (!task) throw new Error("任务已不存在");
-    const failedAttachments = draft.removedAttachments
-      .filter(attachment => failedRemovalIds.has(attachment.id));
+    const retainedAttachments = (task.attachments || [])
+      .filter(attachment => !successfulRemovalIds.has(attachment.id));
+    if (retainedAttachments.length + importedAttachments.length > ATTACHMENT_LIMIT) {
+      const rollbackFailures = [];
+      for (const attachment of importedAttachments) {
+        try {
+          if (!window.desktop?.removeTaskAttachment) throw new Error("当前环境无法回滚附件");
+          await window.desktop.removeTaskAttachment({
+            taskId: draft.taskId,
+            storageName: attachment.storageName
+          });
+        } catch {
+          rollbackFailures.push(attachment.name);
+        }
+      }
+      const rollbackMessage = rollbackFailures.length
+        ? `；以下新附件回滚失败：${rollbackFailures.join("、")}`
+        : "；新导入附件已回滚";
+      throw new Error(`附件删除失败，保存后将超过 ${ATTACHMENT_LIMIT} 个附件${rollbackMessage}`);
+    }
+
     const editResult = taskModel.applyTaskNoteEdit(task, {
       remarks: draft.remarks,
       attachments: [
-        ...draft.retainedAttachments,
-        ...failedAttachments,
+        ...retainedAttachments,
         ...importedAttachments
       ]
     });
@@ -829,6 +850,7 @@ async function saveTaskNoteEdit() {
       queueTaskRender();
     }
 
+    setTaskNoteSaving(false);
     taskNoteDraft = null;
     els.noteFileInput.value = "";
     els.noteDialog.close();
@@ -844,6 +866,10 @@ async function saveTaskNoteEdit() {
 
 els.noteInput.addEventListener("input", () => {
   if (taskNoteDraft) taskNoteDraft.remarks = els.noteInput.value;
+});
+
+els.noteFileButton.addEventListener("click", () => {
+  if (!els.noteFileButton.disabled) els.noteFileInput.click();
 });
 
 els.noteFileInput.addEventListener("change", event => {
@@ -926,6 +952,7 @@ els.noteCancel.addEventListener("click", cancelTaskNoteEdit);
 els.noteSave.addEventListener("click", saveTaskNoteEdit);
 els.noteDialog.addEventListener("cancel", event => {
   event.preventDefault();
+  if (taskNoteSavePending) return;
   cancelTaskNoteEdit();
 });
 els.noteDialog.addEventListener("close", () => {

@@ -125,6 +125,81 @@ app.whenReady().then(async () => {
               addedAt: new Date(2026, 8, 14, 11, 2).getTime()
             }
           ]
+        },
+        {
+          id: "boundary",
+          title: "十个附件替换边界",
+          remarks: "边界原始备注",
+          remindTime: null,
+          priority: "low",
+          parentId: null,
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 7, 30).getTime(),
+          updatedAt: new Date(2026, 8, 14, 7, 35).getTime(),
+          attachments: Array.from({ length: 10 }, (_, index) => ({
+            id: "boundary_attachment_" + (index + 1),
+            name: "边界附件" + (index + 1) + ".txt",
+            storageName: "boundary_" + (index + 1) + ".txt",
+            mimeType: "text/plain",
+            size: index + 1,
+            addedAt: new Date(2026, 8, 14, 7, 40 + index).getTime()
+          }))
+        },
+        {
+          id: "import-failure",
+          title: "导入失败事务",
+          remarks: "导入前备注",
+          remindTime: null,
+          priority: "low",
+          parentId: null,
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 7, 20).getTime(),
+          updatedAt: new Date(2026, 8, 14, 7, 25).getTime(),
+          attachments: []
+        },
+        {
+          id: "pending-save",
+          title: "保存期间阻止取消",
+          remarks: "挂起前备注",
+          remindTime: null,
+          priority: "low",
+          parentId: null,
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 7, 10).getTime(),
+          updatedAt: new Date(2026, 8, 14, 7, 15).getTime(),
+          attachments: []
+        },
+        {
+          id: "cleanup-parent",
+          title: "附件目录清理父任务",
+          remarks: "",
+          remindTime: null,
+          priority: "low",
+          parentId: null,
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 7, 0).getTime(),
+          attachments: []
+        },
+        {
+          id: "cleanup-child",
+          title: "附件目录清理子任务",
+          remarks: "",
+          remindTime: null,
+          priority: "low",
+          parentId: "cleanup-parent",
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 7, 5).getTime(),
+          attachments: []
         }
       ]));
       location.reload();
@@ -172,8 +247,96 @@ app.whenReady().then(async () => {
       });
     `);
 
+    await window.webContents.executeJavaScript(`
+      (() => {
+        const state = {
+          importMode: "success",
+          failRemovalStorageNames: [],
+          imports: [],
+          removals: [],
+          openedUrls: [],
+          cleanupCalls: [],
+          selectedFiles: {},
+          nextAttachmentId: 1,
+          pendingImport: null
+        };
+
+        function createImportedAttachments(payload) {
+          return payload.sourcePaths.map(sourcePath => {
+            const selected = state.selectedFiles[sourcePath];
+            const serial = state.nextAttachmentId++;
+            const name = selected?.name || sourcePath.split(/[\\/]/).pop() || ("附件" + serial);
+            const extension = name.match(/\.[a-zA-Z0-9]{1,12}$/)?.[0].toLowerCase() || ".bin";
+            return {
+              id: "imported_" + serial,
+              name,
+              storageName: "imported_" + serial + extension,
+              mimeType: selected?.mimeType || "application/octet-stream",
+              size: selected?.size || 0,
+              addedAt: 1800000000000 + serial
+            };
+          });
+        }
+
+        window.__desktopMock = state;
+        window.__desktopApi = {
+          getPathForFile(file) {
+            const sourcePath = "C:/mock/" + file.name;
+            state.selectedFiles[sourcePath] = {
+              name: file.name,
+              size: file.size,
+              mimeType: file.type || "application/octet-stream"
+            };
+            return sourcePath;
+          },
+          importTaskAttachments(payload) {
+            state.imports.push(structuredClone(payload));
+            if (state.importMode === "failure") {
+              return Promise.reject(new Error("mock import failure"));
+            }
+            const attachments = createImportedAttachments(payload);
+            if (state.importMode === "pending") {
+              return new Promise(resolve => {
+                state.pendingImport = {
+                  resolve() {
+                    state.pendingImport = null;
+                    resolve(attachments);
+                  }
+                };
+              });
+            }
+            return Promise.resolve(attachments);
+          },
+          removeTaskAttachment(payload) {
+            state.removals.push(structuredClone(payload));
+            if (state.failRemovalStorageNames.includes(payload.storageName)) {
+              return Promise.reject(new Error("mock deletion failure"));
+            }
+            return Promise.resolve(true);
+          },
+          removeTaskAttachmentDirectories(taskIds) {
+            state.cleanupCalls.push([...taskIds]);
+            return Promise.resolve(true);
+          },
+          getTaskAttachmentUrl(payload) {
+            return Promise.resolve("file:///managed/" + payload.storageName);
+          },
+          openTaskAttachment() {
+            return Promise.resolve(true);
+          },
+          openExternalUrl(url) {
+            state.openedUrls.push(url);
+            return Promise.resolve(true);
+          }
+        };
+      })()
+    `);
+
     const noteResult = await window.webContents.executeJavaScript(`
-      new Promise(resolve => {
+      (async () => {
+        const frames = () => new Promise(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        });
         const originalTask = JSON.parse(localStorage.getItem("smart_tasks"))
           .find(task => task.id === "done");
         const originalCard = document.querySelector('[data-id="done"]');
@@ -181,51 +344,77 @@ app.whenReady().then(async () => {
         const originalCompleted = originalCard.querySelector(".task-stamp.completed").innerText;
 
         originalCard.querySelector('[data-action="edit-note"]').click();
+        document.getElementById("task-note-save").click();
+        await frames();
+        const unchangedTask = JSON.parse(localStorage.getItem("smart_tasks"))
+          .find(task => task.id === "done");
+        const unchangedDialogOpen = document.getElementById("task-note-dialog").open;
+
+        const editableCard = document.querySelector('[data-id="done"]');
+        editableCard.querySelector('[data-action="edit-note"]').click();
         document.getElementById("task-note-input").value = "更新后的备注 https://example.com/docs";
         document.getElementById("task-note-save").click();
+        await frames();
+        const savedTask = JSON.parse(localStorage.getItem("smart_tasks"))
+          .find(task => task.id === "done");
+        const savedCard = document.querySelector('[data-id="done"]');
+        const savedRemarks = savedCard.querySelector(".task-note-preview").innerText;
+        const savedLink = savedCard.querySelector('.note-link[data-url="https://example.com/docs"]');
+        const savedCreated = savedCard.querySelector(".task-stamp:not(.completed):not(.updated)").innerText;
+        const savedCompleted = savedCard.querySelector(".task-stamp.completed").innerText;
+        const savedUpdated = savedCard.querySelector(".task-stamp.updated").innerText;
+        const attachmentCount = savedCard.querySelectorAll(".task-attachment").length;
+        const image = savedCard.querySelector(".task-attachment-thumb");
+        const imageUnavailable = image.closest(".task-attachment").classList.contains("is-unavailable");
 
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          const savedTask = JSON.parse(localStorage.getItem("smart_tasks"))
-            .find(task => task.id === "done");
-          const savedCard = document.querySelector('[data-id="done"]');
-          const savedRemarks = savedCard.querySelector(".task-note-preview").innerText;
-          const savedLink = savedCard.querySelector('.note-link[data-url="https://example.com/docs"]');
-          const savedCreated = savedCard.querySelector(".task-stamp:not(.completed):not(.updated)").innerText;
-          const savedCompleted = savedCard.querySelector(".task-stamp.completed").innerText;
-          const savedUpdated = savedCard.querySelector(".task-stamp.updated").innerText;
-          const attachmentCount = savedCard.querySelectorAll(".task-attachment").length;
-          const image = savedCard.querySelector(".task-attachment-thumb");
-          const imageUnavailable = image.closest(".task-attachment").classList.contains("is-unavailable");
+        window.desktop = window.__desktopApi;
+        savedLink.click();
+        await frames();
+        savedCard.querySelector('[data-action="edit-note"]').click();
+        document.getElementById("task-note-input").value = "这次修改应被取消";
+        document.querySelector('[data-action="remove-note-attachment"]').click();
+        document.getElementById("task-note-cancel").click();
+        await frames();
+        const afterCancelTask = JSON.parse(localStorage.getItem("smart_tasks"))
+          .find(task => task.id === "done");
 
-          savedCard.querySelector('[data-action="edit-note"]').click();
-          document.getElementById("task-note-input").value = "这次修改应被取消";
-          document.querySelector('[data-action="remove-note-attachment"]').click();
-          document.getElementById("task-note-cancel").click();
+        const failedRemovalStart = window.__desktopMock.removals.length;
+        window.__desktopMock.failRemovalStorageNames = ["image_attachment.png"];
+        document.querySelector('[data-id="done"] [data-action="edit-note"]').click();
+        document.querySelector('[data-attachment-id="image_attachment"]').click();
+        document.getElementById("task-note-save").click();
+        await frames();
+        const afterFailedRemovalTask = JSON.parse(localStorage.getItem("smart_tasks"))
+          .find(task => task.id === "done");
+        const failedRemovalDialogOpen = document.getElementById("task-note-dialog").open;
+        const failedRemovalCalls = window.__desktopMock.removals.slice(failedRemovalStart);
+        window.__desktopMock.failRemovalStorageNames = [];
 
-          requestAnimationFrame(() => requestAnimationFrame(() => {
-            const afterCancelTask = JSON.parse(localStorage.getItem("smart_tasks"))
-              .find(task => task.id === "done");
-            resolve({
-              originalRemarks: originalTask.remarks,
-              savedRemarks,
-              savedLinkUrl: savedLink?.dataset.url || null,
-              originalCreated,
-              savedCreated,
-              originalCompleted,
-              savedCompleted,
-              originalUpdatedAt: originalTask.updatedAt,
-              savedUpdatedAt: savedTask.updatedAt,
-              savedUpdated,
-              afterCancelRemarks: afterCancelTask.remarks,
-              afterCancelUpdatedAt: afterCancelTask.updatedAt,
-              afterCancelAttachments: afterCancelTask.attachments,
-              attachmentCount,
-              imageHasSource: image.hasAttribute("src"),
-              imageUnavailable
-            });
-          }));
-        }));
-      });
+        return {
+          originalRemarks: originalTask.remarks,
+          unchangedUpdatedAt: unchangedTask.updatedAt,
+          unchangedDialogOpen,
+          savedRemarks,
+          savedLinkUrl: savedLink?.dataset.url || null,
+          openedUrls: [...window.__desktopMock.openedUrls],
+          originalCreated,
+          savedCreated,
+          originalCompleted,
+          savedCompleted,
+          originalUpdatedAt: originalTask.updatedAt,
+          savedUpdatedAt: savedTask.updatedAt,
+          savedUpdated,
+          afterCancelRemarks: afterCancelTask.remarks,
+          afterCancelUpdatedAt: afterCancelTask.updatedAt,
+          afterCancelAttachments: afterCancelTask.attachments,
+          afterFailedRemovalTask,
+          failedRemovalDialogOpen,
+          failedRemovalCalls,
+          attachmentCount,
+          imageHasSource: image.hasAttribute("src"),
+          imageUnavailable
+        };
+      })()
     `);
 
     const filterResult = await window.webContents.executeJavaScript(`
@@ -243,6 +432,109 @@ app.whenReady().then(async () => {
           });
         }));
       });
+    `);
+
+    const highRiskResult = await window.webContents.executeJavaScript(`
+      (async () => {
+        const frames = () => new Promise(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        });
+        const readTask = taskId => JSON.parse(localStorage.getItem("smart_tasks"))
+          .find(task => task.id === taskId);
+        const selectFile = (name, contents = "selected file") => {
+          const transfer = new DataTransfer();
+          transfer.items.add(new File([contents], name, {
+            type: "text/plain",
+            lastModified: 1800000000000
+          }));
+          const input = document.getElementById("task-note-file-input");
+          input.files = transfer.files;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+        const state = window.__desktopMock;
+
+        document.querySelector('[data-filter="active"]').click();
+        await frames();
+
+        const importFailureBefore = structuredClone(readTask("import-failure"));
+        state.importMode = "failure";
+        document.querySelector('[data-id="import-failure"] [data-action="edit-note"]').click();
+        const pickerButton = document.getElementById("task-note-file-button");
+        const pickerInput = document.getElementById("task-note-file-input");
+        let pickerClicks = 0;
+        pickerInput.addEventListener("click", event => {
+          pickerClicks += 1;
+          event.preventDefault();
+        }, { once: true });
+        pickerButton?.click();
+        const picker = {
+          tagName: pickerButton?.tagName || null,
+          type: pickerButton?.type || null,
+          pickerClicks
+        };
+        document.getElementById("task-note-input").value = "不应保存的备注";
+        selectFile("import-failure.txt");
+        document.getElementById("task-note-save").click();
+        await frames();
+        const importFailure = {
+          task: readTask("import-failure"),
+          dialogOpen: document.getElementById("task-note-dialog").open,
+          status: document.getElementById("task-note-status").textContent
+        };
+        document.getElementById("task-note-cancel").click();
+
+        const boundaryBefore = structuredClone(readTask("boundary"));
+        state.importMode = "success";
+        state.failRemovalStorageNames = ["boundary_10.txt"];
+        const boundaryRemovalStart = state.removals.length;
+        document.querySelector('[data-id="boundary"] [data-action="edit-note"]').click();
+        document.querySelector('[data-attachment-id="boundary_attachment_10"]').click();
+        selectFile("boundary-replacement.txt");
+        document.getElementById("task-note-input").value = "不应越界保存的备注";
+        document.getElementById("task-note-save").click();
+        await frames();
+        const boundary = {
+          task: readTask("boundary"),
+          dialogOpen: document.getElementById("task-note-dialog").open,
+          status: document.getElementById("task-note-status").textContent,
+          removals: state.removals.slice(boundaryRemovalStart)
+        };
+        document.getElementById("task-note-cancel").click();
+
+        state.importMode = "pending";
+        state.failRemovalStorageNames = [];
+        document.querySelector('[data-id="pending-save"] [data-action="edit-note"]').click();
+        document.getElementById("task-note-input").value = "挂起保存后的备注";
+        selectFile("selected-and-imported.txt", "persist metadata only");
+        document.getElementById("task-note-save").click();
+        await Promise.resolve();
+        const cancelEvent = new Event("cancel", { cancelable: true });
+        const cancelDispatchResult = document.getElementById("task-note-dialog").dispatchEvent(cancelEvent);
+        const pendingDialogOpen = document.getElementById("task-note-dialog").open;
+        state.pendingImport.resolve();
+        await frames();
+        const pendingTask = readTask("pending-save");
+
+        document.querySelector('[data-id="cleanup-parent"] [data-action="delete"]').click();
+        await Promise.resolve();
+        document.getElementById("confirm-accept").click();
+        await frames();
+
+        return {
+          picker,
+          importFailureBefore,
+          importFailure,
+          boundaryBefore,
+          boundary,
+          cancelDefaultPrevented: !cancelDispatchResult && cancelEvent.defaultPrevented,
+          pendingDialogOpen,
+          pendingDialogOpenAfterResolve: document.getElementById("task-note-dialog").open,
+          pendingTask,
+          cleanupIds: state.cleanupCalls.at(-1) || [],
+          cleanupParentExists: !!readTask("cleanup-parent"),
+          cleanupChildExists: !!readTask("cleanup-child")
+        };
+      })()
     `);
 
     await window.webContents.executeJavaScript(`
@@ -280,8 +572,11 @@ app.whenReady().then(async () => {
     assert.equal(result.brightnessOutput, "100%");
     assert.equal(result.initialFilter, "active");
     assert.equal(noteResult.originalRemarks, "原始备注 https://example.com/old");
+    assert.equal(noteResult.unchangedUpdatedAt, noteResult.originalUpdatedAt);
+    assert.equal(noteResult.unchangedDialogOpen, false);
     assert.equal(noteResult.savedRemarks, "更新后的备注 https://example.com/docs");
     assert.equal(noteResult.savedLinkUrl, "https://example.com/docs");
+    assert.deepEqual(noteResult.openedUrls, ["https://example.com/docs"]);
     assert.equal(noteResult.savedCreated, noteResult.originalCreated);
     assert.equal(noteResult.savedCompleted, noteResult.originalCompleted);
     assert.ok(noteResult.savedUpdatedAt > noteResult.originalUpdatedAt);
@@ -295,11 +590,44 @@ app.whenReady().then(async () => {
     assert.equal(noteResult.attachmentCount, 2);
     assert.equal(noteResult.imageHasSource, false);
     assert.equal(noteResult.imageUnavailable, true);
+    assert.deepEqual(noteResult.afterFailedRemovalTask.attachments, noteResult.afterCancelAttachments);
+    assert.equal(noteResult.afterFailedRemovalTask.updatedAt, noteResult.afterCancelUpdatedAt);
+    assert.equal(noteResult.failedRemovalDialogOpen, false);
+    assert.deepEqual(noteResult.failedRemovalCalls, [{
+      taskId: "done",
+      storageName: "image_attachment.png"
+    }]);
+    assert.deepEqual(highRiskResult.picker, {
+      tagName: "BUTTON",
+      type: "button",
+      pickerClicks: 1
+    });
+    assert.deepEqual(highRiskResult.importFailure.task, highRiskResult.importFailureBefore);
+    assert.equal(highRiskResult.importFailure.dialogOpen, true);
+    assert.match(highRiskResult.importFailure.status, /mock import failure/);
+    assert.deepEqual(highRiskResult.boundary.task, highRiskResult.boundaryBefore);
+    assert.equal(highRiskResult.boundary.task.attachments.length, 10);
+    assert.equal(highRiskResult.boundary.dialogOpen, true);
+    assert.match(highRiskResult.boundary.status, /10 个附件/);
+    assert.equal(highRiskResult.boundary.removals.length, 2);
+    assert.equal(highRiskResult.boundary.removals[0].storageName, "boundary_10.txt");
+    assert.match(highRiskResult.boundary.removals[1].storageName, /^imported_\d+\.txt$/);
+    assert.equal(highRiskResult.cancelDefaultPrevented, true);
+    assert.equal(highRiskResult.pendingDialogOpen, true);
+    assert.equal(highRiskResult.pendingDialogOpenAfterResolve, false);
+    assert.equal(highRiskResult.pendingTask.remarks, "挂起保存后的备注");
+    assert.equal(highRiskResult.pendingTask.attachments.length, 1);
+    assert.equal(highRiskResult.pendingTask.attachments[0].name, "selected-and-imported.txt");
+    assert.ok(!("file" in highRiskResult.pendingTask.attachments[0]));
+    assert.ok(!("sourcePath" in highRiskResult.pendingTask.attachments[0]));
+    assert.deepEqual(highRiskResult.cleanupIds, ["cleanup-parent", "cleanup-child"]);
+    assert.equal(highRiskResult.cleanupParentExists, false);
+    assert.equal(highRiskResult.cleanupChildExists, false);
     assert.match(filterResult.attentionText, /浅色模式与创建时间/);
     assert.match(filterResult.attentionText, /关注任务的主任务上下文/);
     assert.match(filterResult.attentionText, /需要关注的子任务/);
     assert.doesNotMatch(filterResult.attentionText, /无需关注的兄弟任务/);
-    assert.deepEqual(filterResult.counts, { attention: "2", active: "4", completed: "1" });
+    assert.deepEqual(filterResult.counts, { attention: "2", active: "9", completed: "1" });
     assert.equal(result.lightTheme.theme, "light");
     assert.equal(darkTheme.theme, "dark");
     assert.ok(
@@ -315,6 +643,7 @@ app.whenReady().then(async () => {
     process.stdout.write(JSON.stringify({
       ...result,
       noteResult,
+      highRiskResult,
       filterResult,
       darkTheme,
       lightScreenshot,
