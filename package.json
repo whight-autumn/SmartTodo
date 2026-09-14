@@ -19,6 +19,7 @@
       "main.js",
       "main-paths.js",
       "task-attachment-store.js",
+      "task-attachment-ipc.js",
       "preload.js",
       "renderer/**/*",
       "assets/**/*"
