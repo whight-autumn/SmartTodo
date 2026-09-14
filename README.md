@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Electron-31-blue?logo=electron&logoColor=white" alt="Electron 31">
   <img src="https://img.shields.io/badge/electron--builder-24-green?logo=electronbuilder&logoColor=white" alt="electron-builder">
   <img src="https://img.shields.io/badge/JavaScript-Vanilla%20JS-F7DF1E?logo=javascript&logoColor=black" alt="Vanilla JS">
-  <img src="https://img.shields.io/badge/Node--test-52%20tests-brightgreen" alt="node:test 52 tests">
+  <img src="https://img.shields.io/badge/Node--test-67%20tests-brightgreen" alt="node:test 67 tests">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0A7EA4" alt="Windows x64">
   <img src="https://img.shields.io/badge/License-MIT-blueviolet" alt="MIT">
 </p>
