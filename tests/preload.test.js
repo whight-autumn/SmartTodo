@@ -126,3 +126,11 @@ test("preload uses fixed transaction completion channels", async () => {
     { channel: "task-attachment:rollback-changes", payload }
   ]);
 });
+require("node:test")("preload exposes task reconciliation only through a fixed IPC channel", () => {
+  const localAssert = require("node:assert/strict");
+  const source = require("node:fs").readFileSync(require.resolve("../preload"), "utf8");
+
+  localAssert.match(source, /reconcileTaskAttachments/);
+  localAssert.match(source, /ipcRenderer\.invoke\("task-attachment:reconcile"/);
+  localAssert.doesNotMatch(source, /reconcileTaskAttachments\s*:\s*\([^)]*channel/);
+});

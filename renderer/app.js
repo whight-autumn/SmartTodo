@@ -858,7 +858,6 @@ async function saveTaskNoteEdit() {
   setTaskNoteStatus("正在保存…");
 
   let preparedTransaction = null;
-  let metadataPersisted = false;
   try {
     const task = tasks.find(item => item.id === draft.taskId);
     if (!task) throw new Error("任务已不存在");
@@ -866,9 +865,7 @@ async function saveTaskNoteEdit() {
       throw new Error(`任务原有附件与待添加附件合计不能超过 ${ATTACHMENT_LIMIT} 个`);
     }
     let prepared = {
-      attachments: [],
-      removedStorageNames: [],
-      failedStorageNames: []
+      attachments: []
     };
     if (draft.pendingFiles.length || draft.removedAttachments.length) {
       if (!window.desktop?.prepareTaskAttachmentChanges
@@ -882,25 +879,23 @@ async function saveTaskNoteEdit() {
         removeStorageNames: draft.removedAttachments.map(attachment => attachment.storageName),
         existingCount: draft.originalAttachments.length
       });
-      if (!prepared || typeof prepared.transactionId !== "string" || !prepared.transactionId
-          || !Array.isArray(prepared.attachments)
-          || !Array.isArray(prepared.removedStorageNames)
-          || !Array.isArray(prepared.failedStorageNames)) {
+      if (!prepared || typeof prepared.transactionId !== "string" || !prepared.transactionId) {
         throw new Error("附件事务结果无效");
       }
       preparedTransaction = {
         taskId: draft.taskId,
         transactionId: prepared.transactionId
       };
+      if (!Array.isArray(prepared.attachments)) {
+        throw new Error("附件事务结果无效");
+      }
     }
 
-    const successfulRemovalNames = new Set(prepared.removedStorageNames);
-    const failedStorageNames = new Set(prepared.failedStorageNames);
-    const failedRemovalNames = draft.removedAttachments
-      .filter(attachment => failedStorageNames.has(attachment.storageName))
-      .map(attachment => attachment.name);
+    const removalStorageNames = new Set(
+      draft.removedAttachments.map(attachment => attachment.storageName)
+    );
     const retainedAttachments = draft.originalAttachments
-      .filter(attachment => !successfulRemovalNames.has(attachment.storageName));
+      .filter(attachment => !removalStorageNames.has(attachment.storageName));
 
     const editResult = taskModel.applyTaskNoteEdit(task, {
       remarks: draft.remarks,
@@ -913,26 +908,43 @@ async function saveTaskNoteEdit() {
     if (editResult.changed) {
       const nextTasks = tasks.map(item => item.id === draft.taskId ? editResult.task : item);
       saveJSON(STORAGE_KEYS.tasks, nextTasks);
-      metadataPersisted = true;
       tasks = nextTasks;
       taskIndexDirty = true;
       queueTaskRender();
     }
 
+    const failedCleanupStorageNames = new Set();
+    let cleanupFailureMessage = "";
     if (preparedTransaction) {
-      await window.desktop.commitTaskAttachmentChanges(preparedTransaction);
-      preparedTransaction = null;
+      try {
+        const cleanup = await window.desktop.commitTaskAttachmentChanges(preparedTransaction);
+        if (!cleanup || !Array.isArray(cleanup.failedStorageNames)) {
+          throw new Error("附件清理结果无效");
+        }
+        cleanup.failedStorageNames.forEach(storageName => failedCleanupStorageNames.add(storageName));
+      } catch (cleanupError) {
+        draft.removedAttachments.forEach(attachment => (
+          failedCleanupStorageNames.add(attachment.storageName)
+        ));
+        cleanupFailureMessage = cleanupError?.message || "未知错误";
+      } finally {
+        preparedTransaction = null;
+      }
     }
     releaseTaskNoteDraftPreviews(draft);
 
-    if (failedRemovalNames.length) {
+    if (failedCleanupStorageNames.size || cleanupFailureMessage) {
       const synchronizedTask = editResult.changed ? editResult.task : task;
       taskNoteDraft = createTaskNoteDraft(synchronizedTask);
       els.noteInput.value = taskNoteDraft.remarks;
       els.noteFileInput.value = "";
       renderTaskNoteDraft();
       setTaskNoteSaving(false);
-      setTaskNoteStatus(`${failedRemovalNames.join("、")} 移除失败，记录已保留，请重试`, "error");
+      const failedNames = draft.removedAttachments
+        .filter(attachment => failedCleanupStorageNames.has(attachment.storageName))
+        .map(attachment => attachment.name);
+      const detail = cleanupFailureMessage || `${failedNames.join("、")} 清理失败`;
+      setTaskNoteStatus(`内容已保存，但旧附件清理失败（${detail}），将在下次启动时重试`, "warning");
       return;
     }
     setTaskNoteSaving(false);
@@ -941,10 +953,13 @@ async function saveTaskNoteEdit() {
     els.noteDialog.close();
   } catch (error) {
     let failureMessage = error?.message || "未知错误";
-    if (preparedTransaction && !metadataPersisted) {
+    if (preparedTransaction) {
       try {
-        await window.desktop?.rollbackTaskAttachmentChanges?.(preparedTransaction);
+        const rollback = await window.desktop?.rollbackTaskAttachmentChanges?.(preparedTransaction);
         preparedTransaction = null;
+        if (rollback?.failedStorageNames?.length) {
+          failureMessage += "；新导入附件回滚不完整，将在下次启动时清理";
+        }
       } catch (rollbackError) {
         failureMessage += `；回滚失败：${rollbackError?.message || "未知错误"}`;
       }
@@ -953,6 +968,18 @@ async function saveTaskNoteEdit() {
   } finally {
     if (taskNoteDraft === draft) setTaskNoteSaving(false);
   }
+}
+
+function reconcileTaskAttachments() {
+  if (!window.desktop?.reconcileTaskAttachments) return;
+  const references = tasks.map(task => ({
+    taskId: task.id,
+    storageNames: (Array.isArray(task.attachments) ? task.attachments : [])
+      .map(attachment => attachment.storageName)
+  }));
+  window.desktop.reconcileTaskAttachments(references).catch(error => {
+    console.warn("启动附件清理失败：", error);
+  });
 }
 
 els.noteInput.addEventListener("input", () => {
@@ -1937,6 +1964,7 @@ function init() {
   applyAICollapseState();
   pruneExpiredCompletedTasks();
   saveTasks();
+  reconcileTaskAttachments();
   renderParentOptions();
   renderTasks();
   updateSummary();

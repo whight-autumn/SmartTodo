@@ -85,6 +85,26 @@ function validateTaskIds(value) {
   return value.map(validateTaskId);
 }
 
+function validateReconciliationReferences(value) {
+  if (!Array.isArray(value)) {
+    throw new Error("任务附件引用无效");
+  }
+  const seenTaskIds = new Set();
+  return value.map(reference => {
+    const payload = validateExactPayload(reference, ["taskId", "storageNames"], "任务附件引用");
+    const taskId = validateTaskId(payload.taskId);
+    if (seenTaskIds.has(taskId) || !Array.isArray(payload.storageNames)) {
+      throw new Error("任务附件引用无效");
+    }
+    seenTaskIds.add(taskId);
+    const storageNames = payload.storageNames.map(validateStorageName);
+    if (new Set(storageNames).size !== storageNames.length) {
+      throw new Error("任务附件引用无效");
+    }
+    return { taskId, storageNames };
+  });
+}
+
 function registerTaskAttachmentIpc({ ipcMain, shell, attachmentStore }) {
   async function openExternalUrl(value) {
     if (typeof value !== "string" || !value.trim()) {
@@ -108,13 +128,14 @@ function registerTaskAttachmentIpc({ ipcMain, shell, attachmentStore }) {
     attachmentStore.prepareChanges(validatePreparePayload(payload))
   ));
   ipcMain.handle("task-attachment:commit-changes", async (_event, payload) => {
-    await attachmentStore.commitChanges(validateTransactionPayload(payload, "提交附件变更"));
-    return true;
+    return attachmentStore.commitChanges(validateTransactionPayload(payload, "提交附件变更"));
   });
   ipcMain.handle("task-attachment:rollback-changes", async (_event, payload) => {
-    await attachmentStore.rollbackChanges(validateTransactionPayload(payload, "回滚附件变更"));
-    return true;
+    return attachmentStore.rollbackChanges(validateTransactionPayload(payload, "回滚附件变更"));
   });
+  ipcMain.handle("task-attachment:reconcile", async (_event, references) => (
+    attachmentStore.reconcileTasks(validateReconciliationReferences(references))
+  ));
   ipcMain.handle("task-attachment:remove-task-directories", async (_event, taskIds) => {
     await Promise.all(validateTaskIds(taskIds).map(taskId => attachmentStore.removeTaskAttachments(taskId)));
     return true;

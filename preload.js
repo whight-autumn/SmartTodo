@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld("desktop", {
   prepareTaskAttachmentChanges,
   commitTaskAttachmentChanges: payload => ipcRenderer.invoke("task-attachment:commit-changes", payload),
   rollbackTaskAttachmentChanges: payload => ipcRenderer.invoke("task-attachment:rollback-changes", payload),
+  reconcileTaskAttachments: references => ipcRenderer.invoke("task-attachment:reconcile", references),
   removeTaskAttachmentDirectories: taskIds => ipcRenderer.invoke("task-attachment:remove-task-directories", taskIds),
   getTaskAttachmentUrl: payload => ipcRenderer.invoke("task-attachment:get-url", payload),
   openTaskAttachment: payload => ipcRenderer.invoke("task-attachment:open", payload),

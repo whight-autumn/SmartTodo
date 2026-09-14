@@ -275,7 +275,7 @@ test("rolls back the first copy when the second copy fails", async t => {
   assert.equal(fs.existsSync(path.join(rootPath, "task_rollback")), false);
 });
 
-test("rolls back prepared imports and restores staged removals", async t => {
+test("prepare leaves old files in place and rollback removes only new imports", async t => {
   const { rootPath, sourcePath: sourceDirectory } = createTestPaths(t);
   const oldPath = path.join(sourceDirectory, "old.txt");
   const newPath = path.join(sourceDirectory, "new.txt");
@@ -299,22 +299,21 @@ test("rolls back prepared imports and restores staged removals", async t => {
   const newAttachment = prepared.attachments[0];
 
   assert.match(prepared.transactionId, /^[a-f0-9-]+$/);
-  assert.deepEqual(prepared.removedStorageNames, [oldAttachment.storageName]);
-  assert.deepEqual(prepared.failedStorageNames, []);
-  assert.equal(fs.existsSync(path.join(rootPath, "task_transaction_rollback", oldAttachment.storageName)), false);
+  assert.equal(fs.readFileSync(path.join(rootPath, "task_transaction_rollback", oldAttachment.storageName), "utf8"), "old");
   assert.equal(fs.existsSync(path.join(rootPath, "task_transaction_rollback", newAttachment.storageName)), true);
+  assert.equal(fs.existsSync(path.join(rootPath, ".transactions")), false);
 
-  await store.rollbackChanges({
+  const rollback = await store.rollbackChanges({
     taskId: "task_transaction_rollback",
     transactionId: prepared.transactionId
   });
 
+  assert.deepEqual(rollback, { failedStorageNames: [] });
   assert.equal(fs.readFileSync(path.join(rootPath, "task_transaction_rollback", oldAttachment.storageName), "utf8"), "old");
   assert.equal(fs.existsSync(path.join(rootPath, "task_transaction_rollback", newAttachment.storageName)), false);
-  assert.equal(fs.existsSync(path.join(rootPath, ".transactions", "task_transaction_rollback")), false);
 });
 
-test("commits prepared changes and reports removal failures without deleting metadata targets", async t => {
+test("commit reports cleanup failure, releases transaction state, and leaves new files valid", async t => {
   const { rootPath, sourcePath: sourceDirectory } = createTestPaths(t);
   const oldPath = path.join(sourceDirectory, "old.txt");
   const newPath = path.join(sourceDirectory, "new.txt");
@@ -331,21 +330,135 @@ test("commits prepared changes and reports removal failures without deleting met
   const prepared = await store.prepareChanges({
     taskId: "task_transaction_commit",
     sourcePaths: [newPath],
-    removeStorageNames: [oldAttachment.storageName, "missing.txt"],
+    removeStorageNames: [oldAttachment.storageName],
     existingCount: 1,
     now: 4400
   });
+  const oldManagedPath = path.join(rootPath, "task_transaction_commit", oldAttachment.storageName);
+  const newManagedPath = path.join(rootPath, "task_transaction_commit", prepared.attachments[0].storageName);
+  const originalRemove = fs.promises.rm.bind(fs.promises);
+  t.mock.method(fs.promises, "rm", async (targetPath, options) => {
+    if (targetPath === oldManagedPath) {
+      const error = new Error("controlled cleanup failure");
+      error.code = "EACCES";
+      throw error;
+    }
+    return originalRemove(targetPath, options);
+  });
 
-  assert.deepEqual(prepared.removedStorageNames, [oldAttachment.storageName]);
-  assert.deepEqual(prepared.failedStorageNames, ["missing.txt"]);
-  await store.commitChanges({
+  assert.equal(fs.readFileSync(oldManagedPath, "utf8"), "old");
+  assert.equal(fs.readFileSync(newManagedPath, "utf8"), "new");
+  const cleanup = await store.commitChanges({
     taskId: "task_transaction_commit",
     transactionId: prepared.transactionId
   });
 
-  assert.equal(fs.existsSync(path.join(rootPath, "task_transaction_commit", oldAttachment.storageName)), false);
-  assert.equal(fs.existsSync(path.join(rootPath, "task_transaction_commit", prepared.attachments[0].storageName)), true);
-  assert.equal(fs.existsSync(path.join(rootPath, ".transactions", "task_transaction_commit")), false);
+  assert.deepEqual(cleanup, { failedStorageNames: [oldAttachment.storageName] });
+  assert.equal(fs.existsSync(oldManagedPath), true);
+  assert.equal(fs.existsSync(newManagedPath), true);
+
+  const nextTransaction = await store.prepareChanges({
+    taskId: "task_transaction_commit",
+    sourcePaths: [],
+    removeStorageNames: [],
+    existingCount: 1,
+    now: 4500
+  });
+  await store.rollbackChanges({
+    taskId: "task_transaction_commit",
+    transactionId: nextTransaction.transactionId
+  });
+});
+
+test("restart reconciliation reclaims crash-style imports and post-persistence stale files", async t => {
+  const { rootPath, sourcePath: sourceDirectory } = createTestPaths(t);
+  const oldPath = path.join(sourceDirectory, "old.txt");
+  const newPath = path.join(sourceDirectory, "new.txt");
+  fs.writeFileSync(oldPath, "old");
+  fs.writeFileSync(newPath, "new");
+
+  const beforePersistenceStore = createTaskAttachmentStore({ rootPath });
+  const [beforeOld] = await beforePersistenceStore.importFiles({
+    taskId: "task_crash_before_persist",
+    sourcePaths: [oldPath],
+    existingCount: 0,
+    now: 4600
+  });
+  const beforePrepared = await beforePersistenceStore.prepareChanges({
+    taskId: "task_crash_before_persist",
+    sourcePaths: [newPath],
+    removeStorageNames: [beforeOld.storageName],
+    existingCount: 1,
+    now: 4700
+  });
+
+  const restartedBeforePersist = createTaskAttachmentStore({ rootPath });
+  await restartedBeforePersist.reconcileTasks([{
+    taskId: "task_crash_before_persist",
+    storageNames: [beforeOld.storageName]
+  }]);
+  assert.equal(fs.existsSync(path.join(rootPath, "task_crash_before_persist", beforeOld.storageName)), true);
+  assert.equal(fs.existsSync(path.join(
+    rootPath,
+    "task_crash_before_persist",
+    beforePrepared.attachments[0].storageName
+  )), false);
+
+  const beforeCleanupStore = createTaskAttachmentStore({ rootPath });
+  const [cleanupOld] = await beforeCleanupStore.importFiles({
+    taskId: "task_crash_before_cleanup",
+    sourcePaths: [oldPath],
+    existingCount: 0,
+    now: 4800
+  });
+  const cleanupPrepared = await beforeCleanupStore.prepareChanges({
+    taskId: "task_crash_before_cleanup",
+    sourcePaths: [newPath],
+    removeStorageNames: [cleanupOld.storageName],
+    existingCount: 1,
+    now: 4900
+  });
+  const cleanupNew = cleanupPrepared.attachments[0];
+
+  const restartedBeforeCleanup = createTaskAttachmentStore({ rootPath });
+  const firstSweep = await restartedBeforeCleanup.reconcileTasks([{
+    taskId: "task_crash_before_cleanup",
+    storageNames: [cleanupNew.storageName]
+  }]);
+  const secondSweep = await restartedBeforeCleanup.reconcileTasks([{
+    taskId: "task_crash_before_cleanup",
+    storageNames: [cleanupNew.storageName]
+  }]);
+
+  assert.deepEqual(firstSweep, [{
+    taskId: "task_crash_before_cleanup",
+    removedStorageNames: [cleanupOld.storageName]
+  }]);
+  assert.deepEqual(secondSweep, [{
+    taskId: "task_crash_before_cleanup",
+    removedStorageNames: []
+  }]);
+  assert.equal(fs.existsSync(path.join(rootPath, "task_crash_before_cleanup", cleanupOld.storageName)), false);
+  assert.equal(fs.readFileSync(path.join(rootPath, "task_crash_before_cleanup", cleanupNew.storageName), "utf8"), "new");
+});
+
+test("reconciliation rejects non-regular entries before deleting any orphan", async t => {
+  const { rootPath } = createTestPaths(t);
+  const taskPath = path.join(rootPath, "task_reconcile_entries");
+  const referencedPath = path.join(taskPath, "referenced.txt");
+  const orphanPath = path.join(taskPath, "orphan.txt");
+  fs.mkdirSync(path.join(taskPath, "folder.bin"), { recursive: true });
+  fs.writeFileSync(referencedPath, "referenced");
+  fs.writeFileSync(orphanPath, "orphan");
+  const store = createTaskAttachmentStore({ rootPath });
+
+  await assert.rejects(store.reconcileTasks([{
+    taskId: "task_reconcile_entries",
+    storageNames: ["referenced.txt"]
+  }]), /普通文件/);
+
+  assert.equal(fs.readFileSync(referencedPath, "utf8"), "referenced");
+  assert.equal(fs.readFileSync(orphanPath, "utf8"), "orphan");
 });
 
 test("rejects a non-directory replacement of the managed root", async t => {
@@ -369,6 +482,10 @@ test("rejects a non-directory replacement of the managed root", async t => {
   );
   await assert.rejects(
     store.importFiles({ taskId: "task_root_file", sourcePaths: [sourcePath], existingCount: 0, now: 4600 }),
+    /根目录/
+  );
+  await assert.rejects(
+    store.reconcileTasks([{ taskId: "task_root_file", storageNames: [] }]),
     /根目录/
   );
 });
@@ -399,6 +516,10 @@ test("rejects a symbolic-link replacement of the managed root where supported", 
 
   await assert.rejects(
     store.importFiles({ taskId: "task_root_link", sourcePaths: [sourcePath], existingCount: 0, now: 4800 }),
+    /根目录/
+  );
+  await assert.rejects(
+    store.reconcileTasks([{ taskId: "task_root_link", storageNames: [] }]),
     /根目录/
   );
 });

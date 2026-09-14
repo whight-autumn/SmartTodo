@@ -3,18 +3,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
-const MAX_TASK_ATTACHMENTS = 10;
-const MAX_TASK_ATTACHMENT_BYTES = 20 * 1024 * 1024;
-const TASK_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
-const STORAGE_NAME_PATTERN = /^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9]{1,12})?$/;
-const TRANSACTION_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SAFE_EXTENSION_PATTERN = /^\.[a-zA-Z0-9]{1,12}$/;
-const TRANSACTION_DIRECTORY_NAME = ".transactions";
+const MAX_ATTACHMENTS_PER_TASK = 10;
+const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
+const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+const STORAGE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,199}(?:\.[A-Za-z0-9]{1,10})?$/;
 const IMAGE_MIME_TYPES = {
-  ".avif": "image/avif",
-  ".bmp": "image/bmp",
   ".gif": "image/gif",
-  ".ico": "image/x-icon",
   ".jpeg": "image/jpeg",
   ".jpg": "image/jpeg",
   ".png": "image/png",
@@ -22,537 +16,445 @@ const IMAGE_MIME_TYPES = {
   ".webp": "image/webp"
 };
 
-class AttachmentStoreError extends Error {}
+class TaskAttachmentStoreError extends Error {
+  constructor(message, code = "TASK_ATTACHMENT_ERROR") {
+    super(message);
+    this.name = "TaskAttachmentStoreError";
+    this.code = code;
+  }
+}
+
+function normalizedPath(value) {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+function isSamePath(left, right) {
+  return normalizedPath(left) === normalizedPath(right);
+}
+
+function isWithin(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function validateTaskId(taskId) {
+  if (typeof taskId !== "string" || !TASK_ID_PATTERN.test(taskId)) {
+    throw new TaskAttachmentStoreError("任务 ID 不安全", "INVALID_TASK_ID");
+  }
+  return taskId;
+}
+
+function validateStorageName(storageName) {
+  if (typeof storageName !== "string" || !STORAGE_NAME_PATTERN.test(storageName)) {
+    throw new TaskAttachmentStoreError("附件存储名称不安全", "INVALID_STORAGE_NAME");
+  }
+  return storageName;
+}
+
+function extensionFor(sourcePath) {
+  const sourceExtension = path.extname(sourcePath).toLowerCase();
+  if (/^\.[a-z0-9]{1,10}$/.test(sourceExtension)) {
+    return sourceExtension;
+  }
+  return "";
+}
+
+function normalizeSourcePaths(sourcePaths) {
+  if (!Array.isArray(sourcePaths)) {
+    throw new TaskAttachmentStoreError("附件列表无效", "INVALID_FILES");
+  }
+  return sourcePaths.map((sourcePath) => {
+    if (typeof sourcePath !== "string" || !path.isAbsolute(sourcePath)) {
+      throw new TaskAttachmentStoreError("附件路径无效", "INVALID_SOURCE_PATH");
+    }
+    return sourcePath;
+  });
+}
 
 function createTaskAttachmentStore({ rootPath } = {}) {
   if (typeof rootPath !== "string" || !rootPath.trim()) {
-    throw new Error("附件存储根目录无效");
+    throw new TaskAttachmentStoreError("附件根目录无效", "INVALID_ROOT");
   }
 
-  const resolvedRoot = path.resolve(rootPath);
-  const rootPrefix = resolvedRoot.endsWith(path.sep) ? resolvedRoot : `${resolvedRoot}${path.sep}`;
-  const taskOperationQueues = new Map();
-  const activeTransactions = new Map();
+  const expectedRoot = path.resolve(rootPath);
   let rootIdentity = null;
+  const taskQueues = new Map();
+  const activeTransactions = new Map();
 
-  function resolveContainedPath(...segments) {
-    const resolvedPath = path.resolve(resolvedRoot, ...segments);
-    const comparisonPath = process.platform === "win32" ? resolvedPath.toLowerCase() : resolvedPath;
-    const comparisonRoot = process.platform === "win32" ? rootPrefix.toLowerCase() : rootPrefix;
-    if (!comparisonPath.startsWith(comparisonRoot)) {
-      throw new AttachmentStoreError("附件路径超出存储目录");
+  function enqueueTask(taskId, operation) {
+    const previous = taskQueues.get(taskId) || Promise.resolve();
+    const current = previous.catch(() => undefined).then(operation);
+    taskQueues.set(taskId, current);
+    current.finally(() => {
+      if (taskQueues.get(taskId) === current) taskQueues.delete(taskId);
+    }).catch(() => undefined);
+    return current;
+  }
+
+  async function inspectDirectory(directoryPath, label) {
+    const stats = await fs.promises.lstat(directoryPath);
+    if (stats.isSymbolicLink()) {
+      throw new TaskAttachmentStoreError(`${label}不能是符号链接`, "UNSAFE_DIRECTORY");
     }
-    return resolvedPath;
-  }
-
-  function validateTaskId(value) {
-    const taskId = String(value ?? "");
-    if (!TASK_ID_PATTERN.test(taskId)) {
-      throw new AttachmentStoreError("任务 ID 不安全");
+    if (!stats.isDirectory()) {
+      throw new TaskAttachmentStoreError(`${label}不是安全目录`, "UNSAFE_DIRECTORY");
     }
-    return taskId;
-  }
-
-  function validateStorageName(value) {
-    const storageName = String(value ?? "");
-    if (!STORAGE_NAME_PATTERN.test(storageName)) {
-      throw new AttachmentStoreError("附件存储名称不安全");
+    const realPath = await fs.promises.realpath(directoryPath);
+    if (!isSamePath(realPath, directoryPath)) {
+      throw new TaskAttachmentStoreError(`${label}不是安全目录`, "UNSAFE_DIRECTORY");
     }
-    return storageName;
-  }
-
-  function validateTransactionId(value) {
-    const transactionId = String(value ?? "");
-    if (!TRANSACTION_ID_PATTERN.test(transactionId)) {
-      throw new AttachmentStoreError("附件事务 ID 不安全");
-    }
-    return transactionId;
-  }
-
-  function getAttachmentArguments(value, storageNameValue) {
-    if (value && typeof value === "object") {
-      return {
-        taskId: validateTaskId(value.taskId),
-        storageName: validateStorageName(value.storageName)
-      };
-    }
-    return {
-      taskId: validateTaskId(value),
-      storageName: validateStorageName(storageNameValue)
-    };
-  }
-
-  function getTransactionArguments(value, transactionIdValue) {
-    if (value && typeof value === "object") {
-      return {
-        taskId: validateTaskId(value.taskId),
-        transactionId: validateTransactionId(value.transactionId)
-      };
-    }
-    return {
-      taskId: validateTaskId(value),
-      transactionId: validateTransactionId(transactionIdValue)
-    };
-  }
-
-  function getTaskId(value) {
-    return validateTaskId(value && typeof value === "object" ? value.taskId : value);
-  }
-
-  function getSafeExtension(sourcePath) {
-    const extension = path.extname(sourcePath);
-    return SAFE_EXTENSION_PATTERN.test(extension) ? extension.toLowerCase() : "";
-  }
-
-  function getMimeType(extension) {
-    return IMAGE_MIME_TYPES[extension] || "application/octet-stream";
-  }
-
-  function getIdentity(stats) {
-    return `${String(stats.dev)}:${String(stats.ino)}`;
-  }
-
-  function samePath(firstPath, secondPath) {
-    if (process.platform === "win32") {
-      return firstPath.toLowerCase() === secondPath.toLowerCase();
-    }
-    return firstPath === secondPath;
+    return { stats, realPath };
   }
 
   async function assertManagedRoot() {
     if (!rootIdentity) {
-      try {
-        await fs.promises.mkdir(resolvedRoot, { recursive: true });
-      } catch (error) {
-        throw new AttachmentStoreError(`附件存储根目录不安全：${error.message}`);
-      }
+      await fs.promises.mkdir(expectedRoot, { recursive: true });
+      const inspected = await inspectDirectory(expectedRoot, "附件根目录");
+      rootIdentity = { realPath: inspected.realPath, dev: inspected.stats.dev, ino: inspected.stats.ino };
+      return expectedRoot;
     }
-
-    let beforeStats;
-    let afterStats;
-    let realRoot;
+    let inspected;
     try {
-      beforeStats = await fs.promises.lstat(resolvedRoot);
-      if (beforeStats.isSymbolicLink() || !beforeStats.isDirectory()) {
-        throw new AttachmentStoreError("附件存储根目录必须是非链接目录");
-      }
-      realRoot = await fs.promises.realpath(resolvedRoot);
-      afterStats = await fs.promises.lstat(resolvedRoot);
+      inspected = await inspectDirectory(expectedRoot, "附件根目录");
     } catch (error) {
-      if (error instanceof AttachmentStoreError) throw error;
-      throw new AttachmentStoreError(`附件存储根目录不安全：${error.message}`);
+      if (error instanceof TaskAttachmentStoreError) throw error;
+      throw new TaskAttachmentStoreError("附件根目录不可用", "UNSAFE_ROOT");
     }
-
-    if (afterStats.isSymbolicLink() || !afterStats.isDirectory()
-        || getIdentity(beforeStats) !== getIdentity(afterStats)) {
-      throw new AttachmentStoreError("附件存储根目录在检查期间发生变化");
+    if (!isSamePath(inspected.realPath, rootIdentity.realPath)
+      || inspected.stats.dev !== rootIdentity.dev
+      || inspected.stats.ino !== rootIdentity.ino) {
+      throw new TaskAttachmentStoreError("附件根目录已被替换", "UNSAFE_ROOT");
     }
-
-    const currentIdentity = {
-      realPath: realRoot,
-      fileIdentity: getIdentity(afterStats)
-    };
-    if (!rootIdentity) {
-      rootIdentity = currentIdentity;
-    } else if (!samePath(rootIdentity.realPath, currentIdentity.realPath)
-        || rootIdentity.fileIdentity !== currentIdentity.fileIdentity) {
-      throw new AttachmentStoreError("附件存储根目录已被替换");
-    }
-    return rootIdentity;
+    return expectedRoot;
   }
 
-  function assertCanonicalContainment(realPath, identity) {
-    const relativePath = path.relative(identity.realPath, realPath);
-    if (relativePath === "" || relativePath === ".." || relativePath.startsWith(`..${path.sep}`)
-        || path.isAbsolute(relativePath)) {
-      throw new AttachmentStoreError("附件路径超出存储目录");
+  function taskPathFor(taskId) {
+    validateTaskId(taskId);
+    const taskPath = path.join(expectedRoot, taskId);
+    if (!isWithin(expectedRoot, taskPath)) {
+      throw new TaskAttachmentStoreError("任务附件目录越界", "PATH_OUTSIDE_ROOT");
     }
+    return taskPath;
   }
 
-  async function assertSafeDirectory(directoryPath, message) {
-    const identity = await assertManagedRoot();
-    const stats = await fs.promises.lstat(directoryPath);
-    if (stats.isSymbolicLink() || !stats.isDirectory()) {
-      throw new AttachmentStoreError(message);
-    }
-    const realPath = await fs.promises.realpath(directoryPath);
-    assertCanonicalContainment(realPath, identity);
-    return realPath;
-  }
-
-  async function ensureSafeDirectory(directoryPath, message) {
+  async function inspectTaskDirectory(taskId, { create = false, allowMissing = false } = {}) {
     await assertManagedRoot();
-    try {
-      await fs.promises.mkdir(directoryPath);
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
+    const taskPath = taskPathFor(taskId);
+    if (create) {
+      await fs.promises.mkdir(taskPath, { recursive: false }).catch((error) => {
+        if (error.code !== "EEXIST") throw error;
+      });
     }
-    return assertSafeDirectory(directoryPath, message);
+    let inspected;
+    try {
+      inspected = await inspectDirectory(taskPath, "任务附件目录");
+    } catch (error) {
+      if (allowMissing && error.code === "ENOENT") return null;
+      if (error instanceof TaskAttachmentStoreError) throw error;
+      if (error.code === "ENOENT") {
+        throw new TaskAttachmentStoreError("任务附件目录不存在", "TASK_DIRECTORY_MISSING");
+      }
+      throw error;
+    }
+    if (!isWithin(expectedRoot, inspected.realPath)) {
+      throw new TaskAttachmentStoreError("任务附件目录越界", "PATH_OUTSIDE_ROOT");
+    }
+    return { path: taskPath, ...inspected };
   }
 
-  async function ensureTaskDirectory(taskPath) {
-    await assertManagedRoot();
-    let created = false;
-    try {
-      await fs.promises.mkdir(taskPath);
-      created = true;
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
+  async function inspectManagedFile(taskId, storageName, { allowMissing = false } = {}) {
+    validateStorageName(storageName);
+    const taskDirectory = await inspectTaskDirectory(taskId, { allowMissing });
+    if (!taskDirectory) return null;
+    const filePath = path.join(taskDirectory.path, storageName);
+    if (!isWithin(taskDirectory.path, filePath)) {
+      throw new TaskAttachmentStoreError("附件路径越界", "PATH_OUTSIDE_ROOT");
     }
-    await assertSafeDirectory(taskPath, "任务附件目录不安全");
-    return created;
+    let stats;
+    try {
+      stats = await fs.promises.lstat(filePath);
+    } catch (error) {
+      if (allowMissing && error.code === "ENOENT") return null;
+      if (error.code === "ENOENT") {
+        throw new TaskAttachmentStoreError("附件文件不存在", "ATTACHMENT_MISSING");
+      }
+      throw error;
+    }
+    if (stats.isSymbolicLink()) {
+      throw new TaskAttachmentStoreError("附件不能是符号链接", "UNSAFE_ATTACHMENT");
+    }
+    if (!stats.isFile()) {
+      throw new TaskAttachmentStoreError("附件必须是普通文件", "UNSAFE_ATTACHMENT");
+    }
+    const realPath = await fs.promises.realpath(filePath);
+    if (!isSamePath(realPath, filePath) || !isWithin(expectedRoot, realPath)) {
+      throw new TaskAttachmentStoreError("附件路径越界", "PATH_OUTSIDE_ROOT");
+    }
+    return { path: filePath, stats };
   }
 
-  function queueTaskOperation(taskId, operation) {
-    const previous = taskOperationQueues.get(taskId) || Promise.resolve();
-    const current = previous.catch(() => {}).then(operation);
-    taskOperationQueues.set(taskId, current);
-    return current.finally(() => {
-      if (taskOperationQueues.get(taskId) === current) taskOperationQueues.delete(taskId);
+  async function listValidatedTaskFiles(taskId, { create = false, allowMissing = false } = {}) {
+    const taskDirectory = await inspectTaskDirectory(taskId, { create, allowMissing });
+    if (!taskDirectory) return { taskDirectory: null, files: [] };
+    const names = await fs.promises.readdir(taskDirectory.path);
+    const files = [];
+    for (const name of names) {
+      validateStorageName(name);
+      const inspected = await inspectManagedFile(taskId, name);
+      files.push({ storageName: name, ...inspected });
+    }
+    return { taskDirectory, files };
+  }
+
+  async function validateSourceFile(sourcePath) {
+    const stats = await fs.promises.lstat(sourcePath);
+    if (stats.isSymbolicLink()) {
+      throw new TaskAttachmentStoreError("附件源文件不能是符号链接", "INVALID_SOURCE_FILE");
+    }
+    if (!stats.isFile()) {
+      throw new TaskAttachmentStoreError("只能导入普通文件", "INVALID_SOURCE_FILE");
+    }
+    const realPath = await fs.promises.realpath(sourcePath);
+    const realStats = await fs.promises.stat(realPath);
+    if (!realStats.isFile()) {
+      throw new TaskAttachmentStoreError("只能导入普通文件", "INVALID_SOURCE_FILE");
+    }
+    if (realStats.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      throw new TaskAttachmentStoreError("单个附件不能超过 20 MB", "ATTACHMENT_TOO_LARGE");
+    }
+    return { sourcePath: realPath, size: realStats.size };
+  }
+
+  async function removeEmptyTaskDirectory(taskId) {
+    const taskDirectory = await inspectTaskDirectory(taskId, { allowMissing: true });
+    if (!taskDirectory) return;
+    await fs.promises.rmdir(taskDirectory.path).catch((error) => {
+      if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY") throw error;
     });
   }
 
-  function assertNoActiveTransaction(taskId) {
-    if (activeTransactions.has(taskId)) {
-      throw new AttachmentStoreError("任务附件变更正在处理中");
+  async function removeImportedFiles(taskId, storageNames) {
+    const failedStorageNames = [];
+    for (const storageName of storageNames) {
+      try {
+        const inspected = await inspectManagedFile(taskId, storageName, { allowMissing: true });
+        if (inspected) await fs.promises.rm(inspected.path, { force: false });
+      } catch (_error) {
+        failedStorageNames.push(storageName);
+      }
     }
+    if (failedStorageNames.length === 0) await removeEmptyTaskDirectory(taskId);
+    return failedStorageNames;
   }
 
   async function copyFilesForTask({ taskId, sourcePaths, now }) {
-    const selectedPaths = Array.isArray(sourcePaths) ? sourcePaths : [];
-    if (selectedPaths.length === 0) return [];
-
+    const paths = normalizeSourcePaths(sourcePaths);
+    if (paths.length === 0) return [];
     const addedAt = now === undefined ? Date.now() : Number(now);
     if (!Number.isFinite(addedAt) || addedAt <= 0) {
-      throw new AttachmentStoreError("附件添加时间无效");
+      throw new TaskAttachmentStoreError("附件添加时间无效", "INVALID_ADDED_AT");
     }
-
-    await assertManagedRoot();
-    const taskPath = resolveContainedPath(taskId);
-    const copiedPaths = [];
-    let taskDirectoryCreated = false;
-
+    const validatedSources = [];
+    for (const sourcePath of paths) validatedSources.push(await validateSourceFile(sourcePath));
+    const current = await listValidatedTaskFiles(taskId, { create: true });
+    if (current.files.length + validatedSources.length > MAX_ATTACHMENTS_PER_TASK) {
+      throw new TaskAttachmentStoreError("每个任务最多添加 10 个附件", "ATTACHMENT_LIMIT");
+    }
+    const imported = [];
     try {
-      taskDirectoryCreated = await ensureTaskDirectory(taskPath);
-      const storedEntries = await fs.promises.readdir(taskPath);
-      if (storedEntries.length + selectedPaths.length > MAX_TASK_ATTACHMENTS) {
-        throw new AttachmentStoreError("每个任务最多只能有 10 个附件");
-      }
-      const attachments = [];
-
-      for (const selectedPath of selectedPaths) {
-        if (typeof selectedPath !== "string" || !path.isAbsolute(selectedPath)) {
-          throw new AttachmentStoreError("附件源路径必须是绝对路径");
-        }
-
-        const sourcePath = path.resolve(selectedPath);
-        const stats = await fs.promises.lstat(sourcePath);
-        if (stats.isSymbolicLink()) {
-          throw new AttachmentStoreError("不能导入符号链接附件");
-        }
-        if (!stats.isFile()) {
-          throw new AttachmentStoreError("只能导入普通文件");
-        }
-        if (stats.size > MAX_TASK_ATTACHMENT_BYTES) {
-          throw new AttachmentStoreError("单个附件不能超过 20 MB");
-        }
-
-        const name = path.basename(sourcePath);
-        if (!name.trim() || /[\\/:]/.test(name)) {
-          throw new AttachmentStoreError("附件文件名无效");
-        }
-
-        const extension = getSafeExtension(sourcePath);
-        const storageName = `${crypto.randomUUID()}${extension}`;
-        const destinationPath = resolveContainedPath(taskId, storageName);
+      for (const file of validatedSources) {
         await assertManagedRoot();
-        await fs.promises.copyFile(sourcePath, destinationPath, fs.constants.COPYFILE_EXCL);
-        copiedPaths.push(destinationPath);
-        attachments.push({
+        await inspectTaskDirectory(taskId);
+        const extension = extensionFor(file.sourcePath);
+        const storageName = `${crypto.randomUUID()}${extension}`;
+        const destination = path.join(current.taskDirectory.path, storageName);
+        if (!isWithin(expectedRoot, destination)) {
+          throw new TaskAttachmentStoreError("附件路径越界", "PATH_OUTSIDE_ROOT");
+        }
+        await fs.promises.copyFile(file.sourcePath, destination, fs.constants.COPYFILE_EXCL);
+        await inspectManagedFile(taskId, storageName);
+        imported.push({
           id: crypto.randomUUID(),
-          name,
+          name: path.basename(file.sourcePath),
           storageName,
-          mimeType: getMimeType(extension),
-          size: stats.size,
+          mimeType: IMAGE_MIME_TYPES[extension] || "application/octet-stream",
+          size: file.size,
           addedAt
         });
       }
-
-      return attachments;
+      return imported;
     } catch (error) {
-      await Promise.allSettled(copiedPaths.map(filePath => fs.promises.rm(filePath, { force: true })));
-      if (taskDirectoryCreated) {
-        await fs.promises.rmdir(taskPath).catch(() => {});
-      }
-      const detail = error instanceof AttachmentStoreError ? `：${error.message}` : "，请重试";
-      throw new Error(`导入附件失败${detail}`);
+      await removeImportedFiles(taskId, imported.map((attachment) => attachment.storageName));
+      throw new TaskAttachmentStoreError(`导入附件失败：${error.message}`, "ATTACHMENT_IMPORT_FAILED");
     }
   }
 
-  async function importFiles({ taskId: taskIdValue, sourcePaths, now } = {}) {
-    const taskId = validateTaskId(taskIdValue);
-    return queueTaskOperation(taskId, async () => {
-      assertNoActiveTransaction(taskId);
+  async function importFiles({ taskId, sourcePaths, now } = {}) {
+    validateTaskId(taskId);
+    return enqueueTask(taskId, async () => {
+      if (activeTransactions.has(taskId)) {
+        throw new TaskAttachmentStoreError("任务附件事务正在进行", "TRANSACTION_ACTIVE");
+      }
       return copyFilesForTask({ taskId, sourcePaths, now });
     });
   }
 
-  async function resolveAttachmentPathForTask(taskId, storageName) {
-    const identity = await assertManagedRoot();
-    const taskPath = resolveContainedPath(taskId);
-    const attachmentPath = resolveContainedPath(taskId, storageName);
-    let taskStats;
-    let attachmentStats;
-    try {
-      [taskStats, attachmentStats] = await Promise.all([
-        fs.promises.lstat(taskPath),
-        fs.promises.lstat(attachmentPath)
-      ]);
-    } catch (error) {
-      if (error.code === "ENOENT" || error.code === "ENOTDIR") {
-        throw new AttachmentStoreError("附件文件已不存在");
-      }
-      throw error;
+  async function prepareChanges({ taskId, sourcePaths = [], removeStorageNames = [], now } = {}) {
+    validateTaskId(taskId);
+    if (!Array.isArray(removeStorageNames)) {
+      throw new TaskAttachmentStoreError("待删除附件列表无效", "INVALID_REMOVALS");
     }
-    if (taskStats.isSymbolicLink()) throw new AttachmentStoreError("任务附件目录不能是符号链接");
-    if (!taskStats.isDirectory()) throw new AttachmentStoreError("任务附件目录不安全");
-    if (attachmentStats.isSymbolicLink()) throw new AttachmentStoreError("附件文件不能是符号链接");
-    if (!attachmentStats.isFile()) throw new AttachmentStoreError("附件必须是普通文件");
-
-    const [realTaskPath, realAttachmentPath, finalAttachmentStats] = await Promise.all([
-      fs.promises.realpath(taskPath),
-      fs.promises.realpath(attachmentPath),
-      fs.promises.lstat(attachmentPath)
-    ]);
-    if (finalAttachmentStats.isSymbolicLink() || !finalAttachmentStats.isFile()
-        || getIdentity(finalAttachmentStats) !== getIdentity(attachmentStats)) {
-      throw new AttachmentStoreError("附件文件在检查期间发生变化");
-    }
-    assertCanonicalContainment(realTaskPath, identity);
-    assertCanonicalContainment(realAttachmentPath, identity);
-    await assertManagedRoot();
-    return realAttachmentPath;
-  }
-
-  async function resolveAttachmentPath(value, storageNameValue) {
-    const { taskId, storageName } = getAttachmentArguments(value, storageNameValue);
-    return resolveAttachmentPathForTask(taskId, storageName);
-  }
-
-  async function getAttachmentUrl(value, storageNameValue) {
-    const resolvedPath = await resolveAttachmentPath(value, storageNameValue);
-    return pathToFileURL(resolvedPath).href;
-  }
-
-  async function removeAttachment(value, storageNameValue) {
-    const { taskId, storageName } = getAttachmentArguments(value, storageNameValue);
-    return queueTaskOperation(taskId, async () => {
-      assertNoActiveTransaction(taskId);
-      let resolvedPath;
-      try {
-        resolvedPath = await resolveAttachmentPathForTask(taskId, storageName);
-      } catch (error) {
-        if (error instanceof AttachmentStoreError && error.message === "附件文件已不存在") return;
-        throw error;
-      }
+    const removals = [...new Set(removeStorageNames.map(validateStorageName))];
+    return enqueueTask(taskId, async () => {
       await assertManagedRoot();
-      await fs.promises.rm(resolvedPath, { force: true });
-    });
-  }
-
-  async function createTransactionDirectory(taskId, transactionId) {
-    const transactionsPath = resolveContainedPath(TRANSACTION_DIRECTORY_NAME);
-    const taskTransactionsPath = resolveContainedPath(TRANSACTION_DIRECTORY_NAME, taskId);
-    const transactionPath = resolveContainedPath(TRANSACTION_DIRECTORY_NAME, taskId, transactionId);
-    await ensureSafeDirectory(transactionsPath, "附件事务目录不安全");
-    await ensureSafeDirectory(taskTransactionsPath, "任务附件事务目录不安全");
-    await fs.promises.mkdir(transactionPath);
-    await assertSafeDirectory(transactionPath, "附件事务目录不安全");
-    return { transactionPath, taskTransactionsPath, transactionsPath };
-  }
-
-  async function removeDirectoryIfEmpty(directoryPath) {
-    await assertManagedRoot();
-    await fs.promises.rmdir(directoryPath).catch(error => {
-      if (!["ENOENT", "ENOTEMPTY", "EEXIST"].includes(error.code)) throw error;
-    });
-  }
-
-  async function safeRemoveDirectory(directoryPath, message) {
-    await assertManagedRoot();
-    let stats;
-    try {
-      stats = await fs.promises.lstat(directoryPath);
-    } catch (error) {
-      if (error.code === "ENOENT") return;
-      throw error;
-    }
-    if (stats.isSymbolicLink() || !stats.isDirectory()) {
-      throw new AttachmentStoreError(message);
-    }
-    const identity = await assertManagedRoot();
-    const realPath = await fs.promises.realpath(directoryPath);
-    assertCanonicalContainment(realPath, identity);
-    await assertManagedRoot();
-    await fs.promises.rm(directoryPath, { recursive: true, force: true });
-  }
-
-  async function undoPreparedChanges(transaction) {
-    const failures = [];
-
-    for (const storageName of transaction.removedStorageNames) {
-      const stagedPath = resolveContainedPath(
-        TRANSACTION_DIRECTORY_NAME,
-        transaction.taskId,
-        transaction.transactionId,
-        storageName
-      );
-      const destinationPath = resolveContainedPath(transaction.taskId, storageName);
-      try {
-        await assertManagedRoot();
-        const stagedStats = await fs.promises.lstat(stagedPath);
-        if (stagedStats.isSymbolicLink() || !stagedStats.isFile()) {
-          throw new AttachmentStoreError("暂存附件不是普通文件");
-        }
-        await fs.promises.lstat(destinationPath).then(() => {
-          throw new AttachmentStoreError("原附件位置已被占用");
-        }).catch(error => {
-          if (error.code !== "ENOENT") throw error;
-        });
-        await fs.promises.rename(stagedPath, destinationPath);
-      } catch (error) {
-        failures.push(error);
+      if (activeTransactions.has(taskId)) {
+        throw new TaskAttachmentStoreError("任务附件事务正在进行", "TRANSACTION_ACTIVE");
       }
-    }
-
-    for (const storageName of transaction.importedStorageNames) {
-      const importedPath = resolveContainedPath(transaction.taskId, storageName);
-      try {
-        await assertManagedRoot();
-        const stats = await fs.promises.lstat(importedPath);
-        if (stats.isSymbolicLink() || !stats.isFile()) {
-          throw new AttachmentStoreError("待回滚附件不是普通文件");
-        }
-        await fs.promises.rm(importedPath, { force: true });
-      } catch (error) {
-        if (error.code !== "ENOENT") failures.push(error);
-      }
-    }
-
-    if (failures.length) {
-      throw new AttachmentStoreError(`回滚附件变更失败：${failures[0].message}`);
-    }
-    await safeRemoveDirectory(transaction.transactionPath, "附件事务目录不安全");
-    await removeDirectoryIfEmpty(transaction.taskTransactionsPath);
-    await removeDirectoryIfEmpty(transaction.transactionsPath);
-  }
-
-  async function prepareChanges({
-    taskId: taskIdValue,
-    sourcePaths,
-    removeStorageNames: removeStorageNamesValue,
-    now
-  } = {}) {
-    const taskId = validateTaskId(taskIdValue);
-    const removeStorageNames = Array.isArray(removeStorageNamesValue)
-      ? removeStorageNamesValue.map(validateStorageName)
-      : [];
-    if (new Set(removeStorageNames).size !== removeStorageNames.length) {
-      throw new AttachmentStoreError("待移除附件列表无效");
-    }
-
-    return queueTaskOperation(taskId, async () => {
-      assertNoActiveTransaction(taskId);
       const attachments = await copyFilesForTask({ taskId, sourcePaths, now });
       const transactionId = crypto.randomUUID();
-      let transaction;
-      try {
-        const directories = await createTransactionDirectory(taskId, transactionId);
-        transaction = {
-          taskId,
-          transactionId,
-          importedStorageNames: attachments.map(attachment => attachment.storageName),
-          removedStorageNames: [],
-          ...directories
-        };
-
-        const failedStorageNames = [];
-        for (const storageName of removeStorageNames) {
-          let attachmentPath;
-          try {
-            attachmentPath = await resolveAttachmentPathForTask(taskId, storageName);
-            const stagedPath = resolveContainedPath(
-              TRANSACTION_DIRECTORY_NAME,
-              taskId,
-              transactionId,
-              storageName
-            );
-            await assertManagedRoot();
-            await fs.promises.rename(attachmentPath, stagedPath);
-            transaction.removedStorageNames.push(storageName);
-          } catch {
-            failedStorageNames.push(storageName);
-          }
-        }
-
-        activeTransactions.set(taskId, transaction);
-        return {
-          transactionId,
-          attachments,
-          removedStorageNames: [...transaction.removedStorageNames],
-          failedStorageNames
-        };
-      } catch (error) {
-        if (transaction) {
-          await undoPreparedChanges(transaction).catch(() => {});
-        } else {
-          await Promise.allSettled(attachments.map(attachment => (
-            fs.promises.rm(resolveContainedPath(taskId, attachment.storageName), { force: true })
-          )));
-        }
-        throw error;
-      }
+      activeTransactions.set(taskId, {
+        transactionId,
+        importedStorageNames: attachments.map((attachment) => attachment.storageName),
+        removeStorageNames: removals
+      });
+      return { transactionId, attachments };
     });
   }
 
-  function getActiveTransaction(taskId, transactionId) {
+  function requireTransaction(taskId, transactionId) {
+    validateTaskId(taskId);
+    if (typeof transactionId !== "string" || !transactionId) {
+      throw new TaskAttachmentStoreError("附件事务 ID 无效", "INVALID_TRANSACTION");
+    }
     const transaction = activeTransactions.get(taskId);
     if (!transaction || transaction.transactionId !== transactionId) {
-      throw new AttachmentStoreError("附件事务不存在或已结束");
+      throw new TaskAttachmentStoreError("附件事务不存在", "TRANSACTION_MISSING");
     }
     return transaction;
   }
 
-  async function rollbackChanges(value, transactionIdValue) {
-    const { taskId, transactionId } = getTransactionArguments(value, transactionIdValue);
-    return queueTaskOperation(taskId, async () => {
-      const transaction = getActiveTransaction(taskId, transactionId);
-      await undoPreparedChanges(transaction);
-      activeTransactions.delete(taskId);
+  async function rollbackChanges({ taskId, transactionId }) {
+    return enqueueTask(taskId, async () => {
+      const transaction = requireTransaction(taskId, transactionId);
+      let failedStorageNames = [];
+      try {
+        failedStorageNames = await removeImportedFiles(taskId, transaction.importedStorageNames);
+      } finally {
+        activeTransactions.delete(taskId);
+      }
+      return { failedStorageNames };
     });
   }
 
-  async function commitChanges(value, transactionIdValue) {
-    const { taskId, transactionId } = getTransactionArguments(value, transactionIdValue);
-    return queueTaskOperation(taskId, async () => {
-      const transaction = getActiveTransaction(taskId, transactionId);
-      await safeRemoveDirectory(transaction.transactionPath, "附件事务目录不安全");
-      await removeDirectoryIfEmpty(transaction.taskTransactionsPath);
-      await removeDirectoryIfEmpty(transaction.transactionsPath);
-      activeTransactions.delete(taskId);
+  async function commitChanges({ taskId, transactionId }) {
+    return enqueueTask(taskId, async () => {
+      const transaction = requireTransaction(taskId, transactionId);
+      const failedStorageNames = [];
+      try {
+        for (const storageName of transaction.removeStorageNames) {
+          try {
+            const inspected = await inspectManagedFile(taskId, storageName, { allowMissing: true });
+            if (inspected) await fs.promises.rm(inspected.path, { force: false });
+          } catch (_error) {
+            failedStorageNames.push(storageName);
+          }
+        }
+        if (failedStorageNames.length === 0) await removeEmptyTaskDirectory(taskId);
+      } finally {
+        activeTransactions.delete(taskId);
+      }
+      return { failedStorageNames };
     });
   }
 
-  async function removeTaskAttachments(value) {
-    const taskId = getTaskId(value);
-    return queueTaskOperation(taskId, async () => {
-      assertNoActiveTransaction(taskId);
+  async function removeAttachment({ taskId, storageName }) {
+    validateTaskId(taskId);
+    validateStorageName(storageName);
+    return enqueueTask(taskId, async () => {
+      if (activeTransactions.has(taskId)) {
+        throw new TaskAttachmentStoreError("任务附件事务正在进行", "TRANSACTION_ACTIVE");
+      }
+      const inspected = await inspectManagedFile(taskId, storageName, { allowMissing: true });
+      if (inspected) await fs.promises.rm(inspected.path, { force: false });
+      await removeEmptyTaskDirectory(taskId);
+      return true;
+    });
+  }
+
+  async function reconcileTask({ taskId, storageNames }) {
+    validateTaskId(taskId);
+    if (!Array.isArray(storageNames)) {
+      throw new TaskAttachmentStoreError("附件引用列表无效", "INVALID_REFERENCES");
+    }
+    const referenced = new Set(storageNames.map(validateStorageName));
+    return enqueueTask(taskId, async () => {
+      if (activeTransactions.has(taskId)) {
+        throw new TaskAttachmentStoreError("任务附件事务正在进行", "TRANSACTION_ACTIVE");
+      }
+      const current = await listValidatedTaskFiles(taskId, { allowMissing: true });
+      if (!current.taskDirectory) return { taskId, removedStorageNames: [] };
+      const stale = current.files.filter((file) => !referenced.has(file.storageName));
+      const removedStorageNames = [];
+      for (const file of stale) {
+        await assertManagedRoot();
+        const inspected = await inspectManagedFile(taskId, file.storageName);
+        await fs.promises.rm(inspected.path, { force: false });
+        removedStorageNames.push(file.storageName);
+      }
+      await removeEmptyTaskDirectory(taskId);
+      return { taskId, removedStorageNames };
+    });
+  }
+
+  async function reconcileTasks(references) {
+    if (!Array.isArray(references)) {
+      throw new TaskAttachmentStoreError("任务附件引用无效", "INVALID_REFERENCES");
+    }
+    const seen = new Set();
+    for (const reference of references) {
+      if (!reference || typeof reference !== "object" || Array.isArray(reference)) {
+        throw new TaskAttachmentStoreError("任务附件引用无效", "INVALID_REFERENCES");
+      }
+      validateTaskId(reference.taskId);
+      if (seen.has(reference.taskId)) {
+        throw new TaskAttachmentStoreError("任务附件引用重复", "DUPLICATE_REFERENCE");
+      }
+      seen.add(reference.taskId);
+      if (!Array.isArray(reference.storageNames)) {
+        throw new TaskAttachmentStoreError("附件引用列表无效", "INVALID_REFERENCES");
+      }
+      reference.storageNames.forEach(validateStorageName);
+    }
+    return Promise.all(references.map(reconcileTask));
+  }
+
+  async function resolveAttachmentPath({ taskId, storageName }) {
+    const inspected = await inspectManagedFile(taskId, storageName);
+    return inspected.path;
+  }
+
+  async function getAttachmentUrl(payload) {
+    return pathToFileURL(await resolveAttachmentPath(payload)).href;
+  }
+
+  async function removeTaskAttachments(taskIdOrPayload) {
+    const taskId = typeof taskIdOrPayload === "string" ? taskIdOrPayload : taskIdOrPayload?.taskId;
+    validateTaskId(taskId);
+    return enqueueTask(taskId, async () => {
+      if (activeTransactions.has(taskId)) {
+        throw new TaskAttachmentStoreError("任务附件事务正在进行", "TRANSACTION_ACTIVE");
+      }
+      const current = await listValidatedTaskFiles(taskId, { allowMissing: true });
+      if (!current.taskDirectory) return true;
       await assertManagedRoot();
-      const taskPath = resolveContainedPath(taskId);
-      const taskTransactionsPath = resolveContainedPath(TRANSACTION_DIRECTORY_NAME, taskId);
-      await safeRemoveDirectory(taskPath, "任务附件目录不安全");
-      await safeRemoveDirectory(taskTransactionsPath, "任务附件事务目录不安全");
-      await removeDirectoryIfEmpty(resolveContainedPath(TRANSACTION_DIRECTORY_NAME));
+      for (const file of current.files) {
+        await assertManagedRoot();
+        const inspected = await inspectManagedFile(taskId, file.storageName);
+        await fs.promises.rm(inspected.path, { force: false });
+      }
+      await fs.promises.rmdir(current.taskDirectory.path);
+      return true;
     });
   }
 
@@ -561,6 +463,7 @@ function createTaskAttachmentStore({ rootPath } = {}) {
     prepareChanges,
     commitChanges,
     rollbackChanges,
+    reconcileTasks,
     removeAttachment,
     removeTaskAttachments,
     resolveAttachmentPath,
@@ -568,4 +471,9 @@ function createTaskAttachmentStore({ rootPath } = {}) {
   };
 }
 
-module.exports = { createTaskAttachmentStore };
+module.exports = {
+  MAX_ATTACHMENTS_PER_TASK,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  TaskAttachmentStoreError,
+  createTaskAttachmentStore
+};

@@ -256,6 +256,7 @@ app.whenReady().then(async () => {
           prepares: [],
           commits: [],
           rollbacks: [],
+          reconciliations: [],
           openedUrls: [],
           cleanupCalls: [],
           unavailableStorageNames: ["file_attachment.pdf"],
@@ -329,23 +330,13 @@ app.whenReady().then(async () => {
             const transactionId = "00000000-0000-4000-8000-"
               + String(state.nextTransactionId++).padStart(12, "0");
             const files = getManagedFiles(payload.taskId);
-            const removedStorageNames = [];
-            const failedStorageNames = [];
-            for (const storageName of payload.removeStorageNames) {
-              if (state.failRemovalStorageNames.includes(storageName) || !files.has(storageName)) {
-                failedStorageNames.push(storageName);
-              } else {
-                files.delete(storageName);
-                removedStorageNames.push(storageName);
-              }
-            }
             attachments.forEach(attachment => files.add(attachment.storageName));
             state.transactions.set(transactionId, {
               taskId: payload.taskId,
               importedStorageNames: attachments.map(attachment => attachment.storageName),
-              removedStorageNames
+              removeStorageNames: [...payload.removeStorageNames]
             });
-            const result = { transactionId, attachments, removedStorageNames, failedStorageNames };
+            const result = { transactionId, attachments };
             if (state.prepareMode === "pending") {
               return new Promise(resolve => {
                 state.pendingPrepare = {
@@ -360,8 +351,20 @@ app.whenReady().then(async () => {
           },
           commitTaskAttachmentChanges(payload) {
             state.commits.push(structuredClone(payload));
-            state.transactions.delete(payload.transactionId);
-            return Promise.resolve(true);
+            const transaction = state.transactions.get(payload.transactionId);
+            const failedStorageNames = [];
+            if (transaction) {
+              const files = getManagedFiles(transaction.taskId);
+              for (const storageName of transaction.removeStorageNames) {
+                if (state.failRemovalStorageNames.includes(storageName) || !files.has(storageName)) {
+                  failedStorageNames.push(storageName);
+                } else {
+                  files.delete(storageName);
+                }
+              }
+              state.transactions.delete(payload.transactionId);
+            }
+            return Promise.resolve({ failedStorageNames });
           },
           rollbackTaskAttachmentChanges(payload) {
             state.rollbacks.push(structuredClone(payload));
@@ -369,10 +372,13 @@ app.whenReady().then(async () => {
             if (transaction) {
               const files = getManagedFiles(transaction.taskId);
               transaction.importedStorageNames.forEach(storageName => files.delete(storageName));
-              transaction.removedStorageNames.forEach(storageName => files.add(storageName));
               state.transactions.delete(payload.transactionId);
             }
-            return Promise.resolve(true);
+            return Promise.resolve({ failedStorageNames: [] });
+          },
+          reconcileTaskAttachments(references) {
+            state.reconciliations.push(structuredClone(references));
+            return Promise.resolve([]);
           },
           removeTaskAttachmentDirectories(taskIds) {
             state.cleanupCalls.push([...taskIds]);
@@ -471,6 +477,8 @@ app.whenReady().then(async () => {
             .some(button => button.disabled)
         };
         const failedRemovalCalls = window.__desktopMock.prepares.slice(failedRemovalStart);
+        const failedRemovalDiskFiles = [...window.__desktopMock.managedFiles.done].sort();
+        const failedRemovalTransactionCount = window.__desktopMock.transactions.size;
         window.__desktopMock.failRemovalStorageNames = [];
         document.getElementById("task-note-cancel").click();
         await frames();
@@ -497,6 +505,8 @@ app.whenReady().then(async () => {
           failedRemovalStatus,
           failedRemovalControls,
           failedRemovalCalls,
+          failedRemovalDiskFiles,
+          failedRemovalTransactionCount,
           attachmentCount,
           imageHasSource: image.hasAttribute("src"),
           imageUnavailable,
@@ -616,7 +626,9 @@ app.whenReady().then(async () => {
             removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
               .some(button => button.disabled)
           },
-          removals: state.prepares.slice(mixedRemovalStart)
+          removals: state.prepares.slice(mixedRemovalStart),
+          diskFiles: [...state.managedFiles.boundary].sort(),
+          transactionCount: state.transactions.size
         };
         document.getElementById("task-note-cancel").click();
         await frames();
@@ -630,7 +642,6 @@ app.whenReady().then(async () => {
         const rollbackStart = state.rollbacks.length;
         const commitStart = state.commits.length;
         document.querySelector('[data-id="done"] [data-action="edit-note"]').click();
-        document.querySelector('[data-attachment-id="image_attachment"]').click();
         document.querySelector('[data-attachment-id="file_attachment"]').click();
         selectFile("pending-preview.png", "preview pixels", "image/png");
         await frames();
@@ -777,10 +788,15 @@ app.whenReady().then(async () => {
     assert.equal(noteResult.editorImageUnavailable, true);
     assert.match(noteResult.editorFileText, /application\/pdf/);
     assert.deepEqual(noteResult.editorMissingStatuses, ["文件已不存在", "文件已不存在"]);
-    assert.deepEqual(noteResult.afterFailedRemovalTask.attachments, noteResult.afterCancelAttachments);
-    assert.equal(noteResult.afterFailedRemovalTask.updatedAt, noteResult.afterCancelUpdatedAt);
+    assert.deepEqual(
+      noteResult.afterFailedRemovalTask.attachments.map(attachment => attachment.id),
+      ["file_attachment"]
+    );
+    assert.ok(noteResult.afterFailedRemovalTask.updatedAt > noteResult.afterCancelUpdatedAt);
     assert.equal(noteResult.failedRemovalDialogOpen, true);
-    assert.match(noteResult.failedRemovalStatus, /界面截图\.png.*移除失败/);
+    assert.match(noteResult.failedRemovalStatus, /内容已保存.*界面截图\.png.*清理失败.*下次启动/);
+    assert.ok(noteResult.failedRemovalDiskFiles.includes("image_attachment.png"));
+    assert.equal(noteResult.failedRemovalTransactionCount, 0);
     assert.deepEqual(noteResult.failedRemovalControls, {
       textareaDisabled: false,
       pickerDisabled: false,
@@ -810,7 +826,7 @@ app.whenReady().then(async () => {
     assert.match(highRiskResult.boundaryLimit.status, /已有 10 个附件.*先保存移除.*重新打开/);
     assert.deepEqual(highRiskResult.boundaryLimit.imports, []);
     assert.equal(highRiskResult.mixedRemoval.dialogOpen, true);
-    assert.match(highRiskResult.mixedRemoval.status, /边界附件7\.txt.*移除失败/);
+    assert.match(highRiskResult.mixedRemoval.status, /内容已保存.*边界附件7\.txt.*清理失败.*下次启动/);
     assert.deepEqual(highRiskResult.mixedRemoval.controls, {
       textareaDisabled: false,
       pickerDisabled: false,
@@ -830,13 +846,15 @@ app.whenReady().then(async () => {
         "boundary_attachment_4",
         "boundary_attachment_5",
         "boundary_attachment_6",
-        "boundary_attachment_7",
         "boundary_attachment_8",
         "boundary_attachment_9",
         "boundary_attachment_10"
       ]
     );
     assert.ok(highRiskResult.mixedRemoval.task.attachments.length <= 10);
+    assert.ok(highRiskResult.mixedRemoval.diskFiles.includes("boundary_7.txt"));
+    assert.ok(!highRiskResult.mixedRemoval.diskFiles.includes("boundary_2.txt"));
+    assert.equal(highRiskResult.mixedRemoval.transactionCount, 0);
     assert.equal(highRiskResult.mixedRemoval.task.remarks, "混合删除后的备注");
     assert.ok(highRiskResult.mixedRemoval.task.updatedAt > highRiskResult.boundaryBefore.updatedAt);
     assert.match(highRiskResult.pendingPreviewState.source, /^blob:/);
@@ -876,6 +894,7 @@ app.whenReady().then(async () => {
     assert.equal(highRiskResult.pendingTask.attachments[0].name, "selected-and-imported.txt");
     assert.ok(!("file" in highRiskResult.pendingTask.attachments[0]));
     assert.ok(!("sourcePath" in highRiskResult.pendingTask.attachments[0]));
+    assert.doesNotMatch(highRiskResult.pendingTask.attachments[0].storageName, /transactions|staged/i);
     assert.deepEqual(highRiskResult.cleanupIds, ["cleanup-parent", "cleanup-child"]);
     assert.equal(highRiskResult.cleanupParentExists, false);
     assert.equal(highRiskResult.cleanupChildExists, false);
@@ -915,4 +934,12 @@ app.whenReady().then(async () => {
 }).catch(error => {
   console.error(error);
   app.exit(1);
+});
+require("node:test")("note attachment controller uses monotonic commit and startup reconciliation", () => {
+  const localAssert = require("node:assert/strict");
+  const source = require("node:fs").readFileSync(require.resolve("../renderer/app.js"), "utf8");
+
+  localAssert.match(source, /reconcileTaskAttachments/);
+  localAssert.match(source, /failedStorageNames/);
+  localAssert.doesNotMatch(source, /prepared\.removedStorageNames/);
 });

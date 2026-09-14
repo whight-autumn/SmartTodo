@@ -15,6 +15,7 @@ function createHarness({ openPathResult = "" } = {}) {
     prepares: [],
     commits: [],
     rollbacks: [],
+    reconciliations: [],
     cleanups: [],
     urls: [],
     resolutions: [],
@@ -39,9 +40,15 @@ function createHarness({ openPathResult = "" } = {}) {
     },
     async commitChanges(payload) {
       calls.commits.push(payload);
+      return { failedStorageNames: [] };
     },
     async rollbackChanges(payload) {
       calls.rollbacks.push(payload);
+      return { failedStorageNames: [] };
+    },
+    async reconcileTasks(references) {
+      calls.reconciliations.push(references);
+      return references.map(reference => ({ ...reference, removedStorageNames: [] }));
     },
     async removeTaskAttachments(taskId) {
       calls.cleanups.push(taskId);
@@ -78,6 +85,7 @@ test("registers only the fixed task attachment channels", () => {
     "task-attachment:open",
     "task-attachment:open-external",
     "task-attachment:prepare-changes",
+    "task-attachment:reconcile",
     "task-attachment:remove-task-directories",
     "task-attachment:rollback-changes"
   ]);
@@ -157,8 +165,8 @@ test("validates fixed commit and rollback transaction payloads", async () => {
     transactionId: "00000000-0000-4000-8000-000000000001"
   };
 
-  assert.equal(await handlers.get("task-attachment:commit-changes")(null, payload), true);
-  assert.equal(await handlers.get("task-attachment:rollback-changes")(null, payload), true);
+  assert.deepEqual(await handlers.get("task-attachment:commit-changes")(null, payload), { failedStorageNames: [] });
+  assert.deepEqual(await handlers.get("task-attachment:rollback-changes")(null, payload), { failedStorageNames: [] });
   await assert.rejects(handlers.get("task-attachment:commit-changes")(null, {
     taskId: "task_1",
     transactionId: "../transaction"
@@ -170,6 +178,29 @@ test("validates fixed commit and rollback transaction payloads", async () => {
 
   assert.deepEqual(calls.commits, [payload]);
   assert.deepEqual(calls.rollbacks, [payload]);
+});
+
+test("validates and delegates startup attachment reconciliation", async () => {
+  const { handlers, calls } = createHarness();
+  const reconcile = handlers.get("task-attachment:reconcile");
+  const references = [{ taskId: "task_1", storageNames: ["first.txt", "second.png"] }];
+
+  assert.deepEqual(await reconcile(null, references), [{
+    ...references[0],
+    removedStorageNames: []
+  }]);
+  for (const invalid of [
+    "task_1",
+    [{ taskId: "../task", storageNames: [] }],
+    [{ taskId: "task_1", storageNames: "first.txt" }],
+    [{ taskId: "task_1", storageNames: ["../first.txt"] }],
+    [{ taskId: "task_1", storageNames: [], sourcePath: path.resolve("secret.txt") }],
+    [{ taskId: "task_1", storageNames: [] }, { taskId: "task_1", storageNames: [] }]
+  ]) {
+    await assert.rejects(async () => reconcile(null, invalid));
+  }
+
+  assert.deepEqual(calls.reconciliations, [references]);
 });
 
 test("rejects invalid task directory ID lists before cleanup", async () => {
@@ -247,4 +278,12 @@ test("delegates cleanup for every validated task ID", async () => {
 
   assert.equal(result, true);
   assert.deepEqual(calls.cleanups, ["task_1", "child-2"]);
+});
+require("node:test")("reconciliation uses a fixed validated IPC channel", () => {
+  const localAssert = require("node:assert/strict");
+  const source = require("node:fs").readFileSync(require.resolve("../task-attachment-ipc"), "utf8");
+
+  localAssert.match(source, /task-attachment:reconcile/);
+  localAssert.match(source, /validateReconciliationReferences/);
+  localAssert.match(source, /attachmentStore\.reconcileTasks/);
 });
