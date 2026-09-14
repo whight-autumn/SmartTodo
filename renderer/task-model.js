@@ -8,6 +8,8 @@
   const PRIORITY_WEIGHT = { high: 3, medium: 2, low: 1 };
   const COMPLETED_RETENTION_MS = 15 * 24 * 60 * 60 * 1000;
   const ATTENTION_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const MAX_TASK_ATTACHMENTS = 10;
+  const MAX_TASK_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 
   function normalizePriority(priority) {
     return Object.prototype.hasOwnProperty.call(PRIORITY_WEIGHT, priority)
@@ -33,6 +35,37 @@
     return (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
   }
 
+  function normalizeAttachment(raw) {
+    if (!raw || !/^[a-zA-Z0-9_-]+$/.test(String(raw.id || ""))) return null;
+    if (!/^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9]{1,12})?$/.test(String(raw.storageName || ""))) return null;
+    const size = Number(raw.size);
+    const addedAt = Number(raw.addedAt);
+    if (!String(raw.name || "").trim() || !Number.isFinite(size) || size < 0 || size > MAX_TASK_ATTACHMENT_BYTES) return null;
+    if (!Number.isFinite(addedAt) || addedAt <= 0) return null;
+    return {
+      id: String(raw.id),
+      name: String(raw.name),
+      storageName: String(raw.storageName),
+      mimeType: String(raw.mimeType || "application/octet-stream"),
+      size,
+      addedAt
+    };
+  }
+
+  function applyTaskNoteEdit(task, edit, now = Date.now()) {
+    const remarks = String(edit?.remarks || "");
+    const attachments = (Array.isArray(edit?.attachments) ? edit.attachments : [])
+      .map(normalizeAttachment).filter(Boolean).slice(0, MAX_TASK_ATTACHMENTS);
+    const currentAttachments = (Array.isArray(task.attachments) ? task.attachments : [])
+      .map(normalizeAttachment).filter(Boolean);
+    const changed = remarks !== String(task.remarks || "")
+      || JSON.stringify(attachments) !== JSON.stringify(currentAttachments);
+    return {
+      changed,
+      task: { ...task, remarks, attachments, updatedAt: changed ? now : (Number(task.updatedAt) || null) }
+    };
+  }
+
   function normalizeTasks(rawTasks) {
     const normalized = (Array.isArray(rawTasks) ? rawTasks : [])
       .map(task => {
@@ -50,7 +83,10 @@
             ? Number(task.completedAt) || Number(task.createdAt) || Date.now()
             : null,
           pinned: !!task.pinned,
-          createdAt: Number(task.createdAt) || Date.now()
+          createdAt: Number(task.createdAt) || Date.now(),
+          updatedAt: Number(task.updatedAt) || null,
+          attachments: (Array.isArray(task.attachments) ? task.attachments : [])
+            .map(normalizeAttachment).filter(Boolean).slice(0, MAX_TASK_ATTACHMENTS)
         };
       })
       .filter(Boolean);
@@ -154,6 +190,8 @@
     COMPLETED_RETENTION_MS,
     ATTENTION_WINDOW_MS,
     normalizePriority,
+    normalizeAttachment,
+    applyTaskNoteEdit,
     normalizeTasks,
     sortTasks,
     buildTaskIndex,
