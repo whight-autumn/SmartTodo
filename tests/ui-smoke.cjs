@@ -479,27 +479,45 @@ app.whenReady().then(async () => {
         const importFailure = {
           task: readTask("import-failure"),
           dialogOpen: document.getElementById("task-note-dialog").open,
-          status: document.getElementById("task-note-status").textContent
+          status: document.getElementById("task-note-status").textContent,
+          controls: {
+            textareaDisabled: document.getElementById("task-note-input").disabled,
+            pickerDisabled: pickerButton.disabled,
+            removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
+              .some(button => button.disabled)
+          }
         };
         document.getElementById("task-note-cancel").click();
 
         const boundaryBefore = structuredClone(readTask("boundary"));
         state.importMode = "success";
-        state.failRemovalStorageNames = ["boundary_10.txt"];
-        const boundaryRemovalStart = state.removals.length;
+        state.failRemovalStorageNames = [];
+        const boundaryImportStart = state.imports.length;
         document.querySelector('[data-id="boundary"] [data-action="edit-note"]').click();
         document.querySelector('[data-attachment-id="boundary_attachment_10"]').click();
         selectFile("boundary-replacement.txt");
-        document.getElementById("task-note-input").value = "不应越界保存的备注";
-        document.getElementById("task-note-save").click();
-        await frames();
-        const boundary = {
+        const boundaryLimit = {
           task: readTask("boundary"),
           dialogOpen: document.getElementById("task-note-dialog").open,
           status: document.getElementById("task-note-status").textContent,
-          removals: state.removals.slice(boundaryRemovalStart)
+          imports: state.imports.slice(boundaryImportStart)
         };
         document.getElementById("task-note-cancel").click();
+        await frames();
+
+        state.failRemovalStorageNames = ["boundary_7.txt"];
+        const mixedRemovalStart = state.removals.length;
+        document.querySelector('[data-id="boundary"] [data-action="edit-note"]').click();
+        document.querySelector('[data-attachment-id="boundary_attachment_2"]').click();
+        document.querySelector('[data-attachment-id="boundary_attachment_7"]').click();
+        document.getElementById("task-note-input").value = "混合删除后的备注";
+        document.getElementById("task-note-save").click();
+        await frames();
+        const mixedRemoval = {
+          task: readTask("boundary"),
+          dialogOpen: document.getElementById("task-note-dialog").open,
+          removals: state.removals.slice(mixedRemovalStart)
+        };
 
         state.importMode = "pending";
         state.failRemovalStorageNames = [];
@@ -511,6 +529,12 @@ app.whenReady().then(async () => {
         const cancelEvent = new Event("cancel", { cancelable: true });
         const cancelDispatchResult = document.getElementById("task-note-dialog").dispatchEvent(cancelEvent);
         const pendingDialogOpen = document.getElementById("task-note-dialog").open;
+        const pendingControls = {
+          textareaDisabled: document.getElementById("task-note-input").disabled,
+          pickerDisabled: document.getElementById("task-note-file-button").disabled,
+          removeDisabled: [...document.querySelectorAll("#task-note-attachment-list button")]
+            .every(button => button.disabled)
+        };
         state.pendingImport.resolve();
         await frames();
         const pendingTask = readTask("pending-save");
@@ -525,9 +549,11 @@ app.whenReady().then(async () => {
           importFailureBefore,
           importFailure,
           boundaryBefore,
-          boundary,
+          boundaryLimit,
+          mixedRemoval,
           cancelDefaultPrevented: !cancelDispatchResult && cancelEvent.defaultPrevented,
           pendingDialogOpen,
+          pendingControls,
           pendingDialogOpenAfterResolve: document.getElementById("task-note-dialog").open,
           pendingTask,
           cleanupIds: state.cleanupCalls.at(-1) || [],
@@ -605,15 +631,44 @@ app.whenReady().then(async () => {
     assert.deepEqual(highRiskResult.importFailure.task, highRiskResult.importFailureBefore);
     assert.equal(highRiskResult.importFailure.dialogOpen, true);
     assert.match(highRiskResult.importFailure.status, /mock import failure/);
-    assert.deepEqual(highRiskResult.boundary.task, highRiskResult.boundaryBefore);
-    assert.equal(highRiskResult.boundary.task.attachments.length, 10);
-    assert.equal(highRiskResult.boundary.dialogOpen, true);
-    assert.match(highRiskResult.boundary.status, /10 个附件/);
-    assert.equal(highRiskResult.boundary.removals.length, 2);
-    assert.equal(highRiskResult.boundary.removals[0].storageName, "boundary_10.txt");
-    assert.match(highRiskResult.boundary.removals[1].storageName, /^imported_\d+\.txt$/);
+    assert.deepEqual(highRiskResult.importFailure.controls, {
+      textareaDisabled: false,
+      pickerDisabled: false,
+      removeDisabled: false
+    });
+    assert.deepEqual(highRiskResult.boundaryLimit.task, highRiskResult.boundaryBefore);
+    assert.equal(highRiskResult.boundaryLimit.dialogOpen, true);
+    assert.match(highRiskResult.boundaryLimit.status, /已有 10 个附件.*先保存移除.*重新打开/);
+    assert.deepEqual(highRiskResult.boundaryLimit.imports, []);
+    assert.equal(highRiskResult.mixedRemoval.dialogOpen, false);
+    assert.deepEqual(highRiskResult.mixedRemoval.removals, [
+      { taskId: "boundary", storageName: "boundary_2.txt" },
+      { taskId: "boundary", storageName: "boundary_7.txt" }
+    ]);
+    assert.deepEqual(
+      highRiskResult.mixedRemoval.task.attachments.map(attachment => attachment.id),
+      [
+        "boundary_attachment_1",
+        "boundary_attachment_3",
+        "boundary_attachment_4",
+        "boundary_attachment_5",
+        "boundary_attachment_6",
+        "boundary_attachment_7",
+        "boundary_attachment_8",
+        "boundary_attachment_9",
+        "boundary_attachment_10"
+      ]
+    );
+    assert.ok(highRiskResult.mixedRemoval.task.attachments.length <= 10);
+    assert.equal(highRiskResult.mixedRemoval.task.remarks, "混合删除后的备注");
+    assert.ok(highRiskResult.mixedRemoval.task.updatedAt > highRiskResult.boundaryBefore.updatedAt);
     assert.equal(highRiskResult.cancelDefaultPrevented, true);
     assert.equal(highRiskResult.pendingDialogOpen, true);
+    assert.deepEqual(highRiskResult.pendingControls, {
+      textareaDisabled: true,
+      pickerDisabled: true,
+      removeDisabled: true
+    });
     assert.equal(highRiskResult.pendingDialogOpenAfterResolve, false);
     assert.equal(highRiskResult.pendingTask.remarks, "挂起保存后的备注");
     assert.equal(highRiskResult.pendingTask.attachments.length, 1);

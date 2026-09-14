@@ -682,6 +682,7 @@ function createTaskNoteDraft(task) {
     taskId: task.id,
     originalRemarks: task.remarks || "",
     remarks: task.remarks || "",
+    originalAttachments: [...(task.attachments || [])],
     retainedAttachments: [...(task.attachments || [])],
     removedAttachments: [],
     pendingFiles: []
@@ -736,13 +737,14 @@ function renderTaskNoteDraft() {
   els.noteAttachmentList.innerHTML = items.length
     ? items.join("")
     : '<li class="task-note-empty">暂无附件</li>';
-  const total = taskNoteDraft.retainedAttachments.length + taskNoteDraft.pendingFiles.length;
+  const total = taskNoteDraft.originalAttachments.length + taskNoteDraft.pendingFiles.length;
   els.noteLimit.textContent = `${total} / ${ATTACHMENT_LIMIT} 个，每个不超过 20MB`;
 }
 
 function setTaskNoteSaving(saving) {
   const canAttach = !!(window.desktop?.getPathForFile && window.desktop?.importTaskAttachments);
   taskNoteSavePending = saving;
+  els.noteInput.disabled = saving;
   els.noteSave.disabled = saving;
   els.noteCancel.disabled = saving;
   els.noteFileInput.disabled = saving || !canAttach;
@@ -789,13 +791,16 @@ async function saveTaskNoteEdit() {
   try {
     const task = tasks.find(item => item.id === draft.taskId);
     if (!task) throw new Error("任务已不存在");
+    if (draft.originalAttachments.length + draft.pendingFiles.length > ATTACHMENT_LIMIT) {
+      throw new Error(`任务原有附件与待添加附件合计不能超过 ${ATTACHMENT_LIMIT} 个`);
+    }
     let importedAttachments = [];
     if (draft.pendingFiles.length) {
       if (!window.desktop?.importTaskAttachments) throw new Error("当前环境无法导入附件");
       importedAttachments = await window.desktop.importTaskAttachments({
         taskId: draft.taskId,
         sourcePaths: draft.pendingFiles.map(item => item.sourcePath),
-        existingCount: draft.retainedAttachments.length
+        existingCount: draft.originalAttachments.length
       });
       if (!Array.isArray(importedAttachments)) throw new Error("附件导入结果无效");
     }
@@ -815,26 +820,8 @@ async function saveTaskNoteEdit() {
       }
     }
 
-    const retainedAttachments = (task.attachments || [])
+    const retainedAttachments = draft.originalAttachments
       .filter(attachment => !successfulRemovalIds.has(attachment.id));
-    if (retainedAttachments.length + importedAttachments.length > ATTACHMENT_LIMIT) {
-      const rollbackFailures = [];
-      for (const attachment of importedAttachments) {
-        try {
-          if (!window.desktop?.removeTaskAttachment) throw new Error("当前环境无法回滚附件");
-          await window.desktop.removeTaskAttachment({
-            taskId: draft.taskId,
-            storageName: attachment.storageName
-          });
-        } catch {
-          rollbackFailures.push(attachment.name);
-        }
-      }
-      const rollbackMessage = rollbackFailures.length
-        ? `；以下新附件回滚失败：${rollbackFailures.join("、")}`
-        : "；新导入附件已回滚";
-      throw new Error(`附件删除失败，保存后将超过 ${ATTACHMENT_LIMIT} 个附件${rollbackMessage}`);
-    }
 
     const editResult = taskModel.applyTaskNoteEdit(task, {
       remarks: draft.remarks,
@@ -883,8 +870,11 @@ els.noteFileInput.addEventListener("change", event => {
     ]);
 
     for (const file of Array.from(event.target.files || [])) {
-      if (taskNoteDraft.retainedAttachments.length + taskNoteDraft.pendingFiles.length >= ATTACHMENT_LIMIT) {
-        errors.push(`最多只能保留 ${ATTACHMENT_LIMIT} 个附件`);
+      const originalAttachmentCount = taskNoteDraft.originalAttachments.length;
+      if (originalAttachmentCount + taskNoteDraft.pendingFiles.length >= ATTACHMENT_LIMIT) {
+        errors.push(originalAttachmentCount >= ATTACHMENT_LIMIT
+          ? `任务已有 ${originalAttachmentCount} 个附件，请先保存移除操作并重新打开后再添加附件`
+          : `最多只能保留 ${ATTACHMENT_LIMIT} 个附件`);
         break;
       }
       if (file.size > MAX_FILE_SIZE) {
