@@ -448,6 +448,19 @@ app.whenReady().then(async () => {
         const editorImage = document.getElementById("task-note-attachment-list").getElementsByTagName("img")[0] || null;
         const editorImageMarkup = editorImage?.outerHTML || "";
         const editorFileText = editorEntries.find(item => item.textContent.includes("需求说明.pdf"))?.innerText || "";
+        const availableAttachmentProbe = document.createElement("li");
+        availableAttachmentProbe.className = "task-note-attachment-entry";
+        availableAttachmentProbe.innerHTML = '<span class="task-note-attachment-detail">'
+          + '<span class="task-attachment-status">文件已不存在</span>'
+          + '</span>';
+        document.body.appendChild(availableAttachmentProbe);
+        const availableAttachmentStatusDisplay = getComputedStyle(
+          availableAttachmentProbe.querySelector(".task-attachment-status")
+        ).display;
+        availableAttachmentProbe.remove();
+        if (availableAttachmentStatusDisplay !== "none") {
+          throw new Error("正常已保存附件不应显示文件不存在状态");
+        }
         editorImage?.dispatchEvent(new Event("error"));
         const editorImageUnavailable = editorImage?.closest(".task-note-attachment-entry")
           ?.classList.contains("is-unavailable") || false;

@@ -136,7 +136,7 @@ function sanitizeTasks(rawTasks) {
 }
 
 function pickTaskVersion(v) {
-  if (!v) return "1.0.6";
+  if (!v) return "1.0.7";
   return String(v).replace(/^v/i, "");
 }
 
@@ -1942,7 +1942,7 @@ if (window.desktop?.onWindowShown) {
 }
 
 function renderInitialVersion() {
-  const fallback = window.desktop?.version || "1.0.6";
+  const fallback = window.desktop?.version || "1.0.7";
   const current = pickTaskVersion(fallback);
   if (els.version) els.version.textContent = `V${current}`;
 

@@ -1372,10 +1372,6 @@ input[type="datetime-local"] {
   font-size: 18px;
 }
 
-.task-note-attachment-entry.is-unavailable .task-attachment-status {
-  display: block;
-}
-
 .task-note-attachment-detail {
   min-width: 0;
 }
@@ -1386,6 +1382,14 @@ input[type="datetime-local"] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-note-attachment-entry .task-attachment-status {
+  display: none;
+}
+
+.task-note-attachment-entry.is-unavailable .task-attachment-status {
+  display: block;
 }
 
 .task-note-attachment-detail strong {

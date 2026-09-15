@@ -86,7 +86,7 @@ npm start
 ├── tests/                # 67 项 node:test 用例 + Electron 界面冒烟测试
 ├── assets/               # 应用图标（png / ico）
 ├── docs/文件说明.md       # 逐份文件功能说明 📖
-└── release/V1.0.6/       # 当前发布版 exe 与版本说明
+└── release/V1.0.7/       # 当前发布版 exe 与版本说明
 ```
 
 > 📖 完整的逐文件功能说明见 [`docs/文件说明.md`](docs/文件说明.md)
@@ -111,7 +111,7 @@ npm run dist
 
 构建 Windows x64 便携版，产物输出到 `dist/`。正式发布的 exe 建议通过 **GitHub Releases** 分发（仓库内不提交二进制文件）。
 
-当前交付：`release/V1.0.6/智能任务管家-1.0.6.exe`（免安装，双击即用）。历史版本建议通过 GitHub Releases 留存，避免二进制文件占用源码仓库空间。
+当前交付：`release/V1.0.7/智能任务管家-1.0.7.exe`（免安装，双击即用）。历史版本通过 GitHub Releases 留存，避免旧二进制文件占用源码仓库空间。
 
 ## 💾 运行数据
 
