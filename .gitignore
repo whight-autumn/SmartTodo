@@ -26,3 +26,6 @@ Thumbs.db
 
 # Agent execution ledger and task briefs
 .superpowers/
+
+# Reproducible intermediate brand raster sizes
+.impeccable/build/brand/
