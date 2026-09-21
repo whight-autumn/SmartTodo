@@ -1,0 +1,1205 @@
+{
+  "tool": "comp-spec",
+  "version": 1,
+  "createdAt": "2026-09-21T08:14:01.962Z",
+  "comp": ".impeccable\\mocks\\v1.2\\desktop-light-approved.png",
+  "warnings": [
+    "region brand-mark: \"codeDrawn\": true set in the regions file (the painted-material refusal is overridden: code draws this region)",
+    "region task-workbench: \"container\": true set in the regions file (the region-size refusal is overridden: one undivided element)",
+    "region assistant-panel: \"container\": true set in the regions file (the region-size refusal is overridden: one undivided element)"
+  ],
+  "uncoveredInkCells": [],
+  "compSize": {
+    "width": 1440,
+    "height": 900
+  },
+  "aspect": 1.6,
+  "orientation": "landscape",
+  "palette": [
+    {
+      "hex": "#f7f7f6",
+      "coverage": 0.9319
+    },
+    {
+      "hex": "#478268",
+      "coverage": 0.0304
+    },
+    {
+      "hex": "#b9bfc1",
+      "coverage": 0.0157
+    },
+    {
+      "hex": "#848d90",
+      "coverage": 0.0156
+    },
+    {
+      "hex": "#525b62",
+      "coverage": 0.0065
+    }
+  ],
+  "bands": [
+    {
+      "y": 0.125,
+      "strength": 0.285
+    },
+    {
+      "y": 0.15,
+      "strength": 0.3277
+    },
+    {
+      "y": 0.325,
+      "strength": 0.8905
+    },
+    {
+      "y": 0.375,
+      "strength": 0.9987
+    },
+    {
+      "y": 0.4375,
+      "strength": 0.2165
+    },
+    {
+      "y": 0.625,
+      "strength": 0.2683
+    },
+    {
+      "y": 0.8,
+      "strength": 0.3107
+    }
+  ],
+  "regions": [
+    {
+      "id": "top-chrome",
+      "kind": "chrome",
+      "note": "Slim brand bar, divider, theme control and settings controls",
+      "grid": "A0:J0",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 0,
+        "w": 1440,
+        "h": 90
+      },
+      "aspect": 16,
+      "palette": [
+        {
+          "hex": "#f6f6f6",
+          "coverage": 0.9884
+        },
+        {
+          "hex": "#b5c7c4",
+          "coverage": 0.0052
+        },
+        {
+          "hex": "#839693",
+          "coverage": 0.0027
+        },
+        {
+          "hex": "#0e2828",
+          "coverage": 0.002
+        },
+        {
+          "hex": "#3f4f4f",
+          "coverage": 0.0017
+        }
+      ],
+      "detail": {
+        "energy": 10.5468
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "brand-mark",
+      "kind": "control",
+      "note": "Application identity control rendered from the shared local icon system",
+      "grid": "A0:A0",
+      "codeDrawn": true,
+      "coverBox": {
+        "x": 0,
+        "y": 0,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.0208,
+        "y": 0,
+        "w": 0.0458,
+        "h": 0.0933
+      },
+      "px": {
+        "x": 30,
+        "y": 0,
+        "w": 66,
+        "h": 84
+      },
+      "aspect": 0.7857,
+      "palette": [
+        {
+          "hex": "#f6f7f5",
+          "coverage": 0.8813
+        },
+        {
+          "hex": "#1f593f",
+          "coverage": 0.0384
+        },
+        {
+          "hex": "#b2c6ba",
+          "coverage": 0.0349
+        },
+        {
+          "hex": "#75976e",
+          "coverage": 0.0244
+        },
+        {
+          "hex": "#f0f0cc",
+          "coverage": 0.0209
+        }
+      ],
+      "detail": {
+        "energy": 9.1794
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "brand-wordmark",
+      "kind": "text",
+      "note": "SmartTodo wordmark, V1.2 and byline",
+      "grid": "A0:C0",
+      "coverBox": {
+        "x": 0,
+        "y": 0,
+        "w": 0.3,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.075,
+        "y": 0.0133,
+        "w": 0.1542,
+        "h": 0.0733
+      },
+      "px": {
+        "x": 108,
+        "y": 12,
+        "w": 222,
+        "h": 66
+      },
+      "aspect": 3.3636,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.898
+        },
+        {
+          "hex": "#b5c4c0",
+          "coverage": 0.0348
+        },
+        {
+          "hex": "#122a2a",
+          "coverage": 0.0291
+        },
+        {
+          "hex": "#7e938e",
+          "coverage": 0.0196
+        },
+        {
+          "hex": "#0c1b2b",
+          "coverage": 0.0184
+        }
+      ],
+      "detail": {
+        "energy": 28.3139
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 12,
+          "capHeightPx": 21.6,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.6494,
+          "advTall": 0.6842,
+          "advX": 0.6842,
+          "gap": 0.0928,
+          "xRatio": 0.6882,
+          "stemW": 0.1791,
+          "contrast": 1.9142,
+          "serif": 1.6117,
+          "densTall": 0.4936,
+          "densX": 0.5408,
+          "weight": 0.4936
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "brand-tagline",
+      "kind": "text",
+      "note": "Quiet local-first product statement",
+      "grid": "H0:J0",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0,
+        "w": 0.3,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.8167,
+        "y": 0.0267,
+        "w": 0.1,
+        "h": 0.0333
+      },
+      "px": {
+        "x": 1176,
+        "y": 24,
+        "w": 144,
+        "h": 30
+      },
+      "aspect": 4.8,
+      "palette": [
+        {
+          "hex": "#f7f8f7",
+          "coverage": 0.8208
+        },
+        {
+          "hex": "#c9d7d2",
+          "coverage": 0.0979
+        },
+        {
+          "hex": "#7c938d",
+          "coverage": 0.0646
+        },
+        {
+          "hex": "#9db6af",
+          "coverage": 0.0146
+        },
+        {
+          "hex": "#386858",
+          "coverage": 0.0021
+        }
+      ],
+      "detail": {
+        "energy": 18.5181
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 9,
+          "capHeightPx": 13.1,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.9757,
+          "advTall": 0.9757,
+          "advX": null,
+          "gap": 0.1148,
+          "xRatio": 0.7857,
+          "stemW": 0.1825,
+          "contrast": 1.1772,
+          "serif": null,
+          "densTall": 0.5303,
+          "densX": null,
+          "weight": 0.5303
+        },
+        "widthClass": "wide",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "task-workbench",
+      "kind": "chrome",
+      "note": "Primary task manuscript surface",
+      "grid": "A1:F9",
+      "container": true,
+      "box": {
+        "x": 0,
+        "y": 0.1,
+        "w": 0.6,
+        "h": 0.9
+      },
+      "px": {
+        "x": 0,
+        "y": 90,
+        "w": 864,
+        "h": 810
+      },
+      "aspect": 1.0667,
+      "palette": [
+        {
+          "hex": "#f6f7f6",
+          "coverage": 0.9181
+        },
+        {
+          "hex": "#478368",
+          "coverage": 0.0522
+        },
+        {
+          "hex": "#b4bcbc",
+          "coverage": 0.0155
+        },
+        {
+          "hex": "#818a8e",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#88b1a1",
+          "coverage": 0.0033
+        }
+      ],
+      "detail": {
+        "energy": 16.3304
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "task-heading",
+      "kind": "text",
+      "note": "Task workbench Song-style heading",
+      "grid": "A1:C1",
+      "coverBox": {
+        "x": 0,
+        "y": 0.1,
+        "w": 0.3,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.0542,
+        "y": 0.12,
+        "w": 0.0833,
+        "h": 0.0467
+      },
+      "px": {
+        "x": 78,
+        "y": 108,
+        "w": 120,
+        "h": 42
+      },
+      "aspect": 2.8571,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.7886
+        },
+        {
+          "hex": "#0c1f24",
+          "coverage": 0.0901
+        },
+        {
+          "hex": "#4f6060",
+          "coverage": 0.0588
+        },
+        {
+          "hex": "#949fa0",
+          "coverage": 0.0404
+        },
+        {
+          "hex": "#485363",
+          "coverage": 0.0221
+        }
+      ],
+      "detail": {
+        "energy": 33.4684
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 5,
+          "capHeightPx": 24.5,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.9388,
+          "advTall": 0.9388,
+          "advX": null,
+          "gap": 0.0816,
+          "xRatio": 0.7807,
+          "stemW": 0.1332,
+          "contrast": 1.8937,
+          "serif": null,
+          "densTall": 0.3868,
+          "densX": null,
+          "weight": 0.3868
+        },
+        "widthClass": "wide",
+        "weightClass": "regular",
+        "chosen": {
+          "family": "Abhaya Libre",
+          "weight": 400,
+          "fontSizePx": 35,
+          "source": "catalog",
+          "estimatedSize": true,
+          "stamp": "34a174c2e658"
+        }
+      }
+    },
+    {
+      "id": "task-composer",
+      "kind": "control",
+      "note": "Title, note, reminder, priority, type and add controls",
+      "grid": "A1:F3",
+      "coverBox": {
+        "x": 0,
+        "y": 0.1,
+        "w": 0.6,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.025,
+        "y": 0.3189,
+        "w": 0.5333,
+        "h": 0.0811
+      },
+      "px": {
+        "x": 36,
+        "y": 287,
+        "w": 768,
+        "h": 73
+      },
+      "aspect": 10.5205,
+      "palette": [
+        {
+          "hex": "#478468",
+          "coverage": 0.5489
+        },
+        {
+          "hex": "#f4f6f2",
+          "coverage": 0.4025
+        },
+        {
+          "hex": "#85b0a2",
+          "coverage": 0.048
+        },
+        {
+          "hex": "#b8d8c8",
+          "coverage": 0.0006
+        }
+      ],
+      "detail": {
+        "energy": 30.7684
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "task-filters",
+      "kind": "control",
+      "note": "Attention, in-progress and complete segmented filters",
+      "grid": "A4:C4",
+      "coverBox": {
+        "x": 0,
+        "y": 0.4,
+        "w": 0.3,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.1125,
+        "y": 0.4,
+        "w": 0.0958,
+        "h": 0.04
+      },
+      "px": {
+        "x": 162,
+        "y": 360,
+        "w": 138,
+        "h": 36
+      },
+      "aspect": 3.8333,
+      "palette": [
+        {
+          "hex": "#497d6a",
+          "coverage": 0.5318
+        },
+        {
+          "hex": "#f4f7f4",
+          "coverage": 0.4102
+        },
+        {
+          "hex": "#85ab9a",
+          "coverage": 0.0399
+        },
+        {
+          "hex": "#bddbd3",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#205c44",
+          "coverage": 0.0073
+        }
+      ],
+      "detail": {
+        "energy": 16.0527
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "task-primary-copy",
+      "kind": "text",
+      "note": "Expanded parent task title, description, metadata and child rows",
+      "grid": "A4:F6",
+      "coverBox": {
+        "x": 0,
+        "y": 0.4,
+        "w": 0.6,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.0299,
+        "y": 0.44,
+        "w": 0.3438,
+        "h": 0.2078
+      },
+      "px": {
+        "x": 43,
+        "y": 396,
+        "w": 495,
+        "h": 187
+      },
+      "aspect": 2.6471,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.931
+        },
+        {
+          "hex": "#8c9496",
+          "coverage": 0.0277
+        },
+        {
+          "hex": "#bbc0c3",
+          "coverage": 0.0258
+        },
+        {
+          "hex": "#d7f2e2",
+          "coverage": 0.0084
+        },
+        {
+          "hex": "#4b5659",
+          "coverage": 0.0071
+        }
+      ],
+      "detail": {
+        "energy": 20.8941
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 4,
+          "glyphs": 45,
+          "capHeightPx": 14,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.9595,
+          "advTall": 0.9595,
+          "advX": null,
+          "gap": 0.0745,
+          "xRatio": 0.813,
+          "stemW": 0.1797,
+          "contrast": 1.1341,
+          "serif": 0.7721,
+          "densTall": 0.6203,
+          "densX": null,
+          "weight": 0.6203
+        },
+        "widthClass": "wide",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "task-secondary-copy",
+      "kind": "text",
+      "note": "Collapsed task titles, descriptions and metadata",
+      "grid": "A7:F9",
+      "coverBox": {
+        "x": 0,
+        "y": 0.7,
+        "w": 0.6,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.0299,
+        "y": 0.7167,
+        "w": 0.3389,
+        "h": 0.1144
+      },
+      "px": {
+        "x": 43,
+        "y": 645,
+        "w": 488,
+        "h": 103
+      },
+      "aspect": 4.7379,
+      "palette": [
+        {
+          "hex": "#f5f6f6",
+          "coverage": 0.9153
+        },
+        {
+          "hex": "#959c9e",
+          "coverage": 0.0373
+        },
+        {
+          "hex": "#bec2c4",
+          "coverage": 0.0294
+        },
+        {
+          "hex": "#787c86",
+          "coverage": 0.0107
+        },
+        {
+          "hex": "#4d585c",
+          "coverage": 0.0074
+        }
+      ],
+      "detail": {
+        "energy": 28.6505
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 2,
+          "glyphs": 56,
+          "capHeightPx": 12,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.9459,
+          "advTall": 0.9459,
+          "advX": null,
+          "gap": 0.1264,
+          "xRatio": 0.8197,
+          "stemW": 0.1775,
+          "contrast": 1.1869,
+          "serif": 0.4717,
+          "densTall": 0.564,
+          "densX": null,
+          "weight": 0.564
+        },
+        "widthClass": "wide",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "task-row-actions",
+      "kind": "control",
+      "note": "Per-row child, priority, pin and delete controls",
+      "grid": "E4:F9",
+      "coverBox": {
+        "x": 0.4,
+        "y": 0.4,
+        "w": 0.2,
+        "h": 0.6
+      },
+      "box": {
+        "x": 0.4007,
+        "y": 0.8522,
+        "w": 0.0375,
+        "h": 0.0367
+      },
+      "px": {
+        "x": 577,
+        "y": 767,
+        "w": 54,
+        "h": 33
+      },
+      "aspect": 1.6364,
+      "palette": [
+        {
+          "hex": "#f4f6f4",
+          "coverage": 0.8384
+        },
+        {
+          "hex": "#4b6767",
+          "coverage": 0.0707
+        },
+        {
+          "hex": "#cad5d3",
+          "coverage": 0.0505
+        },
+        {
+          "hex": "#a5b0ad",
+          "coverage": 0.0303
+        },
+        {
+          "hex": "#789090",
+          "coverage": 0.0101
+        }
+      ],
+      "detail": {
+        "energy": 9.9022
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "assistant-panel",
+      "kind": "chrome",
+      "note": "Narrow AI assistant folio",
+      "grid": "G1:J9",
+      "container": true,
+      "box": {
+        "x": 0.6,
+        "y": 0.1,
+        "w": 0.4,
+        "h": 0.9
+      },
+      "px": {
+        "x": 864,
+        "y": 90,
+        "w": 576,
+        "h": 810
+      },
+      "aspect": 0.7111,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.9367
+        },
+        {
+          "hex": "#b6bdbf",
+          "coverage": 0.0236
+        },
+        {
+          "hex": "#7a8486",
+          "coverage": 0.0222
+        },
+        {
+          "hex": "#3f4b52",
+          "coverage": 0.0089
+        },
+        {
+          "hex": "#666876",
+          "coverage": 0.0085
+        }
+      ],
+      "detail": {
+        "energy": 17.9101
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "assistant-heading",
+      "kind": "text",
+      "note": "Zhixing assistant Song-style heading",
+      "grid": "G1:H1",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.1,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.6,
+        "y": 0.1133,
+        "w": 0.1125,
+        "h": 0.0533
+      },
+      "px": {
+        "x": 864,
+        "y": 102,
+        "w": 162,
+        "h": 48
+      },
+      "aspect": 3.375,
+      "palette": [
+        {
+          "hex": "#f7f7f7",
+          "coverage": 0.7755
+        },
+        {
+          "hex": "#c1c8c9",
+          "coverage": 0.0798
+        },
+        {
+          "hex": "#839193",
+          "coverage": 0.065
+        },
+        {
+          "hex": "#213a3b",
+          "coverage": 0.0442
+        },
+        {
+          "hex": "#0c1722",
+          "coverage": 0.0356
+        }
+      ],
+      "detail": {
+        "energy": 32.6289
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 9,
+          "capHeightPx": 18.3,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": null,
+          "advTall": null,
+          "advX": null,
+          "gap": 0.1364,
+          "xRatio": 0.5879,
+          "stemW": 0.1873,
+          "contrast": 2.0115,
+          "serif": 0.9078,
+          "densTall": null,
+          "densX": null,
+          "weight": null
+        },
+        "widthClass": "normal",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "assistant-toolbar",
+      "kind": "control",
+      "note": "New chat, clear history, settings and collapse",
+      "grid": "H1:J1",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0.1,
+        "w": 0.3,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.8208,
+        "y": 0.12,
+        "w": 0.0625,
+        "h": 0.0333
+      },
+      "px": {
+        "x": 1182,
+        "y": 108,
+        "w": 90,
+        "h": 30
+      },
+      "aspect": 3,
+      "palette": [
+        {
+          "hex": "#f6f6f6",
+          "coverage": 0.7967
+        },
+        {
+          "hex": "#8c9a9b",
+          "coverage": 0.08
+        },
+        {
+          "hex": "#c5ced0",
+          "coverage": 0.07
+        },
+        {
+          "hex": "#596c71",
+          "coverage": 0.0533
+        }
+      ],
+      "detail": {
+        "energy": 17.0688
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "assistant-intro-copy",
+      "kind": "text",
+      "note": "Assistant capability introduction",
+      "grid": "G2:J4",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.2,
+        "w": 0.4,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.6396,
+        "y": 0.2633,
+        "w": 0.1444,
+        "h": 0.13
+      },
+      "px": {
+        "x": 921,
+        "y": 237,
+        "w": 208,
+        "h": 117
+      },
+      "aspect": 1.7778,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.8673
+        },
+        {
+          "hex": "#788286",
+          "coverage": 0.054
+        },
+        {
+          "hex": "#b2b6b7",
+          "coverage": 0.0533
+        },
+        {
+          "hex": "#555b64",
+          "coverage": 0.0228
+        },
+        {
+          "hex": "#2a333f",
+          "coverage": 0.0026
+        }
+      ],
+      "detail": {
+        "energy": 26.2745
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 3,
+          "glyphs": 30,
+          "capHeightPx": 12.9,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.9965,
+          "advTall": 0.9965,
+          "advX": null,
+          "gap": 0.0789,
+          "xRatio": 0.8216,
+          "stemW": 0.1694,
+          "contrast": 1.0971,
+          "serif": 0.8145,
+          "densTall": 0.5648,
+          "densX": null,
+          "weight": 0.5648
+        },
+        "widthClass": "wide",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "assistant-user-copy",
+      "kind": "text",
+      "note": "User message bubble",
+      "grid": "G5:J5",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.5,
+        "w": 0.4,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.6875,
+        "y": 0.5,
+        "w": 0.2417,
+        "h": 0.0267
+      },
+      "px": {
+        "x": 990,
+        "y": 450,
+        "w": 348,
+        "h": 24
+      },
+      "aspect": 14.5,
+      "palette": [
+        {
+          "hex": "#e6f2e9",
+          "coverage": 0.7674
+        },
+        {
+          "hex": "#9fb1ad",
+          "coverage": 0.0793
+        },
+        {
+          "hex": "#5e7675",
+          "coverage": 0.0728
+        },
+        {
+          "hex": "#334c4c",
+          "coverage": 0.0533
+        },
+        {
+          "hex": "#779588",
+          "coverage": 0.0272
+        }
+      ],
+      "detail": {
+        "energy": 64.6251
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 23,
+          "capHeightPx": 14,
+          "inkIsDark": true,
+          "allCaps": true,
+          "advance": 0.8938,
+          "advTall": 0.8938,
+          "advX": null,
+          "gap": 0.1073,
+          "xRatio": null,
+          "stemW": 0.1478,
+          "contrast": 1.1732,
+          "serif": 1.5489,
+          "densTall": 0.5031,
+          "densX": null,
+          "weight": 0.5031
+        },
+        "widthClass": "wide",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "assistant-response-copy",
+      "kind": "text",
+      "note": "Assistant prioritized-task response",
+      "grid": "G5:J8",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.5,
+        "w": 0.4,
+        "h": 0.4
+      },
+      "box": {
+        "x": 0.6396,
+        "y": 0.5633,
+        "w": 0.2833,
+        "h": 0.2433
+      },
+      "px": {
+        "x": 921,
+        "y": 507,
+        "w": 408,
+        "h": 219
+      },
+      "aspect": 1.863,
+      "palette": [
+        {
+          "hex": "#f6f7f6",
+          "coverage": 0.8069
+        },
+        {
+          "hex": "#7a8386",
+          "coverage": 0.0699
+        },
+        {
+          "hex": "#b7bdbf",
+          "coverage": 0.0653
+        },
+        {
+          "hex": "#535963",
+          "coverage": 0.0419
+        },
+        {
+          "hex": "#2b3541",
+          "coverage": 0.016
+        }
+      ],
+      "detail": {
+        "energy": 46.8753
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 8,
+          "glyphs": 198,
+          "capHeightPx": 13,
+          "inkIsDark": true,
+          "allCaps": false,
+          "advance": 0.9648,
+          "advTall": 0.968,
+          "advX": 0.499,
+          "gap": 0.0789,
+          "xRatio": 0.8378,
+          "stemW": 0.175,
+          "contrast": 1.1374,
+          "serif": 1.1681,
+          "densTall": 0.5715,
+          "densX": 0.4525,
+          "weight": 0.5715
+        },
+        "widthClass": "condensed",
+        "weightClass": "bold"
+      }
+    },
+    {
+      "id": "assistant-composer",
+      "kind": "control",
+      "note": "Message input, attachment, task analysis and send controls",
+      "grid": "G8:J9",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.8,
+        "w": 0.4,
+        "h": 0.2
+      },
+      "box": {
+        "x": 0.9042,
+        "y": 0.92,
+        "w": 0.0792,
+        "h": 0.06
+      },
+      "px": {
+        "x": 1302,
+        "y": 828,
+        "w": 114,
+        "h": 54
+      },
+      "aspect": 2.1111,
+      "palette": [
+        {
+          "hex": "#487e69",
+          "coverage": 0.4825
+        },
+        {
+          "hex": "#f4f7f4",
+          "coverage": 0.4488
+        },
+        {
+          "hex": "#8db3a7",
+          "coverage": 0.0468
+        },
+        {
+          "hex": "#bdd2cc",
+          "coverage": 0.0219
+        }
+      ],
+      "detail": {
+        "energy": 13.3761
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    }
+  ]
+}
