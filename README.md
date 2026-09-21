@@ -1,145 +1,129 @@
 <p align="center">
-  <img src="assets/icon.png" width="110" height="110" alt="智能任务管家图标">
+  <img src="assets/icon.png" width="110" height="110" alt="SmartTodo 图标">
 </p>
 
-<h1 align="center">✨ 智能任务管家</h1>
+<h1 align="center">SmartTodo</h1>
 
-<p align="center"><b>Smart Task Steward · 桌面任务管理 + AI 助手</b></p>
+<p align="center"><b>本地优先的 Windows 桌面任务管理器与可选 AI 助手</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Electron-31-blue?logo=electron&logoColor=white" alt="Electron 31">
-  <img src="https://img.shields.io/badge/electron--builder-24-green?logo=electronbuilder&logoColor=white" alt="electron-builder">
-  <img src="https://img.shields.io/badge/JavaScript-Vanilla%20JS-F7DF1E?logo=javascript&logoColor=black" alt="Vanilla JS">
-  <img src="https://img.shields.io/badge/Node--test-67%20tests-brightgreen" alt="node:test 67 tests">
-  <img src="https://img.shields.io/badge/Platform-Windows%20x64-0A7EA4" alt="Windows x64">
-  <img src="https://img.shields.io/badge/License-MIT-blueviolet" alt="MIT">
+  <img src="https://img.shields.io/badge/version-1.2.0-315e50" alt="Version 1.2.0">
+  <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
+  <img src="https://img.shields.io/badge/node:test-113%20tests-9c473b" alt="node:test 113 tests">
+  <img src="https://img.shields.io/badge/Platform-Windows%20x64-315e50" alt="Windows x64">
+  <img src="https://img.shields.io/badge/License-MIT-69736e" alt="MIT">
 </p>
 
-<p align="center">
-  <b>📋 任务待办</b> · <b>🤖 AI 对话</b> · <b>🌙 深浅主题</b> · <b>🔔 系统提醒</b> · <b>🌿 竹青流萤</b>
-</p>
+SmartTodo 将任务、备注、附件、会话和配置保存在本机，无需账号或后端服务。V1.2 采用“文房案台”现代中式视觉系统，并增加与主界面协调的桌面任务笺。
 
-一款本地优先的桌面任务管理器，集成 AI 智能助手。所有任务、会话与配置均保存在**本机**，开箱即用，无需注册、无需联网即可管理任务。
+## V1.2 亮点
 
----
+- 现代新中式界面：暖纸、竹青、漆夜与朱砂构成深浅双主题，统一使用重新绘制的竹叶流萤图标。
+- 响应式工作台：覆盖 1366×768 至 2560×1440、窄窗口以及 125%／150% 缩放；长标题、长链接和长文件名不会造成横向撕裂。
+- 桌面任务笺：默认位于当前桌面右侧，以半透明 320×440 小窗展示最多 5 项未完成任务；优先顺序为“已逾期 → 24 小时内到期 → 置顶 → 高优先级 → 其余任务”。
+- 克制动效：本地 GSAP 只服务于状态变化，并完整尊重 `prefers-reduced-motion`；桌面任务笺使用单一 180ms CSS 完成反馈。
+- 原有数据兼容：继续使用既有 `localStorage` 键名、任务结构、运行数据目录和附件目录，无需迁移。
 
-## ✨ 功能特性
+## 功能
 
-- **任务管理**：主任务 / 子任务、提醒时间、高中低优先级、置顶、折叠展开、一键完成与撤销
-- **备注与附件**：已创建任务可反复编辑备注，并可添加图片或普通文件；编辑器为已保存图片和待保存图片显示惰性缩略图，普通文件显示 MIME/类型，每个任务最多 **10 个附件**，单个不超过 **20MB**
-- **安全链接**：备注中的 HTTP/HTTPS 地址可点击并交由系统默认浏览器打开；其他协议保持普通文本，程序不会自动访问网址
-- **重点筛选**：“需关注”自动汇集置顶、高优先级、已逾期及未来 24 小时内提醒的任务，并保留必要的父任务上下文
-- **智能归档**：完成任务自动归档，超过 **15 天**自动清理；创建、完成与最近备注编辑时间独立留痕，编辑备注不会改变 `createdAt` / `completedAt`
-- **智能排序**：主任务与其子任务分别在层级内按「置顶 → 未完成 → 优先级 → 时间」自动排序
-- **AI 智能助手**：接入 DeepSeek / OpenAI / 任意 OpenAI 兼容服务，支持会话管理、流式输出、任务清单分析、附件上传（≤10 个，单个 ≤20MB）
-- **界面体验**：深色 / 浅色双主题、75%–125% 亮度调节、可折叠助手面板（任务区自动占满）
-- **托盘常驻**：关闭窗口驻留系统托盘，提醒不遗漏；单实例运行
+- 主任务／子任务、提醒、高中低优先级、置顶、折叠、完成与撤销。
+- “需关注／进行中／已完成”筛选；完成任务保留 15 天后自动清理。
+- 可重复编辑备注；HTTP/HTTPS 安全链接；每项任务最多 10 个附件，单个不超过 20MB。
+- DeepSeek、OpenAI 与自定义 OpenAI-compatible 服务；流式对话、会话管理和任务分析。
+- 深浅主题、75%–125% 亮度、系统通知、托盘常驻与单实例运行。
+- 桌面任务笺支持完成任务、打开主界面与收起；它不置顶、不抢占焦点，也不能编辑、删除或创建任务。
 
-## 🧰 技术栈
+## 快速开始
 
-```
-Electron 31 · Vanilla JavaScript · HTML5 / CSS3 · Node.js 内置 node:test · electron-builder
-```
-
-无前端框架、无后端服务，轻量可移植。
-
-## 🚀 快速开始
-
-> 需要 [Node.js](https://nodejs.org) ≥ 18。
+需要 Node.js 18 或更高版本。
 
 ```powershell
-# 1. 安装依赖
 npm install
-
-# 2. 启动应用
 npm start
 ```
 
-## 🤖 配置 AI 助手
+## AI 助手
 
-1. 点击主界面右上角 **⚙️ 设置**
-2. 选择服务商（DeepSeek / OpenAI / 自定义）
-3. 填入 API 地址、模型名称与 **API Key**
-4. 保存后即可开始对话；也可以点击 **🧠** 让 AI 分析当前任务清单
+在“知行助手”中打开设置，选择 DeepSeek、OpenAI 或自定义兼容服务，再填写 API 地址、模型与 API Key。AI 是可选增强能力；未联网或未配置 Key 时，任务管理仍完整可用。
 
-> 🔒 API Key 仅保存在本机运行数据中，不会上传或写入日志。
+API Key 仅存储在本机运行数据中，不写入仓库或日志。
 
-## 📁 项目结构
+## 桌面任务笺
 
-```
-智能任务管理器/
-├── main.js               # 主进程：窗口 / 托盘 / 通知 / 生命周期
-├── main-paths.js         # 运行数据与任务附件目录统一拼接
-├── task-attachment-store.js # 单调附件事务、根目录校验、定位与启动清理
-├── task-attachment-ipc.js   # 固定事务/协调 IPC 与外链协议安全校验
-├── preload.js            # 用户所选 File 的最小化 contextBridge 桥接
-├── package.json          # 项目元数据、脚本与打包配置
+- 从主界面右上角任务笺按钮，或系统托盘中的“桌面任务笺”开关显示小窗。
+- 小窗记住可见性与最后位置；显示器断开后会自动回到主显示器可见范围。
+- 任务笺始终保持 `alwaysOnTop: false`，不会覆盖其他工作窗口，也不会在出现时抢夺键盘焦点。
+- 主界面是 `smart_tasks` 的唯一写入者。小窗完成任务时必须由主界面持久化；保存失败会恢复原状态并提示在主界面重试。
+
+## 项目结构
+
+```text
+SmartTodo/
+├── main.js                         # 主窗口、任务笺、托盘、通知与生命周期
+├── preload.js                      # 主界面最小化桥接
+├── widget-controller.js            # 任务笺窗口、位置与可见性
+├── widget-window-state.js          # 跨显示器位置修正
+├── widget-ipc.js                   # 双窗口固定 IPC 与发送者校验
+├── widget-preload.js               # 任务笺最小化桥接
+├── task-attachment-store.js        # 受管附件事务
+├── task-attachment-ipc.js          # 附件 IPC 安全边界
 ├── renderer/
-│   ├── index.html        # 界面骨架
-│   ├── style.css         # 深浅主题与全部样式
-│   ├── app.js            # 渲染主逻辑（任务 / 提醒 / AI 会话）
-│   ├── task-model.js     # 任务纯逻辑模块（排序 / 归档 / 关注筛选）
-│   ├── draft-store.js    # 表单草稿恢复
-│   ├── ai-provider.js    # OpenAI 兼容协议适配（SSE 流式）
-│   ├── ui-appearance.js  # 亮度调节与时间戳格式化
-│   └── note-utils.js     # 备注转义与安全 HTTP/HTTPS 链接渲染
-├── tests/                # 67 项 node:test 用例 + Electron 界面冒烟测试
-├── assets/               # 应用图标（png / ico）
-├── docs/文件说明.md       # 逐份文件功能说明 📖
-└── release/V1.0.7/       # 当前发布版 exe 与版本说明
+│   ├── index.html / app.js         # 主界面与业务逻辑
+│   ├── widget.html / widget.js     # 桌面任务笺
+│   ├── widget-model.js             # 脱敏快照与五任务选择
+│   ├── styles/                     # 令牌、布局、组件与动效
+│   └── icons.svg                   # 统一线性图标符号
+├── tests/                          # 单元与真实 Electron 窗口测试
+├── assets/                         # 品牌源文件、字体与应用图标
+└── release/V1.2/                   # V1.2 版本说明与本地构建产物
 ```
 
-> 📖 完整的逐文件功能说明见 [`docs/文件说明.md`](docs/文件说明.md)
+逐文件职责见 [`docs/文件说明.md`](docs/文件说明.md)。
 
-## 🧪 测试
+## 测试
 
 ```powershell
-# 纯逻辑单元测试（无需 Electron）
+# 纯逻辑、IPC、安全边界与静态契约
 npm test
 
-# 真实窗口界面冒烟测试（筛选/主题/时间戳/亮度/对比度）
+# 主界面行为、响应式矩阵、真实双窗口任务笺
 npm run test:ui
 ```
 
-当前 `npm test` 共 67 项：本次 Windows 环境通过 65 项，另有 2 项因系统不允许创建符号链接而明确跳过。测试覆盖备注编辑、时间戳兼容、preload 显式选择边界、单调附件事务、启动协调清理、受管根目录与固定 IPC；缺失文件、非普通文件和根目录替换仍有确定性覆盖，其余用例须零失败。
+V1.2 当前共有 113 项单元测试：111 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。UI 流水线覆盖真实 Electron 主窗口、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的排序、焦点、同步、回滚和溢出行为。
 
-## 📦 构建与发布
+## 构建
 
 ```powershell
 npm run dist
 ```
 
-构建 Windows x64 便携版，产物输出到 `dist/`。正式发布的 exe 建议通过 **GitHub Releases** 分发（仓库内不提交二进制文件）。
+该命令生成 Windows x64 便携版到 `dist/`。发布副本位于 `release/V1.2/`；EXE 由 `.gitignore` 排除，应通过 GitHub Releases 分发。未签名构建首次运行时可能触发 Windows SmartScreen 提示。
 
-当前交付：`release/V1.0.7/智能任务管家-1.0.7.exe`（免安装，双击即用）。历史版本通过 GitHub Releases 留存，避免旧二进制文件占用源码仓库空间。
+## 数据与升级兼容
 
-## 💾 运行数据
+运行数据目录：
 
-任务、草稿、主题、亮度、AI 配置与会话统一保存在：
-
-```
+```text
 %APPDATA%\智能任务管家\运行数据
 ```
 
-任务附件由程序复制到以下受管目录，不依赖原文件继续存在，也不会把文件内容或原始绝对路径写入任务数据：
+任务附件目录：
 
 ```text
 %APPDATA%\智能任务管家\运行数据\task-attachments\<任务ID>\
 ```
 
-升级前请从托盘完全退出程序再备份该目录；**切勿**将包含 API Key 的运行数据随项目分发。
+V1.2 兼容 V1.0.7 的任务、草稿、主题、AI 配置、会话和受管附件。升级前请从托盘完全退出旧版本，并建议备份整个“运行数据”目录。不要分发包含 API Key 的运行数据。
 
-## 🛡️ 隐私与安全
+## 安全边界
 
-- 全程本地运行，无任何遥测与联网上报
-- 渲染进程关闭 `nodeIntegration`，仅通过 `preload` 暴露最小化能力
-- API Key 仅存于本机 `localStorage`，错误提示不回显 Key
-- 渲染进程只能把文件选择框返回的 `File` 交给 preload；preload 使用 Electron `webUtils.getPathForFile` 在隔离上下文中取得路径并拒绝伪造、非 `File` 或空路径输入，不暴露任意绝对路径导入 API
-- 任务附件使用随机磁盘文件名；主进程按受管目录实际状态独立执行 10 个数量限制，不信任界面传入计数，并固定根目录的规范路径与文件身份，通过 `lstat` / `realpath` 拒绝根目录替换、符号链接、非普通文件与目录逃逸
-- 卡片和编辑器都会检查附件是否仍为可用普通文件；缺失或不安全时明确显示“文件已不存在”
-- 附件保存采用单调的准备/持久化/提交事务：新增文件先复制到最终受管位置，旧文件在任务元数据成功持久化前绝不移动或删除；`localStorage` 写入失败只回滚本次新导入文件。持久化成功后再尽力清理已从元数据排除的旧文件，清理失败只留下未引用冗余文件并保持弹窗打开、控件可用；下次启动会按规范化附件元数据执行逐任务、幂等的受管目录协调清理
-- 备注内容按纯文本转义，仅允许用户主动通过系统浏览器打开经过校验的 HTTP/HTTPS 链接
+- 主窗口与任务笺均启用 `contextIsolation: true`、关闭 `nodeIntegration`。
+- preload 不暴露 `ipcRenderer`、文件系统、任意通道或任意绝对路径导入能力。
+- 任务笺只接收允许展示的任务字段，只能请求完成、隐藏自身或打开主界面。
+- 附件使用固定 IPC、随机磁盘名、规范路径校验和单调准备／持久化／提交事务。
+- 备注先按纯文本转义，仅允许用户主动通过系统浏览器打开 HTTP/HTTPS 链接。
 
-## 📄 License
+## License
 
-[MIT](LICENSE) · Made with 🖤 by 萤火
+[MIT](LICENSE) · by 萤火

@@ -143,11 +143,6 @@ function sanitizeTasks(rawTasks) {
   return taskModel.normalizeTasks(rawTasks);
 }
 
-function pickTaskVersion(v) {
-  if (!v) return "1.0.7";
-  return String(v).replace(/^v/i, "");
-}
-
 /* ===== 状态 ===== */
 let tasks = sanitizeTasks(loadJSON(STORAGE_KEYS.tasks, []));
 let currentFilter = "active";
@@ -2063,14 +2058,14 @@ if (window.desktop?.onTaskWidgetAction) {
 }
 
 function renderInitialVersion() {
-  const fallback = window.desktop?.version || "1.0.7";
-  const current = pickTaskVersion(fallback);
+  const fallback = window.desktop?.version || "1.2.0";
+  const current = uiAppearance.formatDisplayVersion(fallback);
   if (els.version) els.version.textContent = `V${current}`;
 
   if (window.desktop?.getAppVersion) {
     window.desktop.getAppVersion().then(v => {
       if (!v) return;
-      els.version.textContent = `V${pickTaskVersion(v)}`;
+      els.version.textContent = `V${uiAppearance.formatDisplayVersion(v)}`;
     }).catch(() => {});
   }
 }

@@ -60,6 +60,11 @@
     ].join("-") + ` ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
+  function formatDisplayVersion(value) {
+    const match = String(value || "").replace(/^v/i, "").match(/^(\d+)\.(\d+)/);
+    return match ? `${match[1]}.${match[2]}` : "1.2";
+  }
+
   return {
     STORAGE_KEY,
     MIN_BRIGHTNESS,
@@ -70,6 +75,7 @@
     resolveBrightness,
     loadBrightness,
     saveBrightness,
-    formatTaskTimestamp
+    formatTaskTimestamp,
+    formatDisplayVersion
   };
 });
