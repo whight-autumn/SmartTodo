@@ -30,13 +30,21 @@ function assertStaticSurface() {
   const css = fs.readFileSync(path.join(projectRoot, "renderer", "widget.css"), "utf8");
   const js = fs.readFileSync(path.join(projectRoot, "renderer", "widget.js"), "utf8");
   for (const id of [
-    "widget-shell", "widget-drag-region", "widget-date", "widget-count", "widget-list",
-    "widget-open-main", "widget-hide"
+    "widget-shell", "widget-drag-region", "widget-header-open", "widget-header-hide",
+    "widget-heading", "widget-date", "widget-count", "widget-list", "widget-open-main"
   ]) assert.match(html, new RegExp(`id="${id}"`), id);
+  assert.match(html, /<span class="widget-version">V1\.2<\/span>/);
+  assert.match(html, /<h1 id="widget-heading">今日要务<\/h1>/);
+  assert.match(html, /<footer class="widget-footer">[\s\S]*id="widget-open-main"[\s\S]*<\/footer>/);
+  assert.doesNotMatch(html, /id="widget-hide"/);
   assert.match(html, /id="widget-status"[^>]+role="status"[^>]+aria-live="polite"/);
   assert.doesNotMatch(`${html}\n${js}`, /data-action="(?:edit|delete|attachment|ai|create)"/i);
   assert.match(css, /button,\s*input,\s*a,\s*\[role="button"\]\s*\{[^}]*-webkit-app-region:\s*no-drag/s);
   assert.match(css, /\.widget-task__title\s*\{[^}]*min-width:\s*0[^}]*-webkit-line-clamp:\s*2/s);
+  assert.match(css, /\.widget-task\s*\{[^}]*border-bottom:\s*1px solid var\(--line\)/s);
+  assert.doesNotMatch(css.match(/\.widget-task\s*\{[^}]*\}/s)?.[0] || "", /border-radius/);
+  assert.match(js, /row\.classList\.add\("is-child"\)/);
+  assert.match(css, /\.widget-task\.is-child\s*\{[^}]*padding-inline-start:/s);
   assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*transition-duration:\s*1ms\s*!important[\s\S]*transform:\s*none\s*!important/);
   assert.doesNotMatch(`${html}\n${css}\n${js}`, /\p{Extended_Pictographic}/u);
 }
@@ -144,7 +152,7 @@ app.whenReady().then(async () => {
       };
     })()`);
     assert.deepEqual(initial.order, ["overdue", "child-soon", "parent", "high-long", "normal"]);
-    assert.equal(initial.parent, "年度计划");
+    assert.equal(initial.parent, "归属 · 年度计划");
     assert.ok(initial.titleHeight <= initial.lineHeight * 2 + 2);
     assert.equal(initial.theme, "light");
 
@@ -188,9 +196,11 @@ app.whenReady().then(async () => {
       const geometry = await widgetWindow.webContents.executeJavaScript(`(() => {
         const viewport = { width: innerWidth, height: innerHeight };
         const nodes = [...document.querySelectorAll('.widget-task, .widget-footer')];
+        const readableNodes = [...document.querySelectorAll('.widget-brand__copy strong, .widget-version, .widget-tool, #widget-date, #widget-count, #widget-heading, .widget-task__title, .widget-task__meta, .widget-action')];
         return {
           documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
           shellOverflow: Math.max(0, document.getElementById('widget-shell').scrollWidth - document.getElementById('widget-shell').clientWidth),
+          minFontSize: Math.min(...readableNodes.map(node => parseFloat(getComputedStyle(node).fontSize))),
           contained: nodes.every(node => {
             const rect = node.getBoundingClientRect();
             return rect.left >= -1 && rect.right <= viewport.width + 1 && rect.top >= -1 && rect.bottom <= viewport.height + 1;
@@ -200,6 +210,7 @@ app.whenReady().then(async () => {
       assert.ok(Math.abs(actualZoom - zoom) < 0.02, JSON.stringify({ actualZoom, ...geometry }));
       assert.ok(geometry.documentOverflow <= 1, JSON.stringify(geometry));
       assert.ok(geometry.shellOverflow <= 1, JSON.stringify(geometry));
+      assert.ok(geometry.minFontSize >= 11, JSON.stringify(geometry));
       assert.equal(geometry.contained, true, JSON.stringify(geometry));
     }
     widgetWindow.webContents.setZoomFactor(1);
@@ -207,7 +218,7 @@ app.whenReady().then(async () => {
     await widgetWindow.webContents.executeJavaScript(`document.getElementById("widget-open-main").click()`);
     await wait(180);
     assert.equal(BrowserWindow.getFocusedWindow()?.id, mainWindow.id);
-    await widgetWindow.webContents.executeJavaScript(`document.getElementById("widget-hide").click()`);
+    await widgetWindow.webContents.executeJavaScript(`document.getElementById("widget-header-hide").click()`);
     await wait(100);
     assert.equal(widgetWindow.isVisible(), false);
 

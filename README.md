@@ -9,7 +9,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-315e50" alt="Version 1.2.0">
   <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
-  <img src="https://img.shields.io/badge/node:test-113%20tests-9c473b" alt="node:test 113 tests">
+  <img src="https://img.shields.io/badge/node:test-115%20tests-9c473b" alt="node:test 115 tests">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-315e50" alt="Windows x64">
   <img src="https://img.shields.io/badge/License-MIT-69736e" alt="MIT">
 </p>
@@ -90,7 +90,7 @@ npm test
 npm run test:ui
 ```
 
-V1.2 当前共有 113 项单元测试：111 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。UI 流水线覆盖真实 Electron 主窗口、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的排序、焦点、同步、回滚和溢出行为。
+V1.2 当前共有 115 项单元测试：113 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。UI 流水线覆盖真实 Electron 主窗口、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的排序、焦点、同步、回滚和溢出行为。
 
 ## 构建
 

@@ -8,7 +8,6 @@
   transition: color 180ms var(--ease-state), background-color 180ms var(--ease-state),
     border-color 180ms var(--ease-state), box-shadow 180ms var(--ease-state);
 }
-.ai-sidecar { transition: min-height 260ms var(--ease-state); }
 dialog[open] .dialog-sheet { animation: toast-enter 240ms var(--ease-state) both; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -13,17 +13,25 @@
   <section id="widget-shell" class="widget-shell" aria-label="SmartTodo 桌面任务笺">
     <header id="widget-drag-region" class="widget-drag-region">
       <div class="widget-brand">
-        <img class="widget-brand__mark" src="../assets/brand/icon-master.svg" width="34" height="34" alt="">
+        <img class="widget-brand__mark" src="../assets/brand/icon-master.svg" width="30" height="30" alt="">
         <span class="widget-brand__copy">
           <strong>SmartTodo</strong>
-          <small>今日任务笺</small>
         </span>
+        <span class="widget-version">V1.2</span>
       </div>
-      <div class="widget-overview">
-        <time id="widget-date"></time>
-        <span id="widget-count">0 项待办</span>
+      <div class="widget-tools" aria-label="窗口操作">
+        <button id="widget-header-open" class="widget-tool" type="button" title="打开主界面" aria-label="打开主界面" data-icon="note"></button>
+        <button id="widget-header-hide" class="widget-tool" type="button" title="收起任务笺" aria-label="收起任务笺" data-icon="close"></button>
       </div>
     </header>
+
+    <div class="widget-section-head">
+      <h1 id="widget-heading">今日要务</h1>
+      <div class="widget-overview">
+        <time id="widget-date"></time>
+        <span id="widget-count">0 项</span>
+      </div>
+    </div>
 
     <main class="widget-content">
       <ul id="widget-list" class="widget-list" aria-label="待处理任务"></ul>
@@ -33,10 +41,7 @@
     <footer class="widget-footer">
       <p id="widget-status" class="widget-status" role="status" aria-live="polite"></p>
       <button id="widget-open-main" class="widget-action widget-action--primary" type="button">
-        <span data-icon="note"></span><span>打开主界面</span>
-      </button>
-      <button id="widget-hide" class="widget-action" type="button">
-        <span data-icon="close"></span><span>收起</span>
+        <span data-icon="note"></span><span>打开 SmartTodo</span>
       </button>
     </footer>
   </section>

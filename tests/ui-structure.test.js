@@ -6,6 +6,8 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "renderer/index.html"), "utf8");
 const entryCss = fs.readFileSync(path.join(root, "renderer/style.css"), "utf8");
+const componentsCss = fs.readFileSync(path.join(root, "renderer/styles/components.css"), "utf8");
+const motionCss = fs.readFileSync(path.join(root, "renderer/styles/motion.css"), "utf8");
 
 test("V1.2 shell preserves behavioral IDs and adds semantic regions", () => {
   for (const id of [
@@ -46,4 +48,14 @@ test("dialogs use the shared sheet anatomy", () => {
   assert.match(html, /class="[^"]*dialog-sheet__head/);
   assert.match(html, /class="[^"]*dialog-sheet__body/);
   assert.match(html, /class="[^"]*dialog-sheet__foot/);
+});
+
+test("semantic outline and task rows avoid decorative-only structure", () => {
+  assert.match(html, /<div id="empty-tip"[\s\S]*?<h2>从一件要紧的事开始<\/h2>/);
+  assert.match(componentsCss, /\.empty-state h2\s*\{/);
+  assert.doesNotMatch(componentsCss, /\.task-row__rail\s*\{/);
+});
+
+test("motion stylesheet only transitions composited visual properties", () => {
+  assert.doesNotMatch(motionCss, /transition:\s*min-height/);
 });

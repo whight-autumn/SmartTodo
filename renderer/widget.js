@@ -11,8 +11,9 @@
     list: document.getElementById("widget-list"),
     empty: document.getElementById("widget-empty"),
     status: document.getElementById("widget-status"),
+    headerOpen: document.getElementById("widget-header-open"),
+    headerHide: document.getElementById("widget-header-hide"),
     openMain: document.getElementById("widget-open-main"),
-    hide: document.getElementById("widget-hide")
   };
   const pendingTaskIds = new Set();
   let currentSnapshot = widgetModel.normalizeWidgetSnapshot(null);
@@ -45,6 +46,7 @@
     row.dataset.taskId = task.id;
     row.dataset.priority = task.priority;
     row.dataset.attention = attentionName(task);
+    if (task.parentTitle) row.classList.add("is-child");
 
     const checkWrap = document.createElement("label");
     checkWrap.className = "widget-task__check";
@@ -68,7 +70,7 @@
     if (task.parentTitle) {
       const parent = document.createElement("span");
       parent.className = "widget-task__parent";
-      parent.textContent = task.parentTitle;
+      parent.textContent = `归属 · ${task.parentTitle}`;
       meta.appendChild(parent);
     }
     const reminderText = widgetModel.formatWidgetReminder(task.remindTime);
@@ -100,7 +102,7 @@
     document.documentElement.style.setProperty("--widget-brightness", `${currentSnapshot.brightness}%`);
     elements.shell.style.setProperty("--widget-brightness", `${currentSnapshot.brightness}%`);
     elements.date.textContent = formatDate();
-    elements.count.textContent = `${currentSnapshot.tasks.length} 项待办`;
+    elements.count.textContent = `${currentSnapshot.tasks.length} 项`;
     elements.list.replaceChildren(...currentSnapshot.tasks.map(createTaskRow));
     elements.empty.hidden = currentSnapshot.tasks.length > 0;
   }
@@ -144,8 +146,9 @@
     }
   }
 
+  elements.headerOpen.addEventListener("click", () => void bridge.showMainWindow());
+  elements.headerHide.addEventListener("click", () => void bridge.setVisible(false));
   elements.openMain.addEventListener("click", () => void bridge.showMainWindow());
-  elements.hide.addEventListener("click", () => void bridge.setVisible(false));
   iconUtils.mountIcons(document);
   if (!CSS.supports("backdrop-filter", "blur(1px)")) {
     document.documentElement.classList.add("no-transparency");

@@ -608,8 +608,7 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
   const pinHtml = !archive
     ? `<button class="task-btn pin${task.pinned ? " active" : ""}" title="${task.pinned ? "取消置顶" : "置顶"}" data-action="pin">${icon("pin")}<span class="sr-only">${task.pinned ? "取消置顶" : "置顶"}</span></button>`
     : "";
-  li.innerHTML = `<div class="task-row__rail" aria-hidden="true"></div>
-    <label class="task-check-wrap">
+  li.innerHTML = `<label class="task-check-wrap">
       <input type="checkbox" class="task-check" data-action="toggle-complete"
         aria-label="标记「${escapeHTML(task.title)}」为${task.done ? "未完成" : "已完成"}" ${task.done ? "checked" : ""}>
       <span class="task-check-visual" aria-hidden="true">${icon("check")}</span>

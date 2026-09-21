@@ -52,7 +52,7 @@ SmartTodo 是一款本地优先的桌面任务与 AI 助手。它让用户在一
 - 文件职责与安全边界：`docs/文件说明.md`。
 - 当前应用图标：`assets/icon.png` 与 `assets/icon.ico`。
 - 当前唯一界面与业务行为：`renderer/index.html`、`renderer/style.css`、`renderer/app.js`。
-- 自动化证据：`tests/*.test.js`、`tests/ui-smoke.cjs`、`tests/ui-layout.cjs` 与 `tests/ui-widget.cjs`；V1.2 为 113 项单元测试，其中 111 项通过、2 项因运行环境不支持符号链接而跳过、0 项失败，并包含真实 Electron 双窗口与响应式矩阵验证。
+- 自动化证据：`tests/*.test.js`、`tests/ui-smoke.cjs`、`tests/ui-layout.cjs` 与 `tests/ui-widget.cjs`；V1.2 为 115 项单元测试，其中 113 项通过、2 项因运行环境不支持符号链接而跳过、0 项失败，并包含真实 Electron 双窗口与响应式矩阵验证。
 - 未提供客户评价、商业数据、团队协作需求或云服务证明；后续工作不得虚构这些内容。
 
 ## Product Principles
