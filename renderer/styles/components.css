@@ -86,6 +86,11 @@
   letter-spacing: .02em;
 }
 .panel-header h1 .ui-icon, .panel-header h2 .ui-icon { color: var(--accent); font-size: .78em; }
+.task-widget-toggle[aria-pressed="true"] {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
 .task-workbench .panel-header h1 { font-size: 1.85rem; letter-spacing: 0; }
 .task-workbench .panel-header { margin-bottom: 1px; }
 .summary-badge {

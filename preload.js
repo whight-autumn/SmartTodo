@@ -46,6 +46,16 @@ async function prepareTaskAttachmentChanges(value) {
   });
 }
 
+function clonePayload(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function subscribe(channel, callback) {
+  const listener = (_event, payload) => callback(clonePayload(payload));
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+}
+
 contextBridge.exposeInMainWorld("desktop", {
   // 原生系统通知
   notify: (title, body) => ipcRenderer.invoke("notify", { title, body }),
@@ -59,6 +69,19 @@ contextBridge.exposeInMainWorld("desktop", {
   getTaskAttachmentUrl: payload => ipcRenderer.invoke("task-attachment:get-url", payload),
   openTaskAttachment: payload => ipcRenderer.invoke("task-attachment:open", payload),
   openExternalUrl: url => ipcRenderer.invoke("task-attachment:open-external", url),
+  publishTaskWidgetSnapshot: snapshot => ipcRenderer.invoke("widget:publish-snapshot", snapshot),
+  completeTaskWidgetAction: result => ipcRenderer.invoke("widget:task-action-result", result),
+  setTaskWidgetVisible: visible => ipcRenderer.invoke("widget:set-visible", { visible }),
+  onTaskWidgetAction: callback => {
+    const listener = (_event, payload) => callback(clonePayload(payload));
+    ipcRenderer.on("widget:action", listener);
+    return () => ipcRenderer.removeListener("widget:action", listener);
+  },
+  onTaskWidgetVisibility: callback => {
+    const listener = (_event, payload) => callback(clonePayload(payload));
+    ipcRenderer.on("widget:visibility", listener);
+    return () => ipcRenderer.removeListener("widget:visibility", listener);
+  },
   onWindowShown: callback => {
     const listener = () => callback();
     ipcRenderer.on("window-shown", listener);

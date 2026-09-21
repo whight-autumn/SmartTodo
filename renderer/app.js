@@ -6,6 +6,7 @@
 "use strict";
 
 const taskModel = window.TaskModel;
+const widgetModel = window.WidgetModel;
 const draftStore = window.DraftStore;
 const aiProvider = window.AIProvider;
 const uiAppearance = window.UIAppearance;
@@ -179,6 +180,7 @@ let taskNoteDraft = null;
 let taskNotePreviousFocus = null;
 let taskNoteReturnTaskId = null;
 let taskNoteSavePending = false;
+let widgetPublishingReady = false;
 
 // ===== DOM 引用 =====
 const $ = id => document.getElementById(id);
@@ -205,6 +207,7 @@ const els = {
   input: $("user-input"),
   sendBtn: $("send-btn"),
   themeBtn: $("theme-toggle"),
+  widgetToggle: $("task-widget-toggle"),
   globalSettingsBtn: $("global-settings-btn"),
   brightnessSlider: $("brightness-slider"),
   brightnessValue: $("brightness-value"),
@@ -249,6 +252,7 @@ function toggleTheme() {
   const next = current === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
   localStorage.setItem(STORAGE_KEYS.theme, next);
+  void publishTaskWidgetSnapshot();
   els.themeBtn.dataset.theme = next;
   els.themeBtn.setAttribute("aria-label", next === "dark" ? "切换为浅色主题" : "切换为深色主题");
   showToast(next === "dark" ? "已切换为深色模式" : "已切换为浅色模式");
@@ -264,7 +268,10 @@ function applyBrightness(value, persist = false) {
   els.brightnessSlider.setAttribute("aria-valuetext", `${state.value}%`);
   els.brightnessValue.value = `${state.value}%`;
   els.brightnessValue.textContent = `${state.value}%`;
-  if (persist) uiAppearance.saveBrightness(localStorage, state.value);
+  if (persist) {
+    uiAppearance.saveBrightness(localStorage, state.value);
+    void publishTaskWidgetSnapshot();
+  }
 }
 
 function initBrightness() {
@@ -287,9 +294,19 @@ els.brightnessSlider.addEventListener("dblclick", () => {
 /* ==========================================================
    任务与子任务
    ========================================================== */
+function publishTaskWidgetSnapshot() {
+  if (!window.desktop?.publishTaskWidgetSnapshot) return Promise.resolve(false);
+  const theme = document.documentElement.getAttribute("data-theme") || "dark";
+  const brightness = uiAppearance.resolveBrightness(els.brightnessSlider.value).value;
+  return window.desktop.publishTaskWidgetSnapshot(
+    widgetModel.createWidgetSnapshot(taskModel.sortTasks(tasks), { theme, brightness })
+  ).catch(() => false);
+}
+
 function saveTasks() {
   taskIndexDirty = true;
   saveJSON(STORAGE_KEYS.tasks, tasks);
+  if (widgetPublishingReady) void publishTaskWidgetSnapshot();
 }
 
 function refreshTaskIndex() {
@@ -1141,6 +1158,58 @@ function handleTaskCompletion(task, done) {
   });
 }
 
+async function completeTaskWidgetAction(result) {
+  try {
+    await window.desktop?.completeTaskWidgetAction?.(result);
+  } catch {
+    // The originating widget may already be closed; persisted task state remains authoritative.
+  }
+}
+
+async function handleTaskWidgetAction(action) {
+  const keys = action && typeof action === "object" ? Object.keys(action) : [];
+  const validShape = keys.length === 3
+    && keys.every(key => ["requestId", "type", "taskId"].includes(key));
+  refreshTaskIndex();
+  const task = validShape ? taskIndex.byId.get(action.taskId) : null;
+  if (!validShape || action.type !== "toggle-complete" || !task || task.done) {
+    await completeTaskWidgetAction({
+      requestId: typeof action?.requestId === "string" ? action.requestId : "",
+      ok: false,
+      message: "任务状态已变化，请在主界面重试"
+    });
+    return;
+  }
+
+  const affectedIds = task.parentId ? [task.id] : [task.id, ...collectDescendantIds(task.id)];
+  const previousStates = new Map(affectedIds.map(id => {
+    const affected = taskIndex.byId.get(id);
+    return [id, affected ? { done: affected.done, completedAt: affected.completedAt } : null];
+  }));
+  let result;
+  try {
+    handleTaskCompletion(task, true);
+    saveTasks();
+    result = { requestId: action.requestId, ok: true, message: "" };
+  } catch {
+    previousStates.forEach((state, id) => {
+      const affected = taskIndex.byId.get(id);
+      if (!affected || !state) return;
+      affected.done = state.done;
+      affected.completedAt = state.completedAt;
+    });
+    taskIndexDirty = true;
+    result = {
+      requestId: action.requestId,
+      ok: false,
+      message: "任务保存失败，请在主界面重试"
+    };
+  }
+  queueTaskRender();
+  renderParentOptions();
+  await completeTaskWidgetAction(result);
+}
+
 function confirmAction(title, message, acceptLabel = "确认删除") {
   if (els.confirmDialog.open) return Promise.resolve(false);
   const previousFocus = document.activeElement;
@@ -1969,6 +2038,30 @@ if (window.desktop?.onWindowShown) {
   });
 }
 
+function syncTaskWidgetVisibility(value) {
+  const visible = typeof value === "boolean" ? value : !!value?.visible;
+  els.widgetToggle?.setAttribute("aria-pressed", String(visible));
+  if (els.widgetToggle) {
+    els.widgetToggle.title = visible ? "桌面任务笺已显示" : "显示桌面任务笺";
+    els.widgetToggle.setAttribute("aria-label", visible ? "桌面任务笺已显示" : "显示桌面任务笺");
+  }
+}
+
+els.widgetToggle?.addEventListener("click", async () => {
+  try {
+    await window.desktop?.setTaskWidgetVisible?.(true);
+  } catch {
+    showToast("桌面任务笺暂时无法显示", "error");
+  }
+});
+
+if (window.desktop?.onTaskWidgetVisibility) {
+  window.desktop.onTaskWidgetVisibility(syncTaskWidgetVisibility);
+}
+if (window.desktop?.onTaskWidgetAction) {
+  window.desktop.onTaskWidgetAction(action => void handleTaskWidgetAction(action));
+}
+
 function renderInitialVersion() {
   const fallback = window.desktop?.version || "1.0.7";
   const current = pickTaskVersion(fallback);
@@ -2010,6 +2103,8 @@ function init() {
     if (pruneExpiredCompletedTasks()) queueTaskRender();
   }, 60 * 60 * 1000);
   els.sendBtn.disabled = !els.input.value.trim();
+  widgetPublishingReady = true;
+  void publishTaskWidgetSnapshot();
 }
 
 init();

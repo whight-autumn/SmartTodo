@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111815">
+  <title>SmartTodo 桌面任务笺</title>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <section id="widget-shell" class="widget-shell" aria-label="SmartTodo 桌面任务笺">
+    <header id="widget-drag-region" class="widget-drag-region">
+      <div class="widget-brand">
+        <img class="widget-brand__mark" src="../assets/brand/icon-master.svg" width="34" height="34" alt="">
+        <span class="widget-brand__copy">
+          <strong>SmartTodo</strong>
+          <small>今日任务笺</small>
+        </span>
+      </div>
+      <div class="widget-overview">
+        <time id="widget-date"></time>
+        <span id="widget-count">0 项待办</span>
+      </div>
+    </header>
+
+    <main class="widget-content">
+      <ul id="widget-list" class="widget-list" aria-label="待处理任务"></ul>
+      <p id="widget-empty" class="widget-empty" hidden>此刻案头清简</p>
+    </main>
+
+    <footer class="widget-footer">
+      <p id="widget-status" class="widget-status" role="status" aria-live="polite"></p>
+      <button id="widget-open-main" class="widget-action widget-action--primary" type="button">
+        <span data-icon="note"></span><span>打开主界面</span>
+      </button>
+      <button id="widget-hide" class="widget-action" type="button">
+        <span data-icon="close"></span><span>收起</span>
+      </button>
+    </footer>
+  </section>
+
+  <script src="widget-model.js"></script>
+  <script src="icon-utils.js"></script>
+  <script src="widget.js"></script>
+</body>
+</html>

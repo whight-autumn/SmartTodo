@@ -62,6 +62,26 @@ test("preload exposes no renderer-controlled path import API", () => {
   assert.equal(typeof desktop.prepareTaskAttachmentChanges, "function");
   assert.equal(typeof desktop.commitTaskAttachmentChanges, "function");
   assert.equal(typeof desktop.rollbackTaskAttachmentChanges, "function");
+  for (const method of [
+    "publishTaskWidgetSnapshot",
+    "completeTaskWidgetAction",
+    "setTaskWidgetVisible",
+    "onTaskWidgetAction",
+    "onTaskWidgetVisibility"
+  ]) assert.equal(typeof desktop[method], "function", method);
+  assert.equal(desktop.ipcRenderer, undefined);
+  assert.equal(desktop.invoke, undefined);
+  assert.equal(desktop.send, undefined);
+});
+
+test("preload widget bridge uses fixed channels and exact listener cleanup", async () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "preload.js"), "utf8");
+  assert.match(source, /ipcRenderer\.invoke\("widget:publish-snapshot"/);
+  assert.match(source, /ipcRenderer\.invoke\("widget:task-action-result"/);
+  assert.match(source, /ipcRenderer\.invoke\("widget:set-visible"/);
+  assert.match(source, /ipcRenderer\.on\("widget:action"/);
+  assert.match(source, /ipcRenderer\.on\("widget:visibility"/);
+  assert.doesNotMatch(source, /publishTaskWidgetSnapshot\s*:\s*\([^)]*channel/);
 });
 
 test("preload derives paths only from actual selected File objects", async () => {
