@@ -31,10 +31,10 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    minWidth: 900,
-    minHeight: 650,
+    minWidth: 800,
+    minHeight: 620,
     title: `智能任务管家 V${APP_VERSION} · by 萤火`,
-    backgroundColor: "#0f172a",
+    backgroundColor: "#111815",
     icon: path.join(__dirname, "assets/icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
@@ -93,7 +93,7 @@ function migrateLegacyUserData() {
 
 /* ---------- 系统托盘 ---------- */
 function createTray() {
-  const iconPath = path.join(__dirname, "assets/icon.png");
+  const iconPath = path.join(__dirname, "assets/tray-icon.png");
   let trayIcon;
   try {
     trayIcon = nativeImage.createFromPath(iconPath);

@@ -6,7 +6,7 @@
   "direction": null,
   "breakpoint": "1440x900",
   "artifact": null,
-  "phase": "responsive",
+  "phase": "review",
   "phases": {
     "comps": {
       "status": "skipped",
@@ -437,17 +437,24 @@
       "forced": null
     },
     "responsive": {
-      "status": "open",
+      "status": "closed",
       "openedAt": "2026-09-21T09:59:48.059Z",
-      "closedAt": null,
-      "attempts": 0,
+      "closedAt": "2026-09-21T10:06:25.150Z",
+      "attempts": 2,
       "notes": [],
-      "gate": null,
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "desktop 74% (drift)",
+        "score": 0.7392,
+        "sideBySide": "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/desktop/side-by-side.png",
+        "at": "2026-09-21T10:06:25.150Z"
+      },
       "forced": null
     },
     "review": {
-      "status": "pending",
-      "openedAt": null,
+      "status": "open",
+      "openedAt": "2026-09-21T10:06:25.150Z",
       "closedAt": null,
       "attempts": 0,
       "notes": [],

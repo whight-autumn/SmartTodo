@@ -5,6 +5,9 @@
   padding: 0 20px 10px;
 }
 
+.app-shell, .workspace, .task-workbench, .ai-sidecar,
+.task-composer, .task-row, .chat-box, .dialog-sheet { min-width: 0; }
+
 .brand-bar {
   display: flex;
   align-items: center;
@@ -57,6 +60,8 @@
 
 @media (max-width: 1023px) {
   .workspace, .workspace.ai-collapsed { grid-template-columns: minmax(0, 1fr); }
+  .task-composer__details, .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .time-label { grid-column: 1 / -1; }
   .ai-sidecar { min-height: 320px; }
   .workspace.ai-collapsed .ai-sidecar { min-height: 64px; }
 }
@@ -70,9 +75,14 @@
   .brand-bar { align-items: flex-start; padding-block: 12px; }
   .brand-tools { flex-wrap: wrap; }
   .brand-principle, .brightness-value { display: none; }
-  .form-row { align-items: stretch; flex-direction: column; }
+  .form-row { align-items: stretch; }
   .form-row > label { flex-basis: auto; }
   .ai-sidecar-header { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 639px) {
+  .task-composer__details, .form-row { grid-template-columns: minmax(0, 1fr); }
+  .time-label { grid-column: auto; }
 }
 
 @media (max-width: 460px) {

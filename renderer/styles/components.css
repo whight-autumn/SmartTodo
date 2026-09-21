@@ -117,7 +117,9 @@
 .task-composer { grid-template-columns: minmax(0, 1fr); }
 .task-composer__primary { display: contents; }
 .task-composer__title { grid-column: 1; grid-row: 1; }
-.task-composer__details { grid-column: 1; grid-row: 2; }
+.task-composer__details { grid-column: 1; grid-row: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.task-composer__note, .task-composer__details > .form-row { grid-column: 1 / -1; }
+.form-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .task-composer__primary .submit-btn { grid-column: 1; grid-row: 3; width: 100%; min-width: 9rem; }
 .task-composer__parent { grid-column: 1; grid-row: 4; }
 .task-composer .input { min-height: 34px; padding-block: 5px; }
@@ -233,7 +235,7 @@
 .empty-state p { margin-bottom: 0; font-size: .8rem; }
 .task-load-more { width: 100%; margin-top: 8px; color: var(--accent-strong); }
 
-.task-attachment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 7px; margin-top: 8px; }
+.attachment-grid, .task-attachment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 7px; margin-top: 8px; }
 .task-attachment, .task-note-attachment-entry { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); text-align: left; }
 .task-attachment-copy, .task-note-attachment-detail { display: grid; min-width: 0; }
 .task-attachment-name, .task-note-attachment-name { min-width: 0; font-size: .75rem; font-weight: 600; }
@@ -349,7 +351,7 @@ dialog::backdrop { background: rgba(17, 24, 21, .48); }
 .confirm-dialog p { color: var(--text-secondary); }
 .confirm-actions { justify-content: flex-end; gap: 9px; }
 
-@media (max-width: 620px) {
+@media (max-width: 639px) {
   .task-composer__primary .submit-btn { width: 100%; }
   .task-row { grid-template-columns: 3px 28px minmax(0, 1fr); }
   .task-actions, .task-row__actions { grid-column: 3; justify-content: flex-start; max-width: none; opacity: 1 !important; }
