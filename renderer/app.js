@@ -11,7 +11,10 @@ const aiProvider = window.AIProvider;
 const uiAppearance = window.UIAppearance;
 const noteUtils = window.NoteUtils;
 const iconUtils = window.IconUtils;
+const motionSystem = window.MotionSystem;
 if (!iconUtils) throw new Error("图标模块加载失败");
+if (!motionSystem) throw new Error("动效模块加载失败");
+const motion = motionSystem.createMotionController({ gsap: window.gsap });
 
 /* ---------- 数据层 ---------- */
 const STORAGE_KEYS = {
@@ -70,6 +73,7 @@ function showToast(message, type = "") {
   toast.textContent = message;
   while (container.children.length >= 3) container.firstElementChild.remove();
   container.appendChild(toast);
+  motion.animateToast(toast);
   setTimeout(() => toast.remove(), 4200);
 }
 
@@ -200,6 +204,7 @@ const els = {
   input: $("user-input"),
   sendBtn: $("send-btn"),
   themeBtn: $("theme-toggle"),
+  globalSettingsBtn: $("global-settings-btn"),
   brightnessSlider: $("brightness-slider"),
   brightnessValue: $("brightness-value"),
   settingsBtn: $("ai-settings-btn"),
@@ -571,7 +576,7 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
       + "</button>"
     : "";
   const addSubHtml = !archive && !task.parentId
-    ? `<button class="task-btn subtask" title="为此主任务添加子任务" data-action="add-subtask">${icon("subtask")}<span>子任务</span></button>`
+    ? `<button class="task-btn subtask" title="为此主任务添加子任务" data-action="add-subtask">${icon("add")}<span>子任务</span></button>`
     : "";
   const archiveAction = archive
     ? `<button class="task-btn undo-complete" title="撤销完成" data-action="undo-complete">${icon("undo")}<span>撤销</span></button>`
@@ -643,6 +648,7 @@ function updateFilterCounts() {
 }
 
 function renderTasks() {
+  const before = motionSystem.capturePositions(els.list.querySelectorAll(".task-row[data-id]"));
   updateFilterCounts();
   refreshTaskIndex();
   const visibleSet = getActiveTaskSet();
@@ -681,6 +687,7 @@ function renderTasks() {
     if (!wanted.has(id)) taskRowCache.delete(id);
   }
   hydrateTaskAttachmentPreviews();
+  motion.animateTaskReflow(els.list.querySelectorAll(".task-row[data-id]"), before);
   // Moving or replacing the changed row must not discard keyboard focus.
   if (focusedId && focusedAction && document.activeElement !== active
       && !document.querySelector("dialog[open]")) {
@@ -853,6 +860,7 @@ function openTaskNoteDialog(task) {
     setTaskNoteStatus();
   }
   els.noteDialog.showModal();
+  motion.animateDialog(els.noteDialog.querySelector(".modal-card"));
   requestAnimationFrame(() => els.noteInput.focus({ preventScroll: true }));
 }
 
@@ -1146,6 +1154,7 @@ function confirmAction(title, message, acceptLabel = "确认删除") {
       resolve(accepted);
     }, { once: true });
     els.confirmDialog.showModal();
+    motion.animateDialog(els.confirmDialog.querySelector("form"));
   });
 }
 
@@ -1552,7 +1561,7 @@ function renderChatHistory() {
   getCurrentSessionMessages();
   els.chatBox.innerHTML = "";
   if (!chatHistory.length) {
-    addMessage("ai", "你好！我是 **小管** 🤖，你的智能任务助手。\n\n我可以：\n- 📋 管理主任务 / 子任务和提醒\n- 🧠 分析你的任务给出建议\n- 💡 回答你的任何问题\n\n先在右上角 ⚙️ 配置 DeepSeek API Key，然后就可以开始对话啦！");
+    addMessage("ai", "你好！我是 **知行助手**，\n你的智能任务助手。\n\n我可以：\n- 管理主任务 / 子任务和提醒\n- 分析你的任务给出建议\n- 回答你的任何问题\n\n先在右上角配置 DeepSeek API Key，然后就可以开始对话啦！");
     return;
   }
   chatHistory.slice(-20).forEach(msg => {
@@ -1848,6 +1857,7 @@ function applyAICollapseState() {
   els.aiCollapseBtn.title = aiCollapsed ? "展开助手" : "收起助手";
   els.aiCollapseBtn.setAttribute("aria-label", aiCollapsed ? "展开助手" : "收起助手");
   els.aiCollapseBtn.setAttribute("aria-expanded", String(!aiCollapsed));
+  motion.animateAssistant(panel, aiCollapsed);
 }
 
 function toggleAIPanel() {
@@ -1896,9 +1906,11 @@ function openSettings() {
   settingsPreviousFocus = document.activeElement;
   renderProviderSettings();
   els.modal.showModal();
+  motion.animateDialog(els.modal.querySelector(".modal-card"));
 }
 
 els.settingsBtn.addEventListener("click", openSettings);
+els.globalSettingsBtn.addEventListener("click", openSettings);
 els.modal.querySelectorAll("[data-close-modal]").forEach(el => {
   el.addEventListener("click", () => els.modal.close());
 });

@@ -214,6 +214,18 @@ app.whenReady().then(async () => {
         .map(node => node.dataset.action)
     })`);
 
+    const reducedResult = await window.webContents.executeJavaScript(`(() => {
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = () => ({ matches: true });
+      const button = document.getElementById("ai-collapse-btn");
+      const panel = document.querySelector(".ai-sidecar");
+      button.click();
+      const result = { expanded: button.getAttribute("aria-expanded"), transform: panel.style.transform };
+      button.click();
+      window.matchMedia = originalMatchMedia;
+      return result;
+    })()`);
+
     const result = await window.webContents.executeJavaScript(`
       new Promise(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -788,6 +800,8 @@ app.whenReady().then(async () => {
     for (const action of ["pin", "add-subtask", "edit-note", "delete"]) {
       assert.ok(hierarchy.actions.includes(action), action);
     }
+    assert.equal(reducedResult.expanded, "false");
+    assert.equal(reducedResult.transform, "");
     assert.equal(noteResult.originalRemarks, "原始备注 https://example.com/old");
     assert.equal(noteResult.unchangedUpdatedAt, noteResult.originalUpdatedAt);
     assert.equal(noteResult.unchangedDialogOpen, false);

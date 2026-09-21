@@ -36,3 +36,8 @@ test("task workbench exposes progressive composition and labelled filters", () =
   assert.match(html, /data-filter="active"/);
   assert.match(html, /data-filter="completed"/);
 });
+
+test("motion dependencies load before application code", () => {
+  assert.ok(html.indexOf("vendor/gsap.min.js") < html.indexOf("motion.js"));
+  assert.ok(html.indexOf("motion.js") < html.indexOf("app.js"));
+});
