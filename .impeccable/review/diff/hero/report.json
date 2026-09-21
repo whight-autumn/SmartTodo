@@ -1,0 +1,717 @@
+{
+  "tool": "comp-diff",
+  "version": 1,
+  "createdAt": "2026-09-21T09:42:01.144Z",
+  "label": "hero",
+  "comp": ".impeccable\\mocks\\v1.2\\desktop-light-approved.png",
+  "build": ".impeccable/review/hero-repro.png",
+  "spec": ".impeccable/build/spec.json",
+  "compSize": "1440x900",
+  "buildSize": "1440x900",
+  "align": "top",
+  "overall": 0.7378,
+  "verdict": "drift",
+  "scores": {
+    "overall": 0.7378,
+    "structure": 0.77,
+    "color": 0.7835,
+    "colorIntersection": 0.6011,
+    "paletteMatch": 0.8817,
+    "detail": 0.7043,
+    "detailRaw": 0.746,
+    "detailAdded": 0.0833,
+    "bands": 0.6422
+  },
+  "palette": {
+    "comp": [
+      {
+        "hex": "#f7f7f6",
+        "coverage": 0.9301
+      },
+      {
+        "hex": "#478268",
+        "coverage": 0.0303
+      },
+      {
+        "hex": "#b9bfc1",
+        "coverage": 0.0156
+      },
+      {
+        "hex": "#848d90",
+        "coverage": 0.0156
+      },
+      {
+        "hex": "#525b62",
+        "coverage": 0.0064
+      },
+      {
+        "hex": "#88b1a1",
+        "coverage": 0.0019
+      }
+    ],
+    "build": [
+      {
+        "hex": "#f6f7f1",
+        "coverage": 0.946
+      },
+      {
+        "hex": "#488869",
+        "coverage": 0.0321
+      },
+      {
+        "hex": "#749181",
+        "coverage": 0.0072
+      },
+      {
+        "hex": "#3d4d42",
+        "coverage": 0.0068
+      },
+      {
+        "hex": "#c3b8b8",
+        "coverage": 0.0045
+      },
+      {
+        "hex": "#f8f5cc",
+        "coverage": 0.0034
+      }
+    ]
+  },
+  "regions": [
+    {
+      "id": "top-chrome",
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.1,
+      "kind": "chrome",
+      "score": {
+        "overall": 0.7169,
+        "structure": 0.9676,
+        "color": 0.509,
+        "colorIntersection": 0.1365,
+        "paletteMatch": 0.7097,
+        "detail": 0.764,
+        "detailRaw": 0.7744,
+        "detailAdded": 0.0208,
+        "bands": 0.4
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 37,
+          "y": 11,
+          "w": 1367,
+          "h": 62
+        },
+        "build": {
+          "x": 36,
+          "y": 12,
+          "w": 1370,
+          "h": 60
+        }
+      }
+    },
+    {
+      "id": "brand-mark",
+      "x": 0.0208,
+      "y": 0,
+      "w": 0.0458,
+      "h": 0.0933,
+      "kind": "control",
+      "score": {
+        "overall": 0.6915,
+        "structure": 0.6932,
+        "color": 0.8599,
+        "colorIntersection": 0.7554,
+        "paletteMatch": 0.9161,
+        "detail": 0.3927,
+        "detailRaw": 0.4448,
+        "detailAdded": 0.1042,
+        "bands": 0
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 7,
+          "y": 11,
+          "w": 54,
+          "h": 62
+        },
+        "build": {
+          "x": 6,
+          "y": 12,
+          "w": 55,
+          "h": 60
+        }
+      }
+    },
+    {
+      "id": "brand-wordmark",
+      "x": 0.075,
+      "y": 0.0133,
+      "w": 0.1542,
+      "h": 0.0733,
+      "kind": "text",
+      "score": {
+        "overall": 0.6419,
+        "structure": 0.7017,
+        "color": 0.4365,
+        "colorIntersection": 0.0371,
+        "paletteMatch": 0.6515,
+        "detail": 0.5997,
+        "detailRaw": 0.6987,
+        "detailAdded": 0.1979,
+        "bands": 0.92
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 9,
+          "y": 7,
+          "w": 204,
+          "h": 48
+        },
+        "build": {
+          "x": 1,
+          "y": 6,
+          "w": 218,
+          "h": 45
+        }
+      }
+    },
+    {
+      "id": "brand-tagline",
+      "x": 0.8167,
+      "y": 0.0267,
+      "w": 0.1,
+      "h": 0.0333,
+      "kind": "text",
+      "score": {
+        "overall": 0.6075,
+        "structure": 0.712,
+        "color": 0.4154,
+        "colorIntersection": 0.0041,
+        "paletteMatch": 0.6369,
+        "detail": 0.4511,
+        "detailRaw": 0.5292,
+        "detailAdded": 0.1563,
+        "bands": 0.8
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 7,
+          "y": 20,
+          "w": 132,
+          "h": 13
+        },
+        "build": {
+          "x": 0,
+          "y": 16,
+          "w": 144,
+          "h": 17
+        }
+      }
+    },
+    {
+      "id": "task-workbench",
+      "x": 0,
+      "y": 0.1,
+      "w": 0.6,
+      "h": 0.9,
+      "kind": "chrome",
+      "score": {
+        "overall": 0.7595,
+        "structure": 0.6864,
+        "color": 0.8782,
+        "colorIntersection": 0.7682,
+        "paletteMatch": 0.9374,
+        "detail": 0.6482,
+        "detailRaw": 0.695,
+        "detailAdded": 0.0938,
+        "bands": 0.9179
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 45,
+          "y": 18,
+          "w": 819,
+          "h": 790
+        },
+        "build": {
+          "x": 43,
+          "y": 25,
+          "w": 821,
+          "h": 737
+        }
+      }
+    },
+    {
+      "id": "task-heading",
+      "x": 0.0542,
+      "y": 0.12,
+      "w": 0.0833,
+      "h": 0.0467,
+      "kind": "text",
+      "score": {
+        "overall": 0.5833,
+        "structure": 0.4654,
+        "color": 0.8191,
+        "colorIntersection": 0.7819,
+        "paletteMatch": 0.8391,
+        "detail": 0.4961,
+        "detailRaw": 0.6211,
+        "detailAdded": 0.25,
+        "bands": 0.7143
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 6,
+          "y": 8,
+          "w": 105,
+          "h": 26
+        },
+        "build": {
+          "x": 2,
+          "y": 12,
+          "w": 117,
+          "h": 28
+        }
+      }
+    },
+    {
+      "id": "task-composer",
+      "x": 0.025,
+      "y": 0.3189,
+      "w": 0.5333,
+      "h": 0.0811,
+      "kind": "control",
+      "score": {
+        "overall": 0.8577,
+        "structure": 0.8736,
+        "color": 0.8283,
+        "colorIntersection": 0.751,
+        "paletteMatch": 0.8699,
+        "detail": 0.8734,
+        "detailRaw": 0.8838,
+        "detailAdded": 0.0208,
+        "bands": 1
+      },
+      "verdict": "match",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 768,
+          "h": 73
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 768,
+          "h": 73
+        }
+      }
+    },
+    {
+      "id": "task-filters",
+      "x": 0.1125,
+      "y": 0.4,
+      "w": 0.0958,
+      "h": 0.04,
+      "kind": "control",
+      "score": {
+        "overall": 0.6665,
+        "structure": 0.7785,
+        "color": 0.6253,
+        "colorIntersection": 0.3454,
+        "paletteMatch": 0.776,
+        "detail": 0.4868,
+        "detailRaw": 0.6222,
+        "detailAdded": 0.2708,
+        "bands": 0.17
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 138,
+          "h": 48
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 138,
+          "h": 48
+        }
+      }
+    },
+    {
+      "id": "task-primary-copy",
+      "x": 0.0299,
+      "y": 0.44,
+      "w": 0.3438,
+      "h": 0.2078,
+      "kind": "text",
+      "score": {
+        "overall": 0.6229,
+        "structure": 0.5981,
+        "color": 0.8952,
+        "colorIntersection": 0.8459,
+        "paletteMatch": 0.9218,
+        "detail": 0.2214,
+        "detailRaw": 0.3985,
+        "detailAdded": 0.3542,
+        "bands": 0.6677
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 11,
+          "w": 474,
+          "h": 170
+        },
+        "build": {
+          "x": 11,
+          "y": 21,
+          "w": 459,
+          "h": 152
+        }
+      }
+    },
+    {
+      "id": "task-secondary-copy",
+      "x": 0.0299,
+      "y": 0.7167,
+      "w": 0.3389,
+      "h": 0.1144,
+      "kind": "text",
+      "score": {
+        "overall": 0.7307,
+        "structure": 0.7666,
+        "color": 0.8611,
+        "colorIntersection": 0.7599,
+        "paletteMatch": 0.9156,
+        "detail": 0.3139,
+        "detailRaw": 0.4285,
+        "detailAdded": 0.2292,
+        "bands": 0.85
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 9,
+          "y": 10,
+          "w": 469,
+          "h": 84
+        },
+        "build": {
+          "x": 11,
+          "y": 19,
+          "w": 466,
+          "h": 77
+        }
+      }
+    },
+    {
+      "id": "task-row-actions",
+      "x": 0.4007,
+      "y": 0.8522,
+      "w": 0.0375,
+      "h": 0.0367,
+      "kind": "control",
+      "score": {
+        "overall": 0.7542,
+        "structure": 0.766,
+        "color": 0.8666,
+        "colorIntersection": 0.8056,
+        "paletteMatch": 0.8994,
+        "detail": 0.5312,
+        "detailRaw": 0.5573,
+        "detailAdded": 0.0521,
+        "bands": 0.6514
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 9,
+          "y": 17,
+          "w": 38,
+          "h": 13
+        },
+        "build": {
+          "x": 6,
+          "y": 18,
+          "w": 48,
+          "h": 11
+        }
+      }
+    },
+    {
+      "id": "assistant-panel",
+      "x": 0.6,
+      "y": 0.1,
+      "w": 0.4,
+      "h": 0.9,
+      "kind": "chrome",
+      "score": {
+        "overall": 0.7308,
+        "structure": 0.686,
+        "color": 0.6991,
+        "colorIntersection": 0.4691,
+        "paletteMatch": 0.8229,
+        "detail": 0.6635,
+        "detailRaw": 0.7416,
+        "detailAdded": 0.1563,
+        "bands": 1
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 20,
+          "w": 543,
+          "h": 766
+        },
+        "build": {
+          "x": 0,
+          "y": 22,
+          "w": 543,
+          "h": 769
+        }
+      }
+    },
+    {
+      "id": "assistant-heading",
+      "x": 0.6,
+      "y": 0.1133,
+      "w": 0.1125,
+      "h": 0.0533,
+      "kind": "text",
+      "score": {
+        "overall": 0.5778,
+        "structure": 0.5173,
+        "color": 0.8348,
+        "colorIntersection": 0.7803,
+        "paletteMatch": 0.8641,
+        "detail": 0.4939,
+        "detailRaw": 0.5564,
+        "detailAdded": 0.125,
+        "bands": 0.3636
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 8,
+          "w": 152,
+          "h": 29
+        },
+        "build": {
+          "x": 10,
+          "y": 10,
+          "w": 135,
+          "h": 22
+        }
+      }
+    },
+    {
+      "id": "assistant-toolbar",
+      "x": 0.8208,
+      "y": 0.12,
+      "w": 0.0625,
+      "h": 0.0333,
+      "kind": "control",
+      "score": {
+        "overall": 0.6779,
+        "structure": 0.6817,
+        "color": 0.9213,
+        "colorIntersection": 0.8361,
+        "paletteMatch": 0.9672,
+        "detail": 0.2435,
+        "detailRaw": 0.4049,
+        "detailAdded": 0.3229,
+        "bands": 0.32
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 9,
+          "y": 18,
+          "w": 73,
+          "h": 15
+        },
+        "build": {
+          "x": 27,
+          "y": 23,
+          "w": 63,
+          "h": 13
+        }
+      }
+    },
+    {
+      "id": "assistant-intro-copy",
+      "x": 0.6396,
+      "y": 0.2633,
+      "w": 0.1444,
+      "h": 0.13,
+      "kind": "text",
+      "score": {
+        "overall": 0.6362,
+        "structure": 0.7648,
+        "color": 0.4276,
+        "colorIntersection": 0.0453,
+        "paletteMatch": 0.6334,
+        "detail": 0.5913,
+        "detailRaw": 0.659,
+        "detailAdded": 0.1354,
+        "bands": 0.5818
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 12,
+          "w": 190,
+          "h": 96
+        },
+        "build": {
+          "x": 14,
+          "y": 0,
+          "w": 177,
+          "h": 111
+        }
+      }
+    },
+    {
+      "id": "assistant-user-copy",
+      "x": 0.6875,
+      "y": 0.5,
+      "w": 0.2417,
+      "h": 0.0267,
+      "kind": "text",
+      "score": {
+        "overall": 0.6878,
+        "structure": 0.8074,
+        "color": 0.5146,
+        "colorIntersection": 0.164,
+        "paletteMatch": 0.7034,
+        "detail": 0.6359,
+        "detailRaw": 0.6984,
+        "detailAdded": 0.125,
+        "bands": 0.6
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 10,
+          "y": 13,
+          "w": 328,
+          "h": 14
+        },
+        "build": {
+          "x": 6,
+          "y": 15,
+          "w": 293,
+          "h": 11
+        }
+      }
+    },
+    {
+      "id": "assistant-response-copy",
+      "x": 0.6396,
+      "y": 0.5633,
+      "w": 0.2833,
+      "h": 0.2433,
+      "kind": "text",
+      "score": {
+        "overall": 0.6185,
+        "structure": 0.6388,
+        "color": 0.4039,
+        "colorIntersection": 0.0618,
+        "paletteMatch": 0.5881,
+        "detail": 0.7297,
+        "detailRaw": 0.7557,
+        "detailAdded": 0.0521,
+        "bands": 0.8875
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 8,
+          "y": 5,
+          "w": 393,
+          "h": 208
+        },
+        "build": {
+          "x": 8,
+          "y": 13,
+          "w": 362,
+          "h": 195
+        }
+      }
+    },
+    {
+      "id": "assistant-composer",
+      "x": 0.9042,
+      "y": 0.92,
+      "w": 0.0792,
+      "h": 0.06,
+      "kind": "control",
+      "score": {
+        "overall": 0.6728,
+        "structure": 0.6912,
+        "color": 0.7182,
+        "colorIntersection": 0.4951,
+        "paletteMatch": 0.8383,
+        "detail": 0.5522,
+        "detailRaw": 0.6407,
+        "detailAdded": 0.1771,
+        "bands": 0.28
+      },
+      "verdict": "drift",
+      "inkBox": {
+        "comp": {
+          "x": 0,
+          "y": 0,
+          "w": 114,
+          "h": 54
+        },
+        "build": {
+          "x": 0,
+          "y": 0,
+          "w": 114,
+          "h": 54
+        }
+      }
+    }
+  ],
+  "files": {
+    "sideBySide": "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/side-by-side.png",
+    "heatmap": "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/heatmap.png",
+    "regionFiles": [
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/top-chrome.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/brand-mark.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/brand-wordmark.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/brand-tagline.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/task-workbench.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/task-heading.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/task-composer.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/task-filters.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/task-primary-copy.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/task-secondary-copy.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/task-row-actions.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/assistant-panel.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/assistant-heading.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/assistant-toolbar.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/assistant-intro-copy.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/assistant-user-copy.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/assistant-response-copy.png",
+      "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/regions/assistant-composer.png"
+    ]
+  }
+}

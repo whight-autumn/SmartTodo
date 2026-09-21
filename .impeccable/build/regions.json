@@ -1,0 +1,115 @@
+{
+  "regions": [
+    {
+      "id": "top-chrome",
+      "kind": "chrome",
+      "grid": "A0:J0",
+      "note": "Slim brand bar, divider, theme control and settings controls"
+    },
+    {
+      "id": "brand-mark",
+      "kind": "control",
+      "grid": "A0:A0",
+      "note": "Application identity control rendered from the shared local icon system",
+      "codeDrawn": true
+    },
+    {
+      "id": "brand-wordmark",
+      "kind": "text",
+      "grid": "A0:C0",
+      "note": "SmartTodo wordmark, V1.2 and byline"
+    },
+    {
+      "id": "brand-tagline",
+      "kind": "text",
+      "grid": "H0:J0",
+      "note": "Quiet local-first product statement"
+    },
+    {
+      "id": "task-workbench",
+      "kind": "chrome",
+      "grid": "A1:F9",
+      "note": "Primary task manuscript surface",
+      "container": true
+    },
+    {
+      "id": "task-heading",
+      "kind": "text",
+      "grid": "A1:C1",
+      "note": "Task workbench Song-style heading"
+    },
+    {
+      "id": "task-composer",
+      "kind": "control",
+      "grid": "A1:F3",
+      "note": "Title, note, reminder, priority, type and add controls"
+    },
+    {
+      "id": "task-filters",
+      "kind": "control",
+      "grid": "A4:C4",
+      "note": "Attention, in-progress and complete segmented filters"
+    },
+    {
+      "id": "task-primary-copy",
+      "kind": "text",
+      "grid": "A4:F6",
+      "note": "Expanded parent task title, description, metadata and child rows"
+    },
+    {
+      "id": "task-secondary-copy",
+      "kind": "text",
+      "grid": "A7:F9",
+      "note": "Collapsed task titles, descriptions and metadata"
+    },
+    {
+      "id": "task-row-actions",
+      "kind": "control",
+      "grid": "E4:F9",
+      "note": "Per-row child, priority, pin and delete controls"
+    },
+    {
+      "id": "assistant-panel",
+      "kind": "chrome",
+      "grid": "G1:J9",
+      "note": "Narrow AI assistant folio",
+      "container": true
+    },
+    {
+      "id": "assistant-heading",
+      "kind": "text",
+      "grid": "G1:H1",
+      "note": "Zhixing assistant Song-style heading"
+    },
+    {
+      "id": "assistant-toolbar",
+      "kind": "control",
+      "grid": "H1:J1",
+      "note": "New chat, clear history, settings and collapse"
+    },
+    {
+      "id": "assistant-intro-copy",
+      "kind": "text",
+      "grid": "G2:J4",
+      "note": "Assistant capability introduction"
+    },
+    {
+      "id": "assistant-user-copy",
+      "kind": "text",
+      "grid": "G5:J5",
+      "note": "User message bubble"
+    },
+    {
+      "id": "assistant-response-copy",
+      "kind": "text",
+      "grid": "G5:J8",
+      "note": "Assistant prioritized-task response"
+    },
+    {
+      "id": "assistant-composer",
+      "kind": "control",
+      "grid": "G8:J9",
+      "note": "Message input, attachment, task analysis and send controls"
+    }
+  ]
+}

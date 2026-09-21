@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">SmartTodo</title>
+  <desc id="desc">月牙竹影环抱一只流萤</desc>
+  <rect width="1024" height="1024" rx="224" fill="#FAF7F0"/>
+  <g id="bamboo" fill="none" stroke="#2F6B5A" stroke-linecap="round">
+    <path d="M456 82C211 123 74 322 104 566c27 221 183 369 402 395C336 880 246 736 244 561c-2-192 72-350 212-479Z" fill="#2F6B5A" stroke="none"/>
+    <path d="M428 148C249 220 165 375 184 568c16 156 97 273 244 348" stroke-width="24" opacity=".72"/>
+  </g>
+  <g fill="#5E8C62">
+    <path d="M187 315c86-74 173-101 263-80-66 24-122 72-166 143-44-3-76-24-97-63Z"/>
+    <path d="M137 507c96-48 184-49 264-3-76 9-140 45-192 108-41-16-65-51-72-105Z"/>
+    <path d="M190 711c95-8 176 23 243 94-70-25-138-21-204 13-31-30-44-66-39-107Z"/>
+    <path d="M316 860c72 7 130 39 176 96-58-20-114-18-169 7-20-30-23-64-7-103Z"/>
+  </g>
+  <g id="firefly" fill="none" stroke="#315E52" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="681" cy="513" rx="41" ry="75" transform="rotate(-25 681 513)" stroke-width="27"/>
+    <path d="M651 472C565 386 488 388 421 479c85-13 154 11 207 72M707 458c27-103 86-147 176-130-32 73-81 130-147 171" stroke-width="23"/>
+    <path d="M653 426c-10-43-35-74-76-92M704 416c10-45 40-75 90-92" stroke-width="18"/>
+  </g>
+  <circle cx="704" cy="571" r="56" fill="#E5B64B" opacity=".22"/>
+  <circle cx="704" cy="571" r="32" fill="#B8832F"/>
+  <circle cx="714" cy="560" r="11" fill="#F4D77F"/>
+</svg>

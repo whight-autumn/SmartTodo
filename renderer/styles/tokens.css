@@ -1,0 +1,81 @@
+@font-face {
+  font-family: "Noto Serif SC Local";
+  src: url("../../assets/fonts/NotoSerifSC-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  --paper-0: #f5f1e8;
+  --paper-1: #ede7dc;
+  --paper-2: #e2dacd;
+  --ink-0: #17211e;
+  --ink-1: #35423d;
+  --ink-2: #69736e;
+  --jade-0: #24483f;
+  --jade-1: #478268;
+  --jade-2: #789487;
+  --cinnabar: #9c473b;
+  --amber: #a67d3d;
+  --ui-brightness-tint: #ffffff;
+  --ui-brightness-mix: 0%;
+  --surface-base: var(--paper-0);
+  --surface-raised-base: #faf7f0;
+  --surface: color-mix(in srgb, var(--surface-base), var(--ui-brightness-tint) var(--ui-brightness-mix));
+  --surface-raised: color-mix(in srgb, var(--surface-raised-base), var(--ui-brightness-tint) var(--ui-brightness-mix));
+  --surface-soft: color-mix(in srgb, var(--paper-1), var(--ui-brightness-tint) var(--ui-brightness-mix));
+  --text: var(--ink-0);
+  --text-secondary: var(--ink-1);
+  --text-muted: var(--ink-2);
+  --accent: var(--jade-1);
+  --accent-strong: var(--jade-0);
+  --accent-soft: #dfece5;
+  --danger: var(--cinnabar);
+  --danger-soft: #f8dddd;
+  --warning-soft: #f3e7cf;
+  --line: color-mix(in srgb, var(--ink-0) 14%, transparent);
+  --line-strong: color-mix(in srgb, var(--ink-0) 24%, transparent);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-1: 0 12px 32px rgba(37, 43, 39, .08);
+  --shadow-dialog: 0 24px 64px rgba(34, 40, 36, .2);
+  --ease-state: cubic-bezier(.2, .8, .2, 1);
+  --font-display: "Noto Serif SC Local", "Songti SC", SimSun, serif;
+  --font-body: "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --type-bg: #dff3e6;
+  --type-text: #17623c;
+  --priority-high-bg: #f8dddd;
+  --priority-high-text: #8e2927;
+  --priority-medium-bg: #e1edf5;
+  --priority-medium-text: #285f88;
+  --priority-low-bg: #e7ece9;
+  --priority-low-text: #465a51;
+}
+
+[data-theme="dark"] {
+  --surface-base: #111815;
+  --surface-raised-base: #18211d;
+  --surface-soft: color-mix(in srgb, #202a25, var(--ui-brightness-tint) var(--ui-brightness-mix));
+  --text: #ebe6dc;
+  --text-secondary: #d4d9d4;
+  --text-muted: #a9b2ac;
+  --accent: #86a899;
+  --accent-strong: #b6cbbf;
+  --accent-soft: rgba(99, 181, 138, .16);
+  --danger: #c87568;
+  --danger-soft: rgba(200, 117, 104, .17);
+  --warning-soft: rgba(166, 125, 61, .18);
+  --line: rgba(230, 235, 228, .12);
+  --line-strong: rgba(230, 235, 228, .22);
+  --shadow-1: 0 18px 42px rgba(0, 0, 0, .28);
+  --shadow-dialog: 0 28px 72px rgba(0, 0, 0, .46);
+  --type-bg: rgba(99, 181, 138, .16);
+  --type-text: #b8f2d0;
+  --priority-high-bg: rgba(233, 106, 99, .2);
+  --priority-high-text: #ffd0cc;
+  --priority-medium-bg: rgba(88, 159, 201, .18);
+  --priority-medium-text: #c7e8fa;
+  --priority-low-bg: rgba(155, 176, 163, .16);
+  --priority-low-text: #d7e3db;
+}

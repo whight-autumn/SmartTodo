@@ -1,6 +1,6 @@
 {
   "name": "smart-assistant",
-  "version": "1.0.7",
+  "version": "1.2.0",
   "description": "智能任务管家 · AI 助手 - 桌面版",
   "main": "main.js",
   "author": "Smart Assistant",
@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.js",
-    "test:ui": "electron tests/ui-smoke.cjs",
+    "test:ui": "electron tests/ui-smoke.cjs && electron tests/ui-layout.cjs && electron tests/ui-widget.cjs",
     "dist": "electron-builder --win portable"
   },
   "build": {
@@ -21,6 +21,10 @@
       "task-attachment-store.js",
       "task-attachment-ipc.js",
       "preload.js",
+      "widget-controller.js",
+      "widget-window-state.js",
+      "widget-ipc.js",
+      "widget-preload.js",
       "renderer/**/*",
       "assets/**/*"
     ],
@@ -44,7 +48,13 @@
     }
   },
   "devDependencies": {
+    "@fontsource/noto-serif-sc": "^5.3.0",
     "electron": "^31.7.6",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.4"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0"
   }
 }

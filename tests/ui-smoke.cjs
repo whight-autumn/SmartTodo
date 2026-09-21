@@ -26,17 +26,29 @@ function contrastRatio(foreground, background) {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
+function perceivedLightness(value) {
+  const oklab = value.match(/oklab\(([\d.]+)/i);
+  if (oklab) return Number(oklab[1]);
+  const srgb = value.match(/color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/i);
+  if (srgb) return Math.max(...srgb.slice(1, 4).map(Number));
+  const rgb = (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+  return rgb.length === 3 ? Math.max(...rgb) / 255 : 1;
+}
+
 app.setPath("userData", testDataPath);
 app.commandLine.appendSwitch("disable-gpu");
 
 app.whenReady().then(async () => {
   const window = new BrowserWindow({
-    show: false,
+    show: true,
+    opacity: 0,
+    skipTaskbar: true,
     width: 1400,
     height: 900,
     webPreferences: {
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: false
     }
   });
 
@@ -46,6 +58,12 @@ app.whenReady().then(async () => {
     await window.webContents.executeJavaScript(`
       localStorage.clear();
       localStorage.setItem("smart_theme", "light");
+      localStorage.setItem("deepseek_api_key", "smoke-test-key");
+      localStorage.setItem("ai_provider_config", JSON.stringify({
+        provider: "custom",
+        baseUrl: "https://mock.invalid/v1",
+        model: "mock-model"
+      }));
       localStorage.setItem("smart_tasks", JSON.stringify([
         {
           id: "active",
@@ -200,12 +218,73 @@ app.whenReady().then(async () => {
           pinned: false,
           createdAt: new Date(2026, 8, 14, 7, 5).getTime(),
           attachments: []
+        },
+        {
+          id: "long-content",
+          title: "用于验证不同设备屏幕尺寸下任务标题不会因为窗口拉伸而重叠或撕裂的超长中文任务名称",
+          remarks: "https://example.com/" + "very-long-segment-".repeat(12),
+          remindTime: null,
+          priority: "high",
+          parentId: null,
+          done: false,
+          completedAt: null,
+          pinned: false,
+          createdAt: new Date(2026, 8, 14, 6, 30).getTime(),
+          attachments: [{
+            id: "long-file",
+            name: "项目验收与不同缩放比例兼容性验证材料最终修订版本.pdf",
+            storageName: "long-file.pdf",
+            mimeType: "application/pdf",
+            size: 4096,
+            addedAt: 1800000000000
+          }]
         }
       ]));
       location.reload();
     `);
     await reloaded;
     await new Promise(resolve => setTimeout(resolve, 500));
+
+    const hierarchy = await window.webContents.executeJavaScript(`({
+      parent: document.querySelector('[data-id="context-parent"]')?.dataset.depth,
+      child: document.querySelector('[data-id="focused-child"]')?.dataset.depth,
+      actions: [...document.querySelectorAll('[data-id="active"] [data-action]')]
+        .map(node => node.dataset.action)
+    })`);
+
+    window.setSize(760, 760);
+    await new Promise(resolve => setTimeout(resolve, 180));
+    const responsiveResult = await window.webContents.executeJavaScript(`(() => {
+      const row = document.querySelector('[data-id="long-content"]');
+      const attachmentName = row?.querySelector(".task-attachment-name");
+      const noteLink = row?.querySelector(".note-link");
+      const noteLinkStyle = noteLink ? getComputedStyle(noteLink) : null;
+      return {
+        rowPresent: Boolean(row),
+        rowScrollWidth: row?.scrollWidth || 0,
+        rowClientWidth: row?.clientWidth || 0,
+        attachmentScrollWidth: attachmentName?.scrollWidth || 0,
+        attachmentClientWidth: attachmentName?.clientWidth || 0,
+        noteLinkBackground: noteLinkStyle?.backgroundColor || "",
+        noteLinkTextAlign: noteLinkStyle?.textAlign || "",
+        documentScrollWidth: document.documentElement.scrollWidth,
+        documentClientWidth: document.documentElement.clientWidth
+      };
+    })()`);
+    window.setSize(1400, 900);
+    await new Promise(resolve => setTimeout(resolve, 180));
+
+    const reducedResult = await window.webContents.executeJavaScript(`(() => {
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = () => ({ matches: true });
+      const button = document.getElementById("ai-collapse-btn");
+      const panel = document.querySelector(".ai-sidecar");
+      button.click();
+      const result = { expanded: button.getAttribute("aria-expanded"), transform: panel.style.transform };
+      button.click();
+      window.matchMedia = originalMatchMedia;
+      return result;
+    })()`);
 
     const result = await window.webContents.executeJavaScript(`
       new Promise(resolve => {
@@ -742,6 +821,61 @@ app.whenReady().then(async () => {
       })()
     `);
 
+    const interactionResult = await window.webContents.executeJavaScript(`
+      (async () => {
+        const frames = () => new Promise(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        });
+
+        const settingsButton = document.getElementById("ai-settings-btn");
+        settingsButton.focus();
+        settingsButton.click();
+        await frames();
+        document.querySelector("#settings-modal [data-close-modal]").click();
+        await frames();
+        const settingsFocus = document.activeElement?.id || "";
+
+        const input = document.getElementById("user-input");
+        const send = document.getElementById("send-btn");
+        const userMessageCountBefore = document.querySelectorAll(".msg.user").length;
+        input.value = "拼音合成中";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+          isComposing: true
+        }));
+        await frames();
+        const composition = {
+          value: input.value,
+          userMessageCount: document.querySelectorAll(".msg.user").length,
+          userMessageCountBefore
+        };
+
+        window.fetch = async () => ({
+          ok: false,
+          status: 500,
+          json: async () => ({ error: { message: "mock provider failure" } })
+        });
+        input.value = "验证失败恢复";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        send.click();
+        await new Promise(resolve => setTimeout(resolve, 60));
+        await frames();
+        const failure = {
+          errorText: [...document.querySelectorAll(".msg.ai")].at(-1)?.innerText || "",
+          newSessionDisabled: document.getElementById("ai-new-session-btn").disabled,
+          clearDisabled: document.getElementById("ai-clear-btn").disabled,
+          sendDisabledAfterFailure: send.disabled
+        };
+        input.value = "再";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        failure.sendDisabledAfterRetype = send.disabled;
+        return { settingsFocus, composition, failure };
+      })()
+    `);
+
     await window.webContents.executeJavaScript(`
       document.querySelector('[data-filter="active"]').click();
       new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -776,6 +910,35 @@ app.whenReady().then(async () => {
     assert.equal(result.resetBrightness, "100");
     assert.equal(result.brightnessOutput, "100%");
     assert.equal(result.initialFilter, "active");
+    assert.equal(hierarchy.parent, "0");
+    assert.equal(hierarchy.child, "1");
+    for (const action of ["pin", "add-subtask", "edit-note", "delete"]) {
+      assert.ok(hierarchy.actions.includes(action), action);
+    }
+    assert.equal(reducedResult.expanded, "false");
+    assert.equal(reducedResult.transform, "");
+    assert.equal(responsiveResult.rowPresent, true);
+    assert.ok(
+      responsiveResult.rowScrollWidth <= responsiveResult.rowClientWidth,
+      `long task row overflowed: ${responsiveResult.rowScrollWidth} > ${responsiveResult.rowClientWidth}`
+    );
+    assert.ok(
+      responsiveResult.documentScrollWidth <= responsiveResult.documentClientWidth,
+      `document overflowed: ${responsiveResult.documentScrollWidth} > ${responsiveResult.documentClientWidth}`
+    );
+    assert.equal(responsiveResult.noteLinkBackground, "rgba(0, 0, 0, 0)");
+    assert.equal(responsiveResult.noteLinkTextAlign, "left");
+    assert.equal(interactionResult.settingsFocus, "ai-settings-btn");
+    assert.equal(interactionResult.composition.value, "拼音合成中");
+    assert.equal(
+      interactionResult.composition.userMessageCount,
+      interactionResult.composition.userMessageCountBefore
+    );
+    assert.match(interactionResult.failure.errorText, /mock provider failure/);
+    assert.equal(interactionResult.failure.newSessionDisabled, false);
+    assert.equal(interactionResult.failure.clearDisabled, false);
+    assert.equal(interactionResult.failure.sendDisabledAfterFailure, true);
+    assert.equal(interactionResult.failure.sendDisabledAfterRetype, false);
     assert.equal(noteResult.originalRemarks, "原始备注 https://example.com/old");
     assert.equal(noteResult.unchangedUpdatedAt, noteResult.originalUpdatedAt);
     assert.equal(noteResult.unchangedDialogOpen, false);
@@ -915,9 +1078,13 @@ app.whenReady().then(async () => {
     assert.match(filterResult.attentionText, /关注任务的主任务上下文/);
     assert.match(filterResult.attentionText, /需要关注的子任务/);
     assert.doesNotMatch(filterResult.attentionText, /无需关注的兄弟任务/);
-    assert.deepEqual(filterResult.counts, { attention: "2", active: "9", completed: "1" });
+    assert.deepEqual(filterResult.counts, { attention: "3", active: "10", completed: "1" });
     assert.equal(result.lightTheme.theme, "light");
     assert.equal(darkTheme.theme, "dark");
+    assert.ok(
+      perceivedLightness(darkTheme.panelBackground) < 0.4,
+      `dark theme panel stayed too light: ${darkTheme.panelBackground}`
+    );
     assert.ok(
       contrastRatio(result.lightTheme.typeColor, result.lightTheme.typeBackground) >= 4.5,
       "light theme type label must remain readable"
@@ -932,6 +1099,8 @@ app.whenReady().then(async () => {
       ...result,
       noteResult,
       highRiskResult,
+      responsiveResult,
+      interactionResult,
       filterResult,
       darkTheme,
       lightScreenshot,

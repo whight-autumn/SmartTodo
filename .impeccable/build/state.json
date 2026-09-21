@@ -1,0 +1,467 @@
+{
+  "tool": "build-phase",
+  "version": 2,
+  "startedAt": "2026-09-21T08:12:25.929Z",
+  "comp": ".impeccable\\mocks\\v1.2\\desktop-light-approved.png",
+  "direction": null,
+  "breakpoint": "1440x900",
+  "artifact": null,
+  "phase": "review",
+  "phases": {
+    "comps": {
+      "status": "skipped",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [
+        {
+          "at": "2026-09-21T08:12:25.929Z",
+          "text": "started with an approved comp; the comp round happened before this state (surface round or manual)"
+        }
+      ],
+      "gate": null,
+      "forced": null
+    },
+    "spec": {
+      "status": "closed",
+      "openedAt": "2026-09-21T08:12:25.929Z",
+      "closedAt": "2026-09-21T08:14:22.078Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "18 regions, 0 plates, 9 text regions measured",
+        "at": "2026-09-21T08:14:22.078Z"
+      },
+      "forced": null
+    },
+    "plates": {
+      "status": "closed",
+      "openedAt": "2026-09-21T08:14:22.078Z",
+      "closedAt": "2026-09-21T08:14:29.678Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "no plates owed",
+        "at": "2026-09-21T08:14:29.678Z"
+      },
+      "forced": null
+    },
+    "hero": {
+      "status": "closed",
+      "openedAt": "2026-09-21T08:14:29.678Z",
+      "closedAt": "2026-09-21T09:42:01.318Z",
+      "attempts": 29,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "hero 74% (drift)",
+        "score": 0.7378,
+        "verdict": "drift",
+        "report": ".impeccable/review/diff/hero/report.json",
+        "sideBySide": "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/hero/side-by-side.png",
+        "worst": [
+          "assistant-heading drift 58%",
+          "task-heading drift 58%",
+          "brand-tagline drift 61%"
+        ],
+        "worstIds": [
+          "assistant-heading",
+          "task-heading",
+          "brand-tagline"
+        ],
+        "worstCrops": [
+          {
+            "id": "assistant-heading",
+            "verdict": "drift",
+            "score": {
+              "overall": 0.5778,
+              "structure": 0.5173,
+              "color": 0.8348,
+              "colorIntersection": 0.7803,
+              "paletteMatch": 0.8641,
+              "detail": 0.4939,
+              "detailRaw": 0.5564,
+              "detailAdded": 0.125,
+              "bands": 0.3636
+            },
+            "file": ".impeccable/review/diff/hero/regions/assistant-heading.png"
+          },
+          {
+            "id": "task-heading",
+            "verdict": "drift",
+            "score": {
+              "overall": 0.5833,
+              "structure": 0.4654,
+              "color": 0.8191,
+              "colorIntersection": 0.7819,
+              "paletteMatch": 0.8391,
+              "detail": 0.4961,
+              "detailRaw": 0.6211,
+              "detailAdded": 0.25,
+              "bands": 0.7143
+            },
+            "file": ".impeccable/review/diff/hero/regions/task-heading.png"
+          },
+          {
+            "id": "brand-tagline",
+            "verdict": "drift",
+            "score": {
+              "overall": 0.6075,
+              "structure": 0.712,
+              "color": 0.4154,
+              "colorIntersection": 0.0041,
+              "paletteMatch": 0.6369,
+              "detail": 0.4511,
+              "detailRaw": 0.5292,
+              "detailAdded": 0.1563,
+              "bands": 0.8
+            },
+            "file": ".impeccable/review/diff/hero/regions/brand-tagline.png"
+          }
+        ],
+        "advisories": [
+          "(advisory, unchanged for 3+ attempts) text brand-tagline: cap height 17px in the build, 13.1px in the comp (+30%); set font-size so the cap height renders at 13.1px",
+          "(advisory, unchanged for 3+ attempts) text task-secondary-copy: cap height 15.2px in the build, 12px in the comp (+27%); set font-size so the cap height renders at 12px",
+          "(advisory, unchanged for 3+ attempts) text task-primary-copy: the face renders 35% lighter than the comp's (ink density 0.41 vs 0.62); raise a weight step or use the ranked face",
+          "(advisory, unchanged for 3+ attempts) text brand-wordmark: ink is #182818 in the build, #b5c4c0 in the comp; use the comp's colour",
+          "(advisory, unchanged for 3+ attempts) text assistant-heading: ink is #1b291c in the build, #839193 in the comp; use the comp's colour",
+          "(advisory, unchanged for 3+ attempts) control assistant-toolbar: its rule sits 11px into the box in the comp and 4px in the build (-7px), so the strip is shorter than the comp's; match the height, not only the position"
+        ],
+        "regionVerdicts": {
+          "top-chrome": "drift",
+          "brand-mark": "drift",
+          "brand-wordmark": "drift",
+          "brand-tagline": "drift",
+          "task-workbench": "drift",
+          "task-heading": "drift",
+          "task-composer": "match",
+          "task-filters": "drift",
+          "task-primary-copy": "drift",
+          "task-secondary-copy": "drift",
+          "task-row-actions": "drift",
+          "assistant-panel": "drift",
+          "assistant-heading": "drift",
+          "assistant-toolbar": "drift",
+          "assistant-intro-copy": "drift",
+          "assistant-user-copy": "drift",
+          "assistant-response-copy": "drift",
+          "assistant-composer": "drift"
+        },
+        "at": "2026-09-21T09:42:01.318Z"
+      },
+      "forced": null,
+      "readingsSeen": {
+        "text brand-tagline: cap height 8.6px in the build, 13.1px in the comp (-34%); set font-size so the cap height renders at 13.1px": 2,
+        "text assistant-heading: cap height 10.3px in the build, 18.3px in the comp (-44%); set font-size so the cap height renders at 18.3px": 2,
+        "text assistant-intro-copy: letter-spacing is tighter than the comp's (gap 0.039 vs 0.079 of the cap height); set letter-spacing to open it by about 1px": 2,
+        "text task-primary-copy: 3 lines in the build, 4 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 2,
+        "text task-secondary-copy: 3 lines in the build, 2 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 7,
+        "text assistant-intro-copy: 1 line in the build, 3 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 2,
+        "text brand-wordmark: ink is #192818 in the build, #b5c4c0 in the comp; use the comp's colour": 2,
+        "text assistant-heading: ink is #396959 in the build, #839193 in the comp; use the comp's colour": 2,
+        "text assistant-heading: its first line starts 15px lower than in the comp (23px vs 8px into the region box); the spacing above it is too large": 2,
+        "text assistant-heading: it starts 51px further right than in the comp": 2,
+        "text assistant-intro-copy: its first line starts 27px lower than in the comp (39px vs 12px into the region box); the spacing above it is too large": 2,
+        "control task-filters: its rule sits 25px into the box in the comp and 3px in the build (-22px), so the strip is shorter than the comp's; match the height, not only the position": 2,
+        "text assistant-intro-copy: 2 lines in the build, 3 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 16,
+        "text assistant-response-copy: 7 lines in the build, 8 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 10,
+        "text task-primary-copy: the face renders 35% lighter than the comp's (ink density 0.40 vs 0.62); raise a weight step or use the ranked face": 2,
+        "text assistant-heading: ink is #1a281a in the build, #839193 in the comp; use the comp's colour": 2,
+        "control task-filters: its rule sits 25px into the box in the comp and 1px in the build (-24px), so the strip is shorter than the comp's; match the height, not only the position": 3,
+        "control assistant-toolbar: its rule sits 11px into the box in the comp and 3px in the build (-8px), so the strip is shorter than the comp's; match the height, not only the position": 2,
+        "text brand-tagline: cap height 8.9px in the build, 13.1px in the comp (-32%); set font-size so the cap height renders at 13.1px": 2,
+        "text task-secondary-copy: cap height 15.3px in the build, 12px in the comp (+28%); set font-size so the cap height renders at 12px": 2,
+        "text assistant-heading: cap height 24.8px in the build, 18.3px in the comp (+36%); set font-size so the cap height renders at 18.3px": 2,
+        "text assistant-user-copy: letter-spacing is tighter than the comp's (gap 0.053 vs 0.107 of the cap height); set letter-spacing to open it by about 1px": 2,
+        "text brand-wordmark: ink is #182818 in the build, #b5c4c0 in the comp; use the comp's colour": 27,
+        "text assistant-heading: ink is #192819 in the build, #839193 in the comp; use the comp's colour": 2,
+        "text assistant-heading: its first line starts 14px lower than in the comp (22px vs 8px into the region box); the spacing above it is too large": 2,
+        "text assistant-user-copy: it starts 80px further right than in the comp": 2,
+        "text assistant-response-copy: line pitch 20px in the build, 26px in the comp (-22%); set line-height so 8 lines stand 208px tall": 2,
+        "control task-composer: its rule sits 5px into the box in the comp and 33px in the build (+28px), so the strip is taller than the comp's; match the height, not only the position": 7,
+        "control task-filters: its rule sits 25px into the box in the comp and 11px in the build (-14px), so the strip is shorter than the comp's; match the height, not only the position": 7,
+        "text brand-tagline: cap height 9.1px in the build, 13.1px in the comp (-31%); set font-size so the cap height renders at 13.1px": 3,
+        "text assistant-heading: letter-spacing is wider than the comp's (gap 0.251 vs 0.136 of the cap height); set letter-spacing to close it by about 2px": 3,
+        "control assistant-toolbar: its rule sits 11px into the box in the comp and 4px in the build (-7px), so the strip is shorter than the comp's; match the height, not only the position": 21,
+        "text brand-tagline: cap height 17.1px in the build, 13.1px in the comp (+31%); set font-size so the cap height renders at 13.1px": 1,
+        "text assistant-intro-copy: letter-spacing is wider than the comp's (gap 0.143 vs 0.079 of the cap height); set letter-spacing to close it by about 1px": 1,
+        "text assistant-response-copy: 5 lines in the build, 8 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 2,
+        "text task-primary-copy: the face renders 29% lighter than the comp's (ink density 0.44 vs 0.62); raise a weight step or use the ranked face": 2,
+        "control assistant-toolbar: its rule sits 11px into the box in the comp and 5px in the build (-6px), so the strip is shorter than the comp's; match the height, not only the position": 1,
+        "text assistant-intro-copy: letter-spacing is wider than the comp's (gap 0.139 vs 0.079 of the cap height); set letter-spacing to close it by about 1px": 1,
+        "text task-secondary-copy: cap height 15.8px in the build, 12px in the comp (+32%); set font-size so the cap height renders at 12px": 1,
+        "text assistant-response-copy: letter-spacing is wider than the comp's (gap 0.133 vs 0.079 of the cap height); set letter-spacing to close it by about 1px": 1,
+        "text task-primary-copy: the face renders 25% lighter than the comp's (ink density 0.46 vs 0.62); raise a weight step or use the ranked face": 3,
+        "text assistant-response-copy: line pitch 21px in the build, 26px in the comp (-20%); set line-height so 8 lines stand 208px tall": 1,
+        "control task-composer: its rule sits 5px into the box in the comp and 12px in the build (+7px), so the strip is taller than the comp's; match the height, not only the position": 1,
+        "text task-primary-copy: the face renders 27% lighter than the comp's (ink density 0.46 vs 0.62); raise a weight step or use the ranked face": 1,
+        "text assistant-intro-copy: its first line starts 29px lower than in the comp (41px vs 12px into the region box); the spacing above it is too large": 3,
+        "text task-secondary-copy: cap height 15.5px in the build, 12px in the comp (+29%); set font-size so the cap height renders at 12px": 1,
+        "text task-secondary-copy: its first line starts 22px lower than in the comp (32px vs 10px into the region box); the spacing above it is too large": 1,
+        "control task-composer: its rule sits 5px into the box in the comp and 40px in the build (+35px), so the strip is taller than the comp's; match the height, not only the position": 1,
+        "control task-filters: its rule sits 25px into the box in the comp and 12px in the build (-13px), so the strip is shorter than the comp's; match the height, not only the position": 1,
+        "control assistant-toolbar: its rule sits 11px into the box in the comp and 1px in the build (-10px), so the strip is shorter than the comp's; match the height, not only the position": 1,
+        "text task-secondary-copy: letter-spacing is tighter than the comp's (gap 0.061 vs 0.126 of the cap height); set letter-spacing to open it by about 1px": 1,
+        "text task-secondary-copy: 1 line in the build, 2 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 1,
+        "text task-primary-copy: cap height 17.3px in the build, 14px in the comp (+24%); set font-size so the cap height renders at 14px": 3,
+        "text task-primary-copy: 2 lines in the build, 4 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 6,
+        "text task-primary-copy: cap height 10.6px in the build, 14px in the comp (-24%); set font-size so the cap height renders at 14px": 1,
+        "text task-secondary-copy: letter-spacing is wider than the comp's (gap 0.229 vs 0.126 of the cap height); set letter-spacing to close it by about 1px": 1,
+        "text assistant-intro-copy: 4 lines in the build, 3 in the comp; the measure (max-width, font-size, letter-spacing) wraps it differently, so the block is a different shape": 2,
+        "text brand-tagline: letter-spacing is wider than the comp's (gap 0.192 vs 0.115 of the cap height); set letter-spacing to close it by about 1px": 1,
+        "text task-primary-copy: cap height 10.5px in the build, 14px in the comp (-25%); set font-size so the cap height renders at 14px": 2,
+        "text assistant-intro-copy: the face renders 25% lighter than the comp's (ink density 0.42 vs 0.56); raise a weight step or use the ranked face": 2,
+        "text assistant-heading: ink is #1b291c in the build, #839193 in the comp; use the comp's colour": 11,
+        "text brand-tagline: cap height 17px in the build, 13.1px in the comp (+30%); set font-size so the cap height renders at 13.1px": 10,
+        "text task-secondary-copy: cap height 15.2px in the build, 12px in the comp (+27%); set font-size so the cap height renders at 12px": 10,
+        "text assistant-response-copy: letter-spacing is wider than the comp's (gap 0.120 vs 0.079 of the cap height); set letter-spacing to close it by about 1px": 2,
+        "text task-primary-copy: the face renders 35% lighter than the comp's (ink density 0.41 vs 0.62); raise a weight step or use the ranked face": 10,
+        "text assistant-intro-copy: letter-spacing is tighter than the comp's (gap 0.028 vs 0.079 of the cap height); set letter-spacing to open it by about 1px": 1,
+        "text assistant-heading: ink is #1b2818 in the build, #839193 in the comp; use the comp's colour": 1
+      },
+      "records": 4,
+      "history": [
+        {
+          "at": "2026-09-21T09:36:13.680Z",
+          "score": 0.7461,
+          "worstIds": [
+            "assistant-intro-copy",
+            "task-row-actions",
+            "assistant-heading"
+          ],
+          "regionVerdicts": {
+            "top-chrome": "drift",
+            "brand-mark": "drift",
+            "brand-wordmark": "drift",
+            "brand-tagline": "drift",
+            "task-workbench": "drift",
+            "task-heading": "drift",
+            "task-composer": "match",
+            "task-filters": "drift",
+            "task-primary-copy": "drift",
+            "task-secondary-copy": "drift",
+            "task-row-actions": "drift",
+            "assistant-panel": "drift",
+            "assistant-heading": "drift",
+            "assistant-toolbar": "drift",
+            "assistant-intro-copy": "contradicted",
+            "assistant-user-copy": "drift",
+            "assistant-response-copy": "drift",
+            "assistant-composer": "drift"
+          },
+          "artifactHash": null
+        },
+        {
+          "at": "2026-09-21T09:36:51.082Z",
+          "score": 0.7446,
+          "worstIds": [
+            "assistant-intro-copy",
+            "task-row-actions",
+            "assistant-heading"
+          ],
+          "regionVerdicts": {
+            "top-chrome": "drift",
+            "brand-mark": "drift",
+            "brand-wordmark": "drift",
+            "brand-tagline": "drift",
+            "task-workbench": "drift",
+            "task-heading": "drift",
+            "task-composer": "match",
+            "task-filters": "drift",
+            "task-primary-copy": "drift",
+            "task-secondary-copy": "drift",
+            "task-row-actions": "drift",
+            "assistant-panel": "drift",
+            "assistant-heading": "drift",
+            "assistant-toolbar": "drift",
+            "assistant-intro-copy": "contradicted",
+            "assistant-user-copy": "drift",
+            "assistant-response-copy": "drift",
+            "assistant-composer": "drift"
+          },
+          "artifactHash": null
+        },
+        {
+          "at": "2026-09-21T09:37:36.855Z",
+          "score": 0.7459,
+          "worstIds": [
+            "task-row-actions",
+            "assistant-heading",
+            "assistant-intro-copy"
+          ],
+          "regionVerdicts": {
+            "top-chrome": "drift",
+            "brand-mark": "drift",
+            "brand-wordmark": "drift",
+            "brand-tagline": "drift",
+            "task-workbench": "drift",
+            "task-heading": "drift",
+            "task-composer": "match",
+            "task-filters": "drift",
+            "task-primary-copy": "drift",
+            "task-secondary-copy": "drift",
+            "task-row-actions": "drift",
+            "assistant-panel": "drift",
+            "assistant-heading": "drift",
+            "assistant-toolbar": "drift",
+            "assistant-intro-copy": "contradicted",
+            "assistant-user-copy": "drift",
+            "assistant-response-copy": "drift",
+            "assistant-composer": "drift"
+          },
+          "artifactHash": null
+        },
+        {
+          "at": "2026-09-21T09:38:26.055Z",
+          "score": 0.7359,
+          "worstIds": [
+            "task-row-actions",
+            "assistant-heading",
+            "task-heading"
+          ],
+          "regionVerdicts": {
+            "top-chrome": "drift",
+            "brand-mark": "drift",
+            "brand-wordmark": "drift",
+            "brand-tagline": "drift",
+            "task-workbench": "drift",
+            "task-heading": "drift",
+            "task-composer": "match",
+            "task-filters": "drift",
+            "task-primary-copy": "drift",
+            "task-secondary-copy": "drift",
+            "task-row-actions": "drift",
+            "assistant-panel": "drift",
+            "assistant-heading": "drift",
+            "assistant-toolbar": "drift",
+            "assistant-intro-copy": "drift",
+            "assistant-user-copy": "drift",
+            "assistant-response-copy": "drift",
+            "assistant-composer": "drift"
+          },
+          "artifactHash": null
+        },
+        {
+          "at": "2026-09-21T09:41:06.983Z",
+          "score": 0.7435,
+          "worstIds": [
+            "assistant-heading",
+            "task-heading",
+            "brand-tagline"
+          ],
+          "regionVerdicts": {
+            "top-chrome": "drift",
+            "brand-mark": "drift",
+            "brand-wordmark": "drift",
+            "brand-tagline": "drift",
+            "task-workbench": "drift",
+            "task-heading": "drift",
+            "task-composer": "match",
+            "task-filters": "drift",
+            "task-primary-copy": "drift",
+            "task-secondary-copy": "drift",
+            "task-row-actions": "drift",
+            "assistant-panel": "drift",
+            "assistant-heading": "drift",
+            "assistant-toolbar": "drift",
+            "assistant-intro-copy": "drift",
+            "assistant-user-copy": "drift",
+            "assistant-response-copy": "drift",
+            "assistant-composer": "drift"
+          },
+          "artifactHash": null
+        },
+        {
+          "at": "2026-09-21T09:42:01.318Z",
+          "score": 0.7378,
+          "worstIds": [
+            "assistant-heading",
+            "task-heading",
+            "brand-tagline"
+          ],
+          "regionVerdicts": {
+            "top-chrome": "drift",
+            "brand-mark": "drift",
+            "brand-wordmark": "drift",
+            "brand-tagline": "drift",
+            "task-workbench": "drift",
+            "task-heading": "drift",
+            "task-composer": "match",
+            "task-filters": "drift",
+            "task-primary-copy": "drift",
+            "task-secondary-copy": "drift",
+            "task-row-actions": "drift",
+            "assistant-panel": "drift",
+            "assistant-heading": "drift",
+            "assistant-toolbar": "drift",
+            "assistant-intro-copy": "drift",
+            "assistant-user-copy": "drift",
+            "assistant-response-copy": "drift",
+            "assistant-composer": "drift"
+          },
+          "artifactHash": null
+        }
+      ]
+    },
+    "sections": {
+      "status": "closed",
+      "openedAt": "2026-09-21T09:42:01.318Z",
+      "closedAt": "2026-09-21T09:59:41.397Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "no mechanical gate",
+        "at": "2026-09-21T09:59:41.397Z"
+      },
+      "forced": null
+    },
+    "motion": {
+      "status": "closed",
+      "openedAt": "2026-09-21T09:59:41.397Z",
+      "closedAt": "2026-09-21T09:59:48.059Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "no mechanical gate",
+        "at": "2026-09-21T09:59:48.059Z"
+      },
+      "forced": null
+    },
+    "responsive": {
+      "status": "closed",
+      "openedAt": "2026-09-21T09:59:48.059Z",
+      "closedAt": "2026-09-21T10:06:25.150Z",
+      "attempts": 2,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "desktop 74% (drift)",
+        "score": 0.7392,
+        "sideBySide": "C:/Users/hazyl/Desktop/Work/project/js_test/智能任务管理器/.worktrees/v1-2-modern-chinese-redesign/.impeccable/review/diff/desktop/side-by-side.png",
+        "at": "2026-09-21T10:06:25.150Z"
+      },
+      "forced": null
+    },
+    "review": {
+      "status": "open",
+      "openedAt": "2026-09-21T10:06:25.150Z",
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    }
+  },
+  "finish": null,
+  "plates": {}
+}

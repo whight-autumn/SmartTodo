@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-21T18:48:14+08:00",
+  "title": "Design System: SmartTodo V1.2",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "宣纸",
+        "canonical": "#f5f1e8",
+        "tonalRamp": ["#28251f", "#4c483e", "#716b5e", "#989184", "#bbb4a6", "#d9d3c7", "#eee9df", "#faf8f2"]
+      },
+      "paper-muted": {
+        "role": "neutral",
+        "displayName": "旧宣纸",
+        "canonical": "#ede7dc",
+        "tonalRamp": ["#27231e", "#4a443b", "#6f685c", "#948c80", "#b8b0a4", "#d4cdc2", "#e9e3d9", "#f8f5ef"]
+      },
+      "paper-raised": {
+        "role": "neutral",
+        "displayName": "抬纸",
+        "canonical": "#faf7f0",
+        "tonalRamp": ["#292620", "#4d4940", "#736e63", "#9a9488", "#bdb7ac", "#ddd8ce", "#f0ece4", "#fdfbf7"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "近墨",
+        "canonical": "#17211e",
+        "tonalRamp": ["#111815", "#28322f", "#414c48", "#5c6763", "#7a8581", "#9ea7a3", "#c5cbc8", "#edf0ee"]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "次墨",
+        "canonical": "#35423d",
+        "tonalRamp": ["#151c19", "#2d3834", "#46544f", "#60716b", "#7e8e88", "#a1aea9", "#c7cfcc", "#eef1f0"]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "淡墨",
+        "canonical": "#69736e",
+        "tonalRamp": ["#1a211e", "#333c38", "#4d5853", "#69756f", "#87938d", "#a7b1ac", "#cbd1ce", "#f0f2f1"]
+      },
+      "jade-deep": {
+        "role": "primary",
+        "displayName": "深玉墨",
+        "canonical": "#24483f",
+        "tonalRamp": ["#10201c", "#1b3a32", "#28564a", "#377264", "#4c907e", "#72ad9a", "#a8cbbf", "#e7f0ed"]
+      },
+      "jade": {
+        "role": "primary",
+        "displayName": "沉玉绿",
+        "canonical": "#478268",
+        "tonalRamp": ["#10251c", "#1d4433", "#2c634c", "#478268", "#65a083", "#8bbca3", "#b9d7c8", "#e9f2ed"]
+      },
+      "jade-muted": {
+        "role": "primary",
+        "displayName": "雾玉",
+        "canonical": "#789487",
+        "tonalRamp": ["#17231e", "#304038", "#4b5e55", "#667c70", "#839b8f", "#a3b9ae", "#c7d7cf", "#edf3f0"]
+      },
+      "cinnabar": {
+        "role": "secondary",
+        "displayName": "朱砂",
+        "canonical": "#9c473b",
+        "tonalRamp": ["#32120f", "#58221c", "#7b332a", "#9c473b", "#bb6255", "#d7897e", "#eab8b1", "#f9e9e6"]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "陈金",
+        "canonical": "#a67d3d",
+        "tonalRamp": ["#2d210e", "#523b19", "#775725", "#9b7435", "#b99351", "#d1b47a", "#e5d3ae", "#f7efdf"]
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "净白",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#262626", "#494949", "#6d6d6d", "#929292", "#b6b6b6", "#d4d4d4", "#ececec", "#ffffff"]
+      },
+      "lacquer": {
+        "role": "neutral",
+        "displayName": "乌漆",
+        "canonical": "#111815",
+        "tonalRamp": ["#0d1210", "#252d29", "#3e4843", "#59645f", "#77827d", "#9ba49f", "#c3c9c6", "#edf0ee"]
+      },
+      "lacquer-raised": {
+        "role": "neutral",
+        "displayName": "抬漆",
+        "canonical": "#18211d",
+        "tonalRamp": ["#101612", "#29322e", "#434d48", "#5e6963", "#7c8781", "#9fa9a4", "#c6cdca", "#eef1ef"]
+      },
+      "moonlight": {
+        "role": "neutral",
+        "displayName": "月白",
+        "canonical": "#ebe6dc",
+        "tonalRamp": ["#26231e", "#49443b", "#6d675c", "#918a7f", "#b4ada2", "#d0c9be", "#e6e0d6", "#f7f4ee"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "宋式标题", "purpose": "主工作区、对话框和任务笺内容标题。" },
+      "title": { "displayName": "任务标题", "purpose": "高密度任务列表中的快速扫描焦点。" },
+      "body": { "displayName": "正文", "purpose": "输入、说明和 AI 对话。" },
+      "label": { "displayName": "操作标签", "purpose": "筛选、字段、状态和紧凑工具文字。" }
+    },
+    "shadows": [
+      { "name": "ambient-low", "value": "0 12px 32px rgba(37, 43, 39, .08)", "purpose": "亮色主题中的轻量浮层。" },
+      { "name": "dialog", "value": "0 24px 64px rgba(34, 40, 36, .2)", "purpose": "模态对话框的环境深度。" },
+      { "name": "widget-float", "value": "0 18px 46px rgba(13, 21, 18, .22)", "purpose": "半透明桌面任务笺与桌面的分离。" },
+      { "name": "dialog-dark", "value": "0 28px 72px rgba(0, 0, 0, .46)", "purpose": "深色主题模态对话框。" }
+    ],
+    "motion": [
+      { "name": "ease-state", "value": "cubic-bezier(.2, .8, .2, 1)", "purpose": "按钮、输入、颜色和任务状态变化。" },
+      { "name": "state-duration", "value": "180ms", "purpose": "常规交互状态转换。" },
+      { "name": "toast-enter", "value": "280ms", "purpose": "提示由轻微上移和模糊进入。" },
+      { "name": "reduced-motion", "value": ".01ms", "purpose": "用户请求减少动态时取消非必要动画。" }
+    ],
+    "breakpoints": [
+      { "name": "compact-brand", "value": "460px" },
+      { "name": "single-field", "value": "639px" },
+      { "name": "compact-header", "value": "720px" },
+      { "name": "single-workspace", "value": "1023px" },
+      { "name": "compact-ai-actions", "value": "1180px" },
+      { "name": "widget-compact-width", "value": "280px" },
+      { "name": "widget-compact-height", "value": "370px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "用于提交、发送和打开主界面的唯一高强调动作。",
+      "html": "<button class=\"ds-btn-primary\">添加主任务</button>",
+      "css": ".ds-btn-primary { min-height: 40px; padding: 9px 15px; border: 0; border-radius: var(--radius-sm, 6px); color: #fff; background: var(--accent, #478268); font: 600 16px/1.2 var(--font-body, sans-serif); transition: background-color 180ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms cubic-bezier(.2,.8,.2,1); } .ds-btn-primary:hover { background: var(--accent-strong, #24483f); } .ds-btn-primary:focus-visible { outline: 2px solid var(--amber, #a67d3d); outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "用于取消、撤销和低强调工具动作。",
+      "html": "<button class=\"ds-btn-secondary\">取消</button>",
+      "css": ".ds-btn-secondary { min-height: 40px; padding: 9px 15px; border: 1px solid var(--line-strong, rgba(23,33,30,.24)); border-radius: var(--radius-sm, 6px); color: var(--text-secondary, #35423d); background: var(--surface, #f5f1e8); font: 600 16px/1.2 var(--font-body, sans-serif); transition: color 180ms cubic-bezier(.2,.8,.2,1), border-color 180ms cubic-bezier(.2,.8,.2,1); } .ds-btn-secondary:hover { color: var(--accent-strong, #24483f); border-color: var(--jade-2, #789487); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--amber, #a67d3d); outline-offset: 3px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "纸色、细边框的任务和对话输入。",
+      "html": "<input class=\"ds-input\" value=\"要做什么？\" aria-label=\"任务标题\">",
+      "css": ".ds-input { width: 100%; min-height: 40px; padding: 9px 12px; border: 1px solid var(--line-strong, rgba(23,33,30,.24)); border-radius: var(--radius-sm, 6px); color: var(--text, #17211e); background: var(--surface, #f5f1e8); font: 400 16px/1.55 var(--font-body, sans-serif); transition: border-color 180ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms cubic-bezier(.2,.8,.2,1); } .ds-input:hover { border-color: var(--accent, #478268); } .ds-input:focus { border-color: var(--accent, #478268); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #478268) 17%, transparent); }"
+    },
+    {
+      "name": "Active Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-active",
+      "description": "显示当前任务筛选及其数量。",
+      "html": "<button class=\"ds-filter\">进行中 <span>5</span></button>",
+      "css": ".ds-filter { min-width: 121px; min-height: 32px; padding: 5px 14px; border: 0; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #3f8268, #4f8d74); font: 600 13.44px/1.2 var(--font-body, sans-serif); } .ds-filter span { display: inline-grid; min-width: 24px; min-height: 24px; margin-left: 5px; place-items: center; border-radius: 50%; background: rgba(255,255,255,.1); } .ds-filter:hover { background: var(--accent-strong, #24483f); } .ds-filter:focus-visible { outline: 2px solid var(--amber, #a67d3d); outline-offset: 3px; }"
+    },
+    {
+      "name": "Paper Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "主任务与助手工作区的扁平纸面容器。",
+      "html": "<section class=\"ds-panel\"><h2>任务待办</h2><p>保持专注，完成一件要紧的事。</p></section>",
+      "css": ".ds-panel { padding: clamp(16px, 1.5vw, 22px); border: 1px solid var(--line, rgba(23,33,30,.14)); border-radius: var(--radius-lg, 14px); color: var(--text, #17211e); background: var(--surface-raised, #faf7f0); font-family: var(--font-body, sans-serif); } .ds-panel h2 { margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line, rgba(23,33,30,.14)); font: 600 2rem/1.55 var(--font-display, serif); } .ds-panel p { margin: 0; color: var(--text-secondary, #35423d); } .ds-panel:focus-within { border-color: var(--jade-2, #789487); }"
+    },
+    {
+      "name": "Task Row",
+      "kind": "custom",
+      "description": "复选、内容与操作三列构成的任务记录。",
+      "html": "<article class=\"ds-task-row\"><input type=\"checkbox\" aria-label=\"完成任务\"><div><strong>整理发布说明</strong><small>优先级：高 · 今天 18:00</small></div><button aria-label=\"编辑任务\">编辑</button></article>",
+      "css": ".ds-task-row { display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 12px; align-items: start; padding: 12px 10px; border: 1px solid var(--line, rgba(23,33,30,.14)); border-radius: var(--radius-md, 10px); color: var(--text, #17211e); background: var(--surface-raised, #faf7f0); font-family: var(--font-body, sans-serif); } .ds-task-row input { width: 20px; height: 20px; accent-color: var(--accent, #478268); } .ds-task-row div { display: grid; min-width: 0; gap: 3px; } .ds-task-row strong { overflow-wrap: anywhere; font-size: .88rem; } .ds-task-row small { color: var(--text-muted, #69736e); } .ds-task-row button { min-height: 30px; padding: 4px 7px; border: 1px solid var(--line, rgba(23,33,30,.14)); border-radius: var(--radius-sm, 6px); color: var(--text-secondary, #35423d); background: transparent; } .ds-task-row button:hover { color: var(--accent-strong, #24483f); border-color: var(--jade-2, #789487); } .ds-task-row button:focus-visible, .ds-task-row input:focus-visible { outline: 2px solid var(--amber, #a67d3d); outline-offset: 3px; }"
+    },
+    {
+      "name": "Desktop Task Note",
+      "kind": "custom",
+      "description": "品牌一致的半透明五项桌面任务摘要。",
+      "html": "<aside class=\"ds-widget\"><header><strong>SmartTodo</strong><span>V1.2</span></header><h2>今日要务</h2><ul><li><input type=\"checkbox\"> 核对逾期交付</li><li><input type=\"checkbox\"> 整理季度材料</li></ul><button>打开 SmartTodo</button></aside>",
+      "css": ".ds-widget { width: 320px; padding: 10px; border: 1px solid var(--line-strong, rgba(23,33,30,.24)); border-radius: 17px; color: var(--text, #17211e); background: color-mix(in srgb, var(--surface-raised, #faf7f0) 91%, transparent); box-shadow: 0 18px 46px rgba(13,21,18,.22), inset 0 1px rgba(255,255,255,.12); backdrop-filter: blur(19px) saturate(116%); font-family: var(--font-body, sans-serif); } .ds-widget header { display: flex; gap: 7px; align-items: center; padding-bottom: 7px; border-bottom: 1px solid var(--line, rgba(23,33,30,.14)); } .ds-widget header strong, .ds-widget h2 { font-family: var(--font-display, serif); } .ds-widget header span { color: var(--accent-strong, #24483f); font-size: 11px; font-weight: 700; } .ds-widget h2 { font-size: 15px; letter-spacing: .12em; } .ds-widget ul { padding: 0; list-style: none; } .ds-widget li { padding: 8px 3px; border-bottom: 1px solid var(--line, rgba(23,33,30,.14)); font-size: 12.5px; } .ds-widget input { accent-color: var(--accent-strong, #24483f); } .ds-widget button { width: 100%; min-height: 34px; border: 0; border-radius: 8px; color: var(--surface-raised, #faf7f0); background: var(--accent-strong, #24483f); font-weight: 650; } .ds-widget button:hover { filter: brightness(1.08); } .ds-widget button:focus-visible { outline: 2px solid var(--amber, #a67d3d); outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "案头清供",
+    "overview": "SmartTodo 把长期停驻的 Windows 工作台处理成一张安静、清楚的现代案纸：宣纸暖白承载内容，近墨文字建立秩序，玉色只在行动与状态上出现。细腻和低调的奢华来自比例、留白、字形与触感，而不是堆叠装饰。\n\n界面采用现代新中式语汇，但所有文化表达都服务于日常任务流。竹叶与流萤标识、宋体标题、细分隔线和低饱和色共同构成品牌世界；紧凑正文、渐进式表单与清晰状态保证它仍是一件企业级生产力工具。",
+    "keyCharacteristics": [
+      "暖宣纸与深漆色双主题",
+      "宋体标题配合清晰无衬线正文",
+      "细线、轻层级、稀疏玉色的克制表达",
+      "桌面主工作台与半透明任务笺共享同一品牌节奏",
+      "响应式重排优先于缩小和裁切"
+    ],
+    "rules": [
+      { "name": "The 稀玉 Rule", "body": "玉色只为行动、选择和完成服务；单屏大面积填色会稀释它的价值。", "section": "colors" },
+      { "name": "The 状态双证 Rule", "body": "朱砂、琥珀与玉色不能单独承担含义，必须与可读标签、图标或位置结构共同表达。", "section": "colors" },
+      { "name": "The 双声部 Rule", "body": "宋体只建立方向，无衬线体完成工作；不要用更多字体制造层级。", "section": "typography" },
+      { "name": "The 重排优先 Rule", "body": "宽度不足时先换列、换行或隐藏次要说明，禁止按比例挤压整个界面。", "section": "layout" },
+      { "name": "The Flat-by-Default Rule", "body": "静态内容面板使用边线和色差；阴影只属于真正浮起的层级。", "section": "elevation" }
+    ],
+    "dos": [
+      "Do 使用宋体标题、无衬线正文和细线层级保持案头秩序。",
+      "Do 在新尺寸上验证 100%／125%／150% 缩放、长中文和键盘焦点。",
+      "Do 让状态同时具备颜色之外的文字或结构证据。",
+      "Do 让动画集中于 opacity、transform、颜色和阴影，并尊重 reduced motion。"
+    ],
+    "donts": [
+      "Don't 用重复侧边色条、硬偏移阴影、渐变文字或过量胶囊制造“高级感”。",
+      "Don't 在普通面板上复用桌面任务笺的强浮动阴影与模糊。",
+      "Don't 让 AI、网络或装饰性资产成为任务管理可用性的前提。",
+      "Don't 通过缩小至不可读字号来解决响应式空间问题。"
+    ]
+  }
+}

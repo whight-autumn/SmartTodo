@@ -1,13 +1,16 @@
 /* ==========================================================
-   智能任务管家 · 桌面版主进程
+   SmartTodo · 桌面版主进程
    ========================================================== */
 
-const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, shell } = require("electron");
+const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, screen, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { buildManagedUserDataPath, buildTaskAttachmentPath } = require("./main-paths");
 const { createTaskAttachmentStore } = require("./task-attachment-store");
 const { registerTaskAttachmentIpc } = require("./task-attachment-ipc");
+const WidgetModel = require("./renderer/widget-model.js");
+const { createWidgetController } = require("./widget-controller.js");
+const { registerWidgetIpc } = require("./widget-ipc.js");
 
 const legacyUserDataPath = path.join(app.getPath("appData"), "smart-assistant");
 const managedUserDataPath = buildManagedUserDataPath(app.getPath("appData"));
@@ -23,6 +26,8 @@ const { openExternalUrl } = registerTaskAttachmentIpc({
 
 let mainWindow = null;
 let tray = null;
+let widgetController = null;
+let widgetIpcRegistration = null;
 let isQuitting = false;
 const APP_VERSION = app.getVersion();
 
@@ -31,10 +36,10 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    minWidth: 900,
-    minHeight: 650,
-    title: `智能任务管家 V${APP_VERSION} · by 萤火`,
-    backgroundColor: "#0f172a",
+    minWidth: 800,
+    minHeight: 620,
+    title: `SmartTodo V${APP_VERSION} · by 萤火`,
+    backgroundColor: "#111815",
     icon: path.join(__dirname, "assets/icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
@@ -93,7 +98,7 @@ function migrateLegacyUserData() {
 
 /* ---------- 系统托盘 ---------- */
 function createTray() {
-  const iconPath = path.join(__dirname, "assets/icon.png");
+  const iconPath = path.join(__dirname, "assets/tray-icon.png");
   let trayIcon;
   try {
     trayIcon = nativeImage.createFromPath(iconPath);
@@ -106,12 +111,23 @@ function createTray() {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip(`智能任务管家 V${APP_VERSION} · by 萤火`);
+  tray.setToolTip(`SmartTodo V${APP_VERSION} · by 萤火`);
+  updateTrayMenu();
+  tray.on("click", showMainWindow);
+}
 
+function updateTrayMenu() {
+  if (!tray) return;
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "打开主界面",
       click: showMainWindow
+    },
+    {
+      label: "桌面任务笺",
+      type: "checkbox",
+      checked: widgetController?.isVisible() || false,
+      click: item => widgetController?.setVisible(item.checked)
     },
     { type: "separator" },
     {
@@ -122,9 +138,7 @@ function createTray() {
       }
     }
   ]);
-
   tray.setContextMenu(contextMenu);
-  tray.on("click", showMainWindow);
 }
 
 function showMainWindow() {
@@ -142,7 +156,7 @@ ipcMain.handle("notify", (event, { title, body }) => {
   try {
     if (Notification.isSupported()) {
       new Notification({
-        title: title || "智能任务管家",
+        title: title || "SmartTodo",
         body: body || "",
         icon: path.join(__dirname, "assets/icon.png"),
         silent: false
@@ -161,7 +175,32 @@ ipcMain.handle("get-data-path", () => managedUserDataPath);
 /* ---------- 应用生命周期 ---------- */
 app.whenReady().then(() => {
   migrateLegacyUserData();
+  widgetController = createWidgetController({
+    BrowserWindow,
+    screen,
+    fs,
+    path,
+    userDataPath: app.getPath("userData"),
+    preloadPath: path.join(__dirname, "widget-preload.js"),
+    htmlPath: path.join(__dirname, "renderer", "widget.html"),
+    onVisibilityChanged(visible) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("widget:visibility", { visible });
+      }
+      updateTrayMenu();
+    },
+    isQuitting: () => isQuitting
+  });
+  widgetIpcRegistration = registerWidgetIpc({
+    ipcMain,
+    getMainWindow: () => mainWindow,
+    getWidgetWindow: widgetController.getWindow,
+    setWidgetVisible: widgetController.setVisible,
+    showMainWindow,
+    normalizeSnapshot: WidgetModel.normalizeWidgetSnapshot
+  });
   createMainWindow();
+  widgetController.create();
   createTray();
 
   app.on("activate", () => {
@@ -192,4 +231,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  widgetIpcRegistration?.dispose();
+  widgetController?.flush();
+  widgetController?.dispose();
 });

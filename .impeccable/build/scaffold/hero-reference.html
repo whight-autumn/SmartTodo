@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scaffold reference: desktop-light-approved.png</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Abhaya+Libre:wght@400&display=swap">
+  <link rel="stylesheet" href="layout.css">
+  <style>html,body{margin:0}body{background:#f7f7f6}.region{box-sizing:border-box}.region.text p{white-space:pre-wrap}</style>
+</head>
+<body>
+<!-- Reference only. Every region sits at its measured box inside a comp-aspect frame. Take the boxes (layout.css), keep your own semantic structure. -->
+<main class="comp-frame" style="max-width:1440px">
+  <div class="r-top-chrome region chrome" data-region="top-chrome"><!-- Slim brand bar, divider, theme control and settings controls --></div>
+  <div class="r-brand-mark region control" data-region="brand-mark"><!-- Application identity control rendered from the shared local icon system: rebuild the control's chrome from the crop (comp-spec.mjs --crop brand-mark); its ink box, border, fill, radius, and label size are the comp's --></div>
+  <div class="r-brand-wordmark region text" data-region="brand-wordmark"><!-- SmartTodo wordmark, V1.2 and byline --><p style="font-size:var(--r-brand-wordmark-font);line-height:1.05;margin:0">brand-wordmark</p></div>
+  <div class="r-brand-tagline region text" data-region="brand-tagline"><!-- Quiet local-first product statement --><p style="font-size:var(--r-brand-tagline-font);line-height:1.05;margin:0">brand-tagline</p></div>
+  <div class="r-task-workbench region chrome" data-region="task-workbench"><!-- Primary task manuscript surface --></div>
+  <div class="r-task-heading region text" data-region="task-heading"><!-- Task workbench Song-style heading --><p style="font-size:var(--r-task-heading-font);font-family:var(--r-task-heading-family),sans-serif;font-weight:var(--r-task-heading-weight);line-height:1.05;margin:0">task-heading</p></div>
+  <div class="r-task-composer region control" data-region="task-composer"><!-- Title, note, reminder, priority, type and add controls: rebuild the control's chrome from the crop (comp-spec.mjs --crop task-composer); its ink box, border, fill, radius, and label size are the comp's --></div>
+  <div class="r-task-filters region control" data-region="task-filters"><!-- Attention, in-progress and complete segmented filters: rebuild the control's chrome from the crop (comp-spec.mjs --crop task-filters); its ink box, border, fill, radius, and label size are the comp's --></div>
+  <div class="r-task-primary-copy region text" data-region="task-primary-copy"><!-- Expanded parent task title, description, metadata and child rows --><p style="font-size:var(--r-task-primary-copy-font);line-height:1.05;margin:0">task-primary-copy</p></div>
+  <div class="r-task-secondary-copy region text" data-region="task-secondary-copy"><!-- Collapsed task titles, descriptions and metadata --><p style="font-size:var(--r-task-secondary-copy-font);line-height:1.05;margin:0">task-secondary-copy</p></div>
+  <div class="r-task-row-actions region control" data-region="task-row-actions"><!-- Per-row child, priority, pin and delete controls: rebuild the control's chrome from the crop (comp-spec.mjs --crop task-row-actions); its ink box, border, fill, radius, and label size are the comp's --></div>
+  <div class="r-assistant-panel region chrome" data-region="assistant-panel"><!-- Narrow AI assistant folio --></div>
+  <div class="r-assistant-heading region text" data-region="assistant-heading"><!-- Zhixing assistant Song-style heading --><p style="font-size:var(--r-assistant-heading-font);line-height:1.05;margin:0">assistant-heading</p></div>
+  <div class="r-assistant-toolbar region control" data-region="assistant-toolbar"><!-- New chat, clear history, settings and collapse: rebuild the control's chrome from the crop (comp-spec.mjs --crop assistant-toolbar); its ink box, border, fill, radius, and label size are the comp's --></div>
+  <div class="r-assistant-intro-copy region text" data-region="assistant-intro-copy"><!-- Assistant capability introduction --><p style="font-size:var(--r-assistant-intro-copy-font);line-height:1.05;margin:0">assistant-intro-copy</p></div>
+  <div class="r-assistant-user-copy region text" data-region="assistant-user-copy"><!-- User message bubble --><p style="font-size:var(--r-assistant-user-copy-font);line-height:1.05;margin:0">assistant-user-copy</p></div>
+  <div class="r-assistant-response-copy region text" data-region="assistant-response-copy"><!-- Assistant prioritized-task response --><p style="font-size:var(--r-assistant-response-copy-font);line-height:1.05;margin:0">assistant-response-copy</p></div>
+  <div class="r-assistant-composer region control" data-region="assistant-composer"><!-- Message input, attachment, task analysis and send controls: rebuild the control's chrome from the crop (comp-spec.mjs --crop assistant-composer); its ink box, border, fill, radius, and label size are the comp's --></div>
+</main>
+</body>
+</html>

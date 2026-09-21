@@ -1,15 +1,21 @@
 /* ==========================================================
-   智能任务管家 · AI 助手
+   SmartTodo · 知行助手
    功能：任务待办 / 子任务 / 提醒 / DeepSeek 对话
    ========================================================== */
 
 "use strict";
 
 const taskModel = window.TaskModel;
+const widgetModel = window.WidgetModel;
 const draftStore = window.DraftStore;
 const aiProvider = window.AIProvider;
 const uiAppearance = window.UIAppearance;
 const noteUtils = window.NoteUtils;
+const iconUtils = window.IconUtils;
+const motionSystem = window.MotionSystem;
+if (!iconUtils) throw new Error("图标模块加载失败");
+if (!motionSystem) throw new Error("动效模块加载失败");
+const motion = motionSystem.createMotionController({ gsap: window.gsap });
 
 /* ---------- 数据层 ---------- */
 const STORAGE_KEYS = {
@@ -65,10 +71,12 @@ function showToast(message, type = "") {
   const container = document.getElementById("toast-container");
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.textContent = message;
+  const iconName = type === "error" ? "warning" : type === "success" ? "check" : "warning";
+  toast.innerHTML = `${iconUtils.iconMarkup(iconName)}<span>${escapeHTML(message)}</span>`;
   while (container.children.length >= 3) container.firstElementChild.remove();
   container.appendChild(toast);
-  setTimeout(() => toast.remove(), 4200);
+  motion.animateToast(toast);
+  setTimeout(() => toast.remove(), 3200);
 }
 
 function escapeHTML(str) {
@@ -135,11 +143,6 @@ function sanitizeTasks(rawTasks) {
   return taskModel.normalizeTasks(rawTasks);
 }
 
-function pickTaskVersion(v) {
-  if (!v) return "1.0.7";
-  return String(v).replace(/^v/i, "");
-}
-
 /* ===== 状态 ===== */
 let tasks = sanitizeTasks(loadJSON(STORAGE_KEYS.tasks, []));
 let currentFilter = "active";
@@ -172,6 +175,7 @@ let taskNoteDraft = null;
 let taskNotePreviousFocus = null;
 let taskNoteReturnTaskId = null;
 let taskNoteSavePending = false;
+let widgetPublishingReady = false;
 
 // ===== DOM 引用 =====
 const $ = id => document.getElementById(id);
@@ -198,6 +202,8 @@ const els = {
   input: $("user-input"),
   sendBtn: $("send-btn"),
   themeBtn: $("theme-toggle"),
+  widgetToggle: $("task-widget-toggle"),
+  globalSettingsBtn: $("global-settings-btn"),
   brightnessSlider: $("brightness-slider"),
   brightnessValue: $("brightness-value"),
   settingsBtn: $("ai-settings-btn"),
@@ -232,7 +238,8 @@ const els = {
 function initTheme() {
   const saved = localStorage.getItem(STORAGE_KEYS.theme) || "dark";
   document.documentElement.setAttribute("data-theme", saved);
-  els.themeBtn.textContent = saved === "dark" ? "🌙" : "☀️";
+  els.themeBtn.dataset.theme = saved;
+  els.themeBtn.setAttribute("aria-label", saved === "dark" ? "切换为浅色主题" : "切换为深色主题");
 }
 
 function toggleTheme() {
@@ -240,8 +247,10 @@ function toggleTheme() {
   const next = current === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
   localStorage.setItem(STORAGE_KEYS.theme, next);
-  els.themeBtn.textContent = next === "dark" ? "🌙" : "☀️";
-  showToast(next === "dark" ? "已切换为深色模式 🌙" : "已切换为浅色模式 ☀️");
+  void publishTaskWidgetSnapshot();
+  els.themeBtn.dataset.theme = next;
+  els.themeBtn.setAttribute("aria-label", next === "dark" ? "切换为浅色主题" : "切换为深色主题");
+  showToast(next === "dark" ? "已切换为深色模式" : "已切换为浅色模式");
 }
 
 els.themeBtn.addEventListener("click", toggleTheme);
@@ -254,7 +263,10 @@ function applyBrightness(value, persist = false) {
   els.brightnessSlider.setAttribute("aria-valuetext", `${state.value}%`);
   els.brightnessValue.value = `${state.value}%`;
   els.brightnessValue.textContent = `${state.value}%`;
-  if (persist) uiAppearance.saveBrightness(localStorage, state.value);
+  if (persist) {
+    uiAppearance.saveBrightness(localStorage, state.value);
+    void publishTaskWidgetSnapshot();
+  }
 }
 
 function initBrightness() {
@@ -277,9 +289,19 @@ els.brightnessSlider.addEventListener("dblclick", () => {
 /* ==========================================================
    任务与子任务
    ========================================================== */
+function publishTaskWidgetSnapshot() {
+  if (!window.desktop?.publishTaskWidgetSnapshot) return Promise.resolve(false);
+  const theme = document.documentElement.getAttribute("data-theme") || "dark";
+  const brightness = uiAppearance.resolveBrightness(els.brightnessSlider.value).value;
+  return window.desktop.publishTaskWidgetSnapshot(
+    widgetModel.createWidgetSnapshot(taskModel.sortTasks(tasks), { theme, brightness })
+  ).catch(() => false);
+}
+
 function saveTasks() {
   taskIndexDirty = true;
   saveJSON(STORAGE_KEYS.tasks, tasks);
+  if (widgetPublishingReady) void publishTaskWidgetSnapshot();
 }
 
 function refreshTaskIndex() {
@@ -304,7 +326,7 @@ function sortTasksForDisplay(list) {
   return taskModel.sortTasks(list);
 }
 
-
+const icon = (name, label = "") => iconUtils.iconMarkup(name, label ? { label } : {});
 
 function getTaskMeta(task) {
   const dueText = getRemindText(task);
@@ -312,9 +334,9 @@ function getTaskMeta(task) {
   if (task.remindTime) {
     const isOverdue = !task.done && new Date(task.remindTime).getTime() < Date.now();
     if (isOverdue) {
-      timeBadge = `<span class="task-overdue">⏰ 已过提醒时间</span>`;
+      timeBadge = `<span class="task-overdue">${icon("warning")}<span>已过提醒时间</span></span>`;
     } else {
-      timeBadge = `<span class="task-time">⏰ ${formatTime(task.remindTime)}</span>`;
+      timeBadge = `<span class="task-time"><span class="task-meta-label">提醒</span>${formatTime(task.remindTime)}</span>`;
       if (dueText) timeBadge += `<span class="task-due">${dueText}</span>`;
     }
   }
@@ -452,19 +474,20 @@ function queueTaskRender() {
 }
 
 function setTaskMode(mode, targetTask = null) {
+  const submitButton = els.form.querySelector(".submit-btn");
   if (mode === "sub" && targetTask) {
     els.type.value = "sub";
     els.parentRow.classList.remove("hidden");
     els.parent.value = targetTask.id;
     els.formTip.textContent = `子任务模式（当前挂载到：${targetTask.title}）`;
-    els.form.querySelector(".submit-btn").textContent = "＋ 添加子任务";
+    submitButton.innerHTML = `${iconUtils.iconMarkup("add")}<span>添加子任务</span>`;
     return;
   }
   els.type.value = "main";
   els.parent.value = "";
   els.parentRow.classList.add("hidden");
-  els.formTip.textContent = "默认添加主任务；也可点主任务卡片上的「➕ 子任务」快速挂载。";
-  els.form.querySelector(".submit-btn").textContent = "＋ 添加主任务";
+  els.formTip.textContent = "默认添加主任务；也可通过任务操作添加子任务。";
+  submitButton.innerHTML = `${iconUtils.iconMarkup("add")}<span>添加主任务</span>`;
 }
 
 function renderTaskAttachments(task) {
@@ -476,7 +499,7 @@ function renderTaskAttachments(task) {
     const isImage = /^image\//i.test(attachment.mimeType);
     const preview = isImage
       ? '<img class="task-attachment-thumb" loading="lazy" alt="">'
-      : "<span class=\"task-file-icon\" aria-hidden=\"true\">📄</span>";
+      : `<span class="task-file-icon" aria-hidden="true">${icon("file")}</span>`;
     return `
       <button type="button" class="task-attachment" data-action="open-attachment"
         data-task-id="${taskId}" data-storage-name="${storageName}" aria-label="打开附件 ${name}">
@@ -543,12 +566,13 @@ function hydrateTaskAttachmentPreviews() {
 
 function createTaskItem(task, depth, archive = false, visibleSet = null) {
   const li = document.createElement("li");
-  li.className = "task-item"
+  li.className = "task-item task-row task-chapter"
     + (task.done ? " task-done" : "")
     + (depth > 0 ? " sub-task" : "")
     + (archive ? " archive-item" : "");
-  li.style.setProperty("--depth", depth);
   li.dataset.id = task.id;
+  li.dataset.depth = String(depth);
+  li.dataset.priority = task.priority;
   const children = taskIndex.childrenByParent.get(task.id) || [];
   const hasChildren = children.some(child => !visibleSet || visibleSet.has(child.id));
   const collapsed = currentFilter === "attention" ? false : !!collapsedMap[task.id];
@@ -560,14 +584,15 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
     ? "<button class=\"task-btn collapse\" title=\""
       + (collapsed ? "展开子任务" : "折叠子任务")
       + "\" aria-expanded=\"" + String(!collapsed) + "\" data-action=\"collapse\">"
-      + (collapsed ? "▸" : "▾")
+      + icon("collapse")
+      + `<span class="sr-only">${collapsed ? "展开子任务" : "折叠子任务"}</span>`
       + "</button>"
     : "";
   const addSubHtml = !archive && !task.parentId
-    ? "<button class=\"task-btn subtask\" title=\"为此主任务添加子任务\" data-action=\"add-subtask\">＋ 子任务</button>"
+    ? `<button class="task-btn subtask" title="为此主任务添加子任务" data-action="add-subtask">${icon("add")}<span>子任务</span></button>`
     : "";
   const archiveAction = archive
-    ? "<button class=\"task-btn undo-complete\" title=\"撤销完成\" data-action=\"undo-complete\">撤销</button>"
+    ? `<button class="task-btn undo-complete" title="撤销完成" data-action="undo-complete">${icon("undo")}<span>撤销</span></button>`
     : "";
   const priorityHtml = "<select class=\"task-btn priority-select priority-" + task.priority
     + "\" title=\"修改优先级\" data-action=\"change-priority\">"
@@ -579,18 +604,24 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
     ? "<div class=\"task-note-preview\">" + noteUtils.linkifyNote(task.remarks) + "</div>"
     : "";
   const attachmentsHtml = renderTaskAttachments(task);
-  const editNoteHtml = "<button class=\"task-btn edit-note\" type=\"button\" title=\"编辑备注与附件\" data-action=\"edit-note\">📝</button>";
+  const editNoteHtml = `<button class="task-btn edit-note" type="button" title="编辑备注与附件" data-action="edit-note">${icon("note")}<span class="sr-only">编辑备注与附件</span></button>`;
   const pinHtml = !archive
-    ? "<button class=\"task-btn pin" + (task.pinned ? " active" : "") + "\" title=\"置顶\" data-action=\"pin\">📌</button>"
+    ? `<button class="task-btn pin${task.pinned ? " active" : ""}" title="${task.pinned ? "取消置顶" : "置顶"}" data-action="pin">${icon("pin")}<span class="sr-only">${task.pinned ? "取消置顶" : "置顶"}</span></button>`
     : "";
-  li.innerHTML = "<input type=\"checkbox\" class=\"task-check\" data-action=\"toggle-complete\" "
-    + (task.done ? "checked" : "") + ">"
-    + "<div class=\"task-content\"><div class=\"task-title\">"
-    + escapeHTML(task.title) + "</div>" + parentHtml + remarksHtml + attachmentsHtml
-    + "<div class=\"task-meta\">" + getTaskMeta(task) + "</div></div>"
-    + "<div class=\"task-actions\">" + collapseHtml + addSubHtml
-    + priorityHtml + archiveAction + editNoteHtml + pinHtml
-    + "<button class=\"task-btn delete\" title=\"删除\" data-action=\"delete\">🗑️</button></div>";
+  li.innerHTML = `<label class="task-check-wrap">
+      <input type="checkbox" class="task-check" data-action="toggle-complete"
+        aria-label="标记「${escapeHTML(task.title)}」为${task.done ? "未完成" : "已完成"}" ${task.done ? "checked" : ""}>
+      <span class="task-check-visual" aria-hidden="true">${icon("check")}</span>
+    </label>
+    <div class="task-content task-row__content">
+      <div class="task-row__heading"><span class="task-title">${escapeHTML(task.title)}</span></div>
+      ${parentHtml}${remarksHtml}${attachmentsHtml}
+      <div class="task-row__meta task-meta">${getTaskMeta(task)}</div>
+    </div>
+    <div class="task-row__actions task-actions">${collapseHtml}${addSubHtml}${priorityHtml}
+      ${archiveAction}${editNoteHtml}${pinHtml}
+      <button class="task-btn delete" title="删除" data-action="delete">${icon("delete")}<span class="sr-only">删除任务</span></button>
+    </div>`;
   return li;
 }
 
@@ -629,6 +660,7 @@ function updateFilterCounts() {
 }
 
 function renderTasks() {
+  const before = motionSystem.capturePositions(els.list.querySelectorAll(".task-row[data-id]"));
   updateFilterCounts();
   refreshTaskIndex();
   const visibleSet = getActiveTaskSet();
@@ -667,6 +699,7 @@ function renderTasks() {
     if (!wanted.has(id)) taskRowCache.delete(id);
   }
   hydrateTaskAttachmentPreviews();
+  motion.animateTaskReflow(els.list.querySelectorAll(".task-row[data-id]"), before);
   // Moving or replacing the changed row must not discard keyboard focus.
   if (focusedId && focusedAction && document.activeElement !== active
       && !document.querySelector("dialog[open]")) {
@@ -718,7 +751,7 @@ function taskAttachmentIdentity(value) {
 function renderTaskNoteAttachmentPreview(attachment) {
   return /^image\//i.test(attachment.mimeType)
     ? '<img class="task-attachment-thumb" loading="lazy" alt="">'
-    : '<span class="task-file-icon" aria-hidden="true">📎</span>';
+    : `<span class="task-file-icon" aria-hidden="true">${iconUtils.iconMarkup("file")}</span>`;
 }
 
 function createPendingFilePreview(file) {
@@ -742,7 +775,8 @@ function releaseTaskNoteDraftPreviews(draft) {
 
 function renderPendingFilePreview(pending) {
   if (!pending.previewUrl) {
-    return '<span class="task-file-icon" aria-hidden="true">＋</span>';
+    const iconName = /^image\//i.test(pending.file.type) ? "image" : "file";
+    return `<span class="task-file-icon" aria-hidden="true">${iconUtils.iconMarkup(iconName)}</span>`;
   }
   return '<img class="task-attachment-thumb" loading="lazy" src="'
     + escapeHTML(pending.previewUrl)
@@ -760,7 +794,7 @@ function renderTaskNoteDraft() {
     <li class="task-note-attachment-entry" data-task-id="${taskId}" data-storage-name="${storageName}">
       ${renderTaskNoteAttachmentPreview(attachment)}
       <span class="task-note-attachment-detail">
-        <strong>${escapeHTML(attachment.name)}</strong>
+        <strong class="task-note-attachment-name">${escapeHTML(attachment.name)}</strong>
         <span>${escapeHTML(formatAttachmentType(attachment))} · ${formatBytes(attachment.size)} · 已保存</span>
         <span class="task-attachment-status">文件已不存在</span>
       </span>
@@ -773,7 +807,7 @@ function renderTaskNoteDraft() {
     <li class="task-note-attachment-entry is-pending">
       ${renderPendingFilePreview(pending)}
       <span class="task-note-attachment-detail">
-        <strong>${escapeHTML(pending.file.name)}</strong>
+        <strong class="task-note-attachment-name">${escapeHTML(pending.file.name)}</strong>
         <span>${escapeHTML(formatAttachmentType(pending.file))} · ${formatBytes(pending.file.size)} · 待保存</span>
       </span>
       <button type="button" class="task-note-attachment-action" data-action="remove-pending-attachment"
@@ -787,7 +821,7 @@ function renderTaskNoteDraft() {
     <li class="task-note-attachment-entry is-removing" data-task-id="${taskId}" data-storage-name="${storageName}">
       ${renderTaskNoteAttachmentPreview(attachment)}
       <span class="task-note-attachment-detail">
-        <strong>${escapeHTML(attachment.name)}</strong>
+        <strong class="task-note-attachment-name">${escapeHTML(attachment.name)}</strong>
         <span>${escapeHTML(formatAttachmentType(attachment))} · ${formatBytes(attachment.size)} · 保存后移除</span>
         <span class="task-attachment-status">文件已不存在</span>
       </span>
@@ -839,6 +873,7 @@ function openTaskNoteDialog(task) {
     setTaskNoteStatus();
   }
   els.noteDialog.showModal();
+  motion.animateDialog(els.noteDialog.querySelector(".dialog-sheet"));
   requestAnimationFrame(() => els.noteInput.focus({ preventScroll: true }));
 }
 
@@ -1117,6 +1152,58 @@ function handleTaskCompletion(task, done) {
   });
 }
 
+async function completeTaskWidgetAction(result) {
+  try {
+    await window.desktop?.completeTaskWidgetAction?.(result);
+  } catch {
+    // The originating widget may already be closed; persisted task state remains authoritative.
+  }
+}
+
+async function handleTaskWidgetAction(action) {
+  const keys = action && typeof action === "object" ? Object.keys(action) : [];
+  const validShape = keys.length === 3
+    && keys.every(key => ["requestId", "type", "taskId"].includes(key));
+  refreshTaskIndex();
+  const task = validShape ? taskIndex.byId.get(action.taskId) : null;
+  if (!validShape || action.type !== "toggle-complete" || !task || task.done) {
+    await completeTaskWidgetAction({
+      requestId: typeof action?.requestId === "string" ? action.requestId : "",
+      ok: false,
+      message: "任务状态已变化，请在主界面重试"
+    });
+    return;
+  }
+
+  const affectedIds = task.parentId ? [task.id] : [task.id, ...collectDescendantIds(task.id)];
+  const previousStates = new Map(affectedIds.map(id => {
+    const affected = taskIndex.byId.get(id);
+    return [id, affected ? { done: affected.done, completedAt: affected.completedAt } : null];
+  }));
+  let result;
+  try {
+    handleTaskCompletion(task, true);
+    saveTasks();
+    result = { requestId: action.requestId, ok: true, message: "" };
+  } catch {
+    previousStates.forEach((state, id) => {
+      const affected = taskIndex.byId.get(id);
+      if (!affected || !state) return;
+      affected.done = state.done;
+      affected.completedAt = state.completedAt;
+    });
+    taskIndexDirty = true;
+    result = {
+      requestId: action.requestId,
+      ok: false,
+      message: "任务保存失败，请在主界面重试"
+    };
+  }
+  queueTaskRender();
+  renderParentOptions();
+  await completeTaskWidgetAction(result);
+}
+
 function confirmAction(title, message, acceptLabel = "确认删除") {
   if (els.confirmDialog.open) return Promise.resolve(false);
   const previousFocus = document.activeElement;
@@ -1132,6 +1219,7 @@ function confirmAction(title, message, acceptLabel = "确认删除") {
       resolve(accepted);
     }, { once: true });
     els.confirmDialog.showModal();
+    motion.animateDialog(els.confirmDialog.querySelector("form"));
   });
 }
 
@@ -1211,7 +1299,7 @@ els.list.addEventListener("change", event => {
     handleTaskCompletion(task, event.target.checked);
     saveTasks();
     queueTaskRender();
-    if (event.target.checked) showToast(`✅ 完成「${task.title}」`);
+    if (event.target.checked) showToast(`完成「${task.title}」`, "success");
     renderParentOptions();
   } else if (action === "change-priority") {
     task.priority = event.target.value;
@@ -1279,11 +1367,11 @@ els.form.addEventListener("submit", e => {
   if (remindTime) {
     const diff = new Date(remindTime).getTime() - Date.now();
     if (diff <= 0) {
-      showToast("⚠️ 提醒时间已过，将立即提醒", "warning");
+      showToast("提醒时间已过，将立即提醒", "warning");
       fireReminder(task);
     } else if (diff <= 60000) {
       const sec = Math.ceil(diff / 1000);
-      showToast(`⏰ ${sec} 秒后提醒你「${title}」`, "success");
+      showToast(`${sec} 秒后提醒你「${title}」`, "success");
     }
   }
 });
@@ -1347,7 +1435,7 @@ function playBeep() {
 }
 
 async function fireReminder(task) {
-  const title = "⏰ 任务提醒";
+  const title = "任务提醒";
   const body = `「${task.title}」${task.remarks ? " - " + task.remarks : ""} 时间到了！`;
   playBeep();
   showToast(`${title} ${body}`, "warning");
@@ -1538,7 +1626,7 @@ function renderChatHistory() {
   getCurrentSessionMessages();
   els.chatBox.innerHTML = "";
   if (!chatHistory.length) {
-    addMessage("ai", "你好！我是 **小管** 🤖，你的智能任务助手。\n\n我可以：\n- 📋 管理主任务 / 子任务和提醒\n- 🧠 分析你的任务给出建议\n- 💡 回答你的任何问题\n\n先在右上角 ⚙️ 配置 DeepSeek API Key，然后就可以开始对话啦！");
+    addMessage("ai", "你好！我是 **知行助手**，\n你的智能任务助手。\n\n我可以：\n- 管理主任务 / 子任务和提醒\n- 分析你的任务给出建议\n- 回答你的任何问题\n\n先在右上角配置 DeepSeek API Key，然后就可以开始对话啦！");
     return;
   }
   chatHistory.slice(-20).forEach(msg => {
@@ -1561,7 +1649,7 @@ function createNewSession() {
   chatState.activeSessionId = session.id;
   saveChatState();
   renderChatHistory();
-  showToast("已创建新会话 🆕", "success");
+  showToast("已创建新会话", "success");
 }
 
 async function clearAllSessions() {
@@ -1726,7 +1814,7 @@ async function sendMessage(text) {
 
   if (!aiKey) {
     openSettings();
-    showToast("请先在 ⚙️ 设置 中配置 DeepSeek API Key", "warning");
+    showToast("请先在设置中配置 DeepSeek API Key", "warning");
     els.apiKeyInput.focus();
     return;
   }
@@ -1747,7 +1835,7 @@ async function sendMessage(text) {
   const thinking = addThinkingBubble();
   isStreaming = true;
   els.sendBtn.disabled = true;
-  els.sendBtn.textContent = "…";
+  els.sendBtn.innerHTML = '<span class="send-progress" aria-hidden="true">···</span><span>处理中</span>';
   els.aiNewSessionBtn.disabled = true;
   els.aiClearBtn.disabled = true;
 
@@ -1780,7 +1868,7 @@ async function sendMessage(text) {
     setCurrentMessages(nextMessages);
   } catch (err) {
     if (thinking.isConnected) thinking.remove();
-    addMessage("ai", `⚠️ ${err.message}`);
+    addMessage("ai", err.message);
     showToast(`AI 调用失败：${err.message}`, "error");
   } finally {
     clearTimeout(paintTimer);
@@ -1789,7 +1877,7 @@ async function sendMessage(text) {
     els.aiNewSessionBtn.disabled = false;
     els.aiClearBtn.disabled = false;
     els.sendBtn.disabled = !els.input.value.trim();
-    els.sendBtn.textContent = "发送";
+    els.sendBtn.innerHTML = `${iconUtils.iconMarkup("send")}<span>发送</span>`;
     abortController = null;
     scrollChat();
   }
@@ -1831,9 +1919,10 @@ function applyAICollapseState() {
   const panel = document.querySelector(".ai-panel");
   main.classList.toggle("ai-collapsed", aiCollapsed);
   panel.classList.toggle("is-collapsed", aiCollapsed);
-  els.aiCollapseBtn.textContent = aiCollapsed ? "⌄" : "⌃";
   els.aiCollapseBtn.title = aiCollapsed ? "展开助手" : "收起助手";
+  els.aiCollapseBtn.setAttribute("aria-label", aiCollapsed ? "展开助手" : "收起助手");
   els.aiCollapseBtn.setAttribute("aria-expanded", String(!aiCollapsed));
+  motion.animateAssistant(panel, aiCollapsed);
 }
 
 function toggleAIPanel() {
@@ -1882,9 +1971,11 @@ function openSettings() {
   settingsPreviousFocus = document.activeElement;
   renderProviderSettings();
   els.modal.showModal();
+  motion.animateDialog(els.modal.querySelector(".dialog-sheet"));
 }
 
 els.settingsBtn.addEventListener("click", openSettings);
+els.globalSettingsBtn.addEventListener("click", openSettings);
 els.modal.querySelectorAll("[data-close-modal]").forEach(el => {
   el.addEventListener("click", () => els.modal.close());
 });
@@ -1916,7 +2007,7 @@ els.saveKeyBtn.addEventListener("click", () => {
   saveJSON(STORAGE_KEYS.provider, providerConfig);
   localStorage.setItem(STORAGE_KEYS.apiKey, key);
   els.modal.close();
-  showToast("✅ API Key 已保存", "success");
+  showToast("API Key 已保存", "success");
 });
 
 /* ==========================================================
@@ -1941,15 +2032,39 @@ if (window.desktop?.onWindowShown) {
   });
 }
 
+function syncTaskWidgetVisibility(value) {
+  const visible = typeof value === "boolean" ? value : !!value?.visible;
+  els.widgetToggle?.setAttribute("aria-pressed", String(visible));
+  if (els.widgetToggle) {
+    els.widgetToggle.title = visible ? "桌面任务笺已显示" : "显示桌面任务笺";
+    els.widgetToggle.setAttribute("aria-label", visible ? "桌面任务笺已显示" : "显示桌面任务笺");
+  }
+}
+
+els.widgetToggle?.addEventListener("click", async () => {
+  try {
+    await window.desktop?.setTaskWidgetVisible?.(true);
+  } catch {
+    showToast("桌面任务笺暂时无法显示", "error");
+  }
+});
+
+if (window.desktop?.onTaskWidgetVisibility) {
+  window.desktop.onTaskWidgetVisibility(syncTaskWidgetVisibility);
+}
+if (window.desktop?.onTaskWidgetAction) {
+  window.desktop.onTaskWidgetAction(action => void handleTaskWidgetAction(action));
+}
+
 function renderInitialVersion() {
-  const fallback = window.desktop?.version || "1.0.7";
-  const current = pickTaskVersion(fallback);
+  const fallback = window.desktop?.version || "1.2.0";
+  const current = uiAppearance.formatDisplayVersion(fallback);
   if (els.version) els.version.textContent = `V${current}`;
 
   if (window.desktop?.getAppVersion) {
     window.desktop.getAppVersion().then(v => {
       if (!v) return;
-      els.version.textContent = `V${pickTaskVersion(v)}`;
+      els.version.textContent = `V${uiAppearance.formatDisplayVersion(v)}`;
     }).catch(() => {});
   }
 }
@@ -1958,6 +2073,7 @@ function renderInitialVersion() {
    初始化
    ========================================================== */
 function init() {
+  iconUtils.mountIcons(document);
   initTheme();
   initBrightness();
   renderInitialVersion();
@@ -1981,6 +2097,8 @@ function init() {
     if (pruneExpiredCompletedTasks()) queueTaskRender();
   }, 60 * 60 * 1000);
   els.sendBtn.disabled = !els.input.value.trim();
+  widgetPublishingReady = true;
+  void publishTaskWidgetSnapshot();
 }
 
 init();
