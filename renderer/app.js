@@ -70,11 +70,12 @@ function showToast(message, type = "") {
   const container = document.getElementById("toast-container");
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
-  toast.textContent = message;
+  const iconName = type === "error" ? "warning" : type === "success" ? "check" : "warning";
+  toast.innerHTML = `${iconUtils.iconMarkup(iconName)}<span>${escapeHTML(message)}</span>`;
   while (container.children.length >= 3) container.firstElementChild.remove();
   container.appendChild(toast);
   motion.animateToast(toast);
-  setTimeout(() => toast.remove(), 4200);
+  setTimeout(() => toast.remove(), 3200);
 }
 
 function escapeHTML(str) {
@@ -739,7 +740,7 @@ function taskAttachmentIdentity(value) {
 function renderTaskNoteAttachmentPreview(attachment) {
   return /^image\//i.test(attachment.mimeType)
     ? '<img class="task-attachment-thumb" loading="lazy" alt="">'
-    : '<span class="task-file-icon" aria-hidden="true">📎</span>';
+    : `<span class="task-file-icon" aria-hidden="true">${iconUtils.iconMarkup("file")}</span>`;
 }
 
 function createPendingFilePreview(file) {
@@ -763,7 +764,8 @@ function releaseTaskNoteDraftPreviews(draft) {
 
 function renderPendingFilePreview(pending) {
   if (!pending.previewUrl) {
-    return '<span class="task-file-icon" aria-hidden="true">＋</span>';
+    const iconName = /^image\//i.test(pending.file.type) ? "image" : "file";
+    return `<span class="task-file-icon" aria-hidden="true">${iconUtils.iconMarkup(iconName)}</span>`;
   }
   return '<img class="task-attachment-thumb" loading="lazy" src="'
     + escapeHTML(pending.previewUrl)
@@ -781,7 +783,7 @@ function renderTaskNoteDraft() {
     <li class="task-note-attachment-entry" data-task-id="${taskId}" data-storage-name="${storageName}">
       ${renderTaskNoteAttachmentPreview(attachment)}
       <span class="task-note-attachment-detail">
-        <strong>${escapeHTML(attachment.name)}</strong>
+        <strong class="task-note-attachment-name">${escapeHTML(attachment.name)}</strong>
         <span>${escapeHTML(formatAttachmentType(attachment))} · ${formatBytes(attachment.size)} · 已保存</span>
         <span class="task-attachment-status">文件已不存在</span>
       </span>
@@ -794,7 +796,7 @@ function renderTaskNoteDraft() {
     <li class="task-note-attachment-entry is-pending">
       ${renderPendingFilePreview(pending)}
       <span class="task-note-attachment-detail">
-        <strong>${escapeHTML(pending.file.name)}</strong>
+        <strong class="task-note-attachment-name">${escapeHTML(pending.file.name)}</strong>
         <span>${escapeHTML(formatAttachmentType(pending.file))} · ${formatBytes(pending.file.size)} · 待保存</span>
       </span>
       <button type="button" class="task-note-attachment-action" data-action="remove-pending-attachment"
@@ -808,7 +810,7 @@ function renderTaskNoteDraft() {
     <li class="task-note-attachment-entry is-removing" data-task-id="${taskId}" data-storage-name="${storageName}">
       ${renderTaskNoteAttachmentPreview(attachment)}
       <span class="task-note-attachment-detail">
-        <strong>${escapeHTML(attachment.name)}</strong>
+        <strong class="task-note-attachment-name">${escapeHTML(attachment.name)}</strong>
         <span>${escapeHTML(formatAttachmentType(attachment))} · ${formatBytes(attachment.size)} · 保存后移除</span>
         <span class="task-attachment-status">文件已不存在</span>
       </span>
@@ -860,7 +862,7 @@ function openTaskNoteDialog(task) {
     setTaskNoteStatus();
   }
   els.noteDialog.showModal();
-  motion.animateDialog(els.noteDialog.querySelector(".modal-card"));
+  motion.animateDialog(els.noteDialog.querySelector(".dialog-sheet"));
   requestAnimationFrame(() => els.noteInput.focus({ preventScroll: true }));
 }
 
@@ -1234,7 +1236,7 @@ els.list.addEventListener("change", event => {
     handleTaskCompletion(task, event.target.checked);
     saveTasks();
     queueTaskRender();
-    if (event.target.checked) showToast(`✅ 完成「${task.title}」`);
+    if (event.target.checked) showToast(`完成「${task.title}」`, "success");
     renderParentOptions();
   } else if (action === "change-priority") {
     task.priority = event.target.value;
@@ -1302,11 +1304,11 @@ els.form.addEventListener("submit", e => {
   if (remindTime) {
     const diff = new Date(remindTime).getTime() - Date.now();
     if (diff <= 0) {
-      showToast("⚠️ 提醒时间已过，将立即提醒", "warning");
+      showToast("提醒时间已过，将立即提醒", "warning");
       fireReminder(task);
     } else if (diff <= 60000) {
       const sec = Math.ceil(diff / 1000);
-      showToast(`⏰ ${sec} 秒后提醒你「${title}」`, "success");
+      showToast(`${sec} 秒后提醒你「${title}」`, "success");
     }
   }
 });
@@ -1370,7 +1372,7 @@ function playBeep() {
 }
 
 async function fireReminder(task) {
-  const title = "⏰ 任务提醒";
+  const title = "任务提醒";
   const body = `「${task.title}」${task.remarks ? " - " + task.remarks : ""} 时间到了！`;
   playBeep();
   showToast(`${title} ${body}`, "warning");
@@ -1584,7 +1586,7 @@ function createNewSession() {
   chatState.activeSessionId = session.id;
   saveChatState();
   renderChatHistory();
-  showToast("已创建新会话 🆕", "success");
+  showToast("已创建新会话", "success");
 }
 
 async function clearAllSessions() {
@@ -1749,7 +1751,7 @@ async function sendMessage(text) {
 
   if (!aiKey) {
     openSettings();
-    showToast("请先在 ⚙️ 设置 中配置 DeepSeek API Key", "warning");
+    showToast("请先在设置中配置 DeepSeek API Key", "warning");
     els.apiKeyInput.focus();
     return;
   }
@@ -1770,7 +1772,7 @@ async function sendMessage(text) {
   const thinking = addThinkingBubble();
   isStreaming = true;
   els.sendBtn.disabled = true;
-  els.sendBtn.textContent = "…";
+  els.sendBtn.innerHTML = '<span class="send-progress" aria-hidden="true">···</span><span>处理中</span>';
   els.aiNewSessionBtn.disabled = true;
   els.aiClearBtn.disabled = true;
 
@@ -1803,7 +1805,7 @@ async function sendMessage(text) {
     setCurrentMessages(nextMessages);
   } catch (err) {
     if (thinking.isConnected) thinking.remove();
-    addMessage("ai", `⚠️ ${err.message}`);
+    addMessage("ai", err.message);
     showToast(`AI 调用失败：${err.message}`, "error");
   } finally {
     clearTimeout(paintTimer);
@@ -1812,7 +1814,7 @@ async function sendMessage(text) {
     els.aiNewSessionBtn.disabled = false;
     els.aiClearBtn.disabled = false;
     els.sendBtn.disabled = !els.input.value.trim();
-    els.sendBtn.textContent = "发送";
+    els.sendBtn.innerHTML = `${iconUtils.iconMarkup("send")}<span>发送</span>`;
     abortController = null;
     scrollChat();
   }
@@ -1906,7 +1908,7 @@ function openSettings() {
   settingsPreviousFocus = document.activeElement;
   renderProviderSettings();
   els.modal.showModal();
-  motion.animateDialog(els.modal.querySelector(".modal-card"));
+  motion.animateDialog(els.modal.querySelector(".dialog-sheet"));
 }
 
 els.settingsBtn.addEventListener("click", openSettings);
@@ -1942,7 +1944,7 @@ els.saveKeyBtn.addEventListener("click", () => {
   saveJSON(STORAGE_KEYS.provider, providerConfig);
   localStorage.setItem(STORAGE_KEYS.apiKey, key);
   els.modal.close();
-  showToast("✅ API Key 已保存", "success");
+  showToast("API Key 已保存", "success");
 });
 
 /* ==========================================================

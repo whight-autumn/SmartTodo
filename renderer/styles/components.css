@@ -201,6 +201,8 @@
 .task-done .task-title { color: var(--text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .task-note-preview, .archive-parent { margin-top: 3px; color: var(--text-muted); font-size: .76rem; font-weight: 500; }
 .task-note-preview { max-width: 72ch; letter-spacing: .02em; white-space: pre-wrap; }
+.note-link { max-width: 100%; padding: 0; border: 0; color: var(--accent-strong); background: transparent; font: inherit; text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 44%, transparent); text-underline-offset: .18em; }
+.note-link:hover { text-decoration-color: currentColor; }
 .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 7px; color: var(--text-muted); font-size: .7rem; }
 .task-meta-chip { display: inline-flex; padding: 1px 5px; border: 1px solid transparent; border-radius: 4px; }
 .task-type-tag { color: var(--type-text); background-color: var(--type-bg); border-color: color-mix(in srgb, var(--type-text) 34%, transparent); }
@@ -223,7 +225,8 @@
 .task-btn.delete:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
 .task-btn.pin.active { color: var(--amber); border-color: var(--amber); }
 .priority-select { color: var(--text-secondary); background: var(--surface); }
-.task-title, .task-note-preview, .note-link { overflow-wrap: anywhere; }
+.task-title, .task-note-preview, .task-attachment-name, .task-note-attachment-name,
+.note-link, .md-content { overflow-wrap: anywhere; }
 .empty-tip, .empty-state { margin: auto; padding: 42px 16px; color: var(--text-muted); text-align: center; }
 .empty-tip .empty-icon { display: inline-flex; margin-bottom: 10px; font-size: 1.6rem; }
 .empty-state h3 { margin-bottom: 6px; color: var(--text); font-family: var(--font-display); font-size: 1.08rem; }
@@ -233,7 +236,7 @@
 .task-attachment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 7px; margin-top: 8px; }
 .task-attachment, .task-note-attachment-entry { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); text-align: left; }
 .task-attachment-copy, .task-note-attachment-detail { display: grid; min-width: 0; }
-.task-attachment-name { overflow: hidden; font-size: .75rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.task-attachment-name, .task-note-attachment-name { min-width: 0; font-size: .75rem; font-weight: 600; }
 .task-attachment-meta, .task-attachment-status { color: var(--text-muted); font-size: .66rem; }
 .task-attachment-status { display: none; color: var(--danger); }
 .task-attachment.is-unavailable .task-attachment-status { display: block; }
@@ -307,16 +310,25 @@
 .ai-sidecar { padding-top: 18px; padding-bottom: 8px; }
 
 .toast-container { position: fixed; z-index: 80; top: 18px; left: 50%; display: grid; gap: 8px; width: min(28rem, calc(100vw - 24px)); transform: translateX(-50%); pointer-events: none; }
-.toast { padding: 10px 14px; border-radius: var(--radius-sm); color: var(--text); background: var(--surface-raised); box-shadow: var(--shadow-1); text-align: center; }
+.toast { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); background: var(--surface-raised); box-shadow: var(--shadow-1); text-align: left; }
+.toast .ui-icon { color: var(--accent); }
 .toast.warning { color: var(--danger); }
+.toast.warning .ui-icon, .toast.error .ui-icon { color: var(--danger); }
+.toast.error { color: var(--danger); }
 .toast.success { color: var(--accent-strong); }
 
 dialog { max-width: calc(100vw - 28px); padding: 0; border: 0; color: var(--text); background: transparent; }
 dialog::backdrop { background: rgba(17, 24, 21, .48); }
-.settings-dialog { width: min(34rem, calc(100vw - 28px)); }
-.task-note-dialog { width: min(42rem, calc(100vw - 28px)); }
-.modal-card, .confirm-dialog form { overflow: hidden; border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-dialog); }
-.modal-head, .modal-body, .modal-foot, .confirm-dialog form { padding: 18px 20px; }
+.settings-dialog { width: auto; }
+.settings-dialog .dialog-sheet {
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(780px, calc(100vh - 32px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.dialog-sheet { overflow: hidden; border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-dialog); }
+.dialog-sheet__head, .dialog-sheet__body, .dialog-sheet__foot { padding: 18px 20px; }
+.dialog-sheet__body { min-width: 0; overflow: auto; }
 .modal-head { border-bottom: 1px solid var(--line); }
 .modal-head h3, .confirm-dialog h3 { margin: 0; font-family: var(--font-display); font-size: 1.18rem; }
 .modal-body { display: grid; gap: 9px; }
@@ -327,10 +339,13 @@ dialog::backdrop { background: rgba(17, 24, 21, .48); }
 .task-note-attachment-tools { flex-wrap: wrap; gap: 9px; }
 .task-note-attachment-tools .field-label { width: 100%; }
 .task-note-attachment-list { display: grid; gap: 7px; }
-.task-note-attachment-detail { flex: 1 1 auto; }
+.task-note-attachment-entry { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; }
+.task-note-attachment-detail { min-width: 0; }
 .task-note-attachment-action { min-height: 30px; }
 .task-note-status[data-type="error"] { color: var(--danger); }
 .confirm-dialog { width: min(27rem, calc(100vw - 28px)); }
+.confirm-dialog .dialog-sheet { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(27rem, calc(100vw - 32px)); }
+.confirm-dialog .dialog-sheet__head { padding-bottom: 0; }
 .confirm-dialog p { color: var(--text-secondary); }
 .confirm-actions { justify-content: flex-end; gap: 9px; }
 
@@ -341,4 +356,5 @@ dialog::backdrop { background: rgba(17, 24, 21, .48); }
   .task-row[data-depth="1"], .task-row[data-depth="2"],
   .task-row[data-depth="3"], .task-row[data-depth="4"] { margin-inline-start: 12px; }
   .msg { max-width: 96%; }
+  .dialog-sheet__head, .dialog-sheet__body, .dialog-sheet__foot { padding-inline: 16px; }
 }

@@ -41,3 +41,9 @@ test("motion dependencies load before application code", () => {
   assert.ok(html.indexOf("vendor/gsap.min.js") < html.indexOf("motion.js"));
   assert.ok(html.indexOf("motion.js") < html.indexOf("app.js"));
 });
+
+test("dialogs use the shared sheet anatomy", () => {
+  assert.match(html, /class="[^"]*dialog-sheet__head/);
+  assert.match(html, /class="[^"]*dialog-sheet__body/);
+  assert.match(html, /class="[^"]*dialog-sheet__foot/);
+});

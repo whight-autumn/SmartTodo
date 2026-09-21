@@ -141,11 +141,11 @@
   </div>
 
   <dialog id="task-note-dialog" class="settings-dialog task-note-dialog" aria-labelledby="task-note-heading">
-    <div class="modal-card">
-      <div class="modal-head">
+    <div class="modal-card dialog-sheet">
+      <header class="modal-head dialog-sheet__head">
         <h3 id="task-note-heading">编辑任务备注</h3>
-      </div>
-      <div class="modal-body">
+      </header>
+      <div class="modal-body dialog-sheet__body">
         <label class="field-label" for="task-note-input">任务备注</label>
         <textarea id="task-note-input" class="input task-note-input" rows="6" placeholder="记录补充信息，也可以粘贴 HTTP/HTTPS 链接"></textarea>
         <div class="task-note-attachment-tools">
@@ -159,20 +159,20 @@
         <ul id="task-note-attachment-list" class="task-note-attachment-list" aria-label="任务附件"></ul>
         <p id="task-note-status" class="hint task-note-status" role="status" aria-live="polite"></p>
       </div>
-      <div class="modal-foot task-note-actions">
+      <footer class="modal-foot dialog-sheet__foot task-note-actions">
         <button id="task-note-cancel" class="btn btn-secondary" type="button">取消</button>
         <button id="task-note-save" class="btn btn-primary" type="button">保存</button>
-      </div>
+      </footer>
     </div>
   </dialog>
 
   <dialog id="settings-modal" class="settings-dialog" aria-labelledby="settings-heading">
-    <div class="modal-card">
-      <div class="modal-head">
+    <div class="modal-card dialog-sheet">
+      <header class="modal-head dialog-sheet__head">
         <h3 id="settings-heading">知行助手设置</h3>
         <button class="icon-btn" type="button" data-close-modal aria-label="关闭设置" data-icon="close"></button>
-      </div>
-      <div class="modal-body">
+      </header>
+      <div class="modal-body dialog-sheet__body">
         <label class="field-label" for="provider-select">AI 服务商</label>
         <select id="provider-select" class="input">
           <option value="deepseek">DeepSeek</option>
@@ -189,20 +189,24 @@
         <p id="data-path-hint" class="hint data-path-hint"></p>
         <p class="hint">还没有 Key？<a href="https://platform.deepseek.com" target="_blank" rel="noopener">前往 DeepSeek 开放平台申请</a></p>
       </div>
-      <div class="modal-foot">
+      <footer class="modal-foot dialog-sheet__foot">
         <button id="save-key-btn" class="btn btn-primary" type="button">保存设置</button>
-      </div>
+      </footer>
     </div>
   </dialog>
 
   <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
-    <form method="dialog">
-      <h3 id="confirm-title">删除任务</h3>
-      <p id="confirm-message"></p>
-      <div class="confirm-actions">
+    <form method="dialog" class="dialog-sheet">
+      <header class="dialog-sheet__head">
+        <h3 id="confirm-title">删除任务</h3>
+      </header>
+      <div class="dialog-sheet__body">
+        <p id="confirm-message"></p>
+      </div>
+      <footer class="confirm-actions dialog-sheet__foot">
         <button class="btn btn-secondary" value="cancel" autofocus>取消</button>
         <button id="confirm-accept" class="btn btn-danger" value="confirm">确认删除</button>
-      </div>
+      </footer>
     </form>
   </dialog>
 

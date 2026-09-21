@@ -18,7 +18,8 @@
 
 .brand-lockup, .brand-tools, .brand-main-line, .panel-header, .ai-actions,
 .brightness-control, .form-row, .filter-bar, .chat-footer, .modal-head,
-.modal-foot, .confirm-actions, .task-note-attachment-tools {
+.modal-foot, .confirm-actions, .task-note-attachment-tools, .dialog-sheet__head,
+.dialog-sheet__foot {
   display: flex;
   align-items: center;
 }
