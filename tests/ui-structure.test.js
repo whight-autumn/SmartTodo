@@ -1,0 +1,30 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const html = fs.readFileSync(path.join(root, "renderer/index.html"), "utf8");
+const entryCss = fs.readFileSync(path.join(root, "renderer/style.css"), "utf8");
+
+test("V1.2 shell preserves behavioral IDs and adds semantic regions", () => {
+  for (const id of [
+    "task-form", "task-title", "task-desc", "task-time", "task-priority", "task-type",
+    "task-parent", "task-list", "chat-box", "user-input", "send-btn", "settings-modal",
+    "task-note-dialog", "confirm-dialog", "brightness-slider", "theme-toggle"
+  ]) assert.match(html, new RegExp(`id=["']${id}["']`), id);
+  assert.match(html, /class="[^"]*task-workbench/);
+  assert.match(html, /class="[^"]*ai-sidecar/);
+});
+
+test("runtime scripts and styles are local", () => {
+  assert.doesNotMatch(html, /<(script|link)[^>]+(src|href)=["']https?:\/\//i);
+  assert.ok(html.indexOf("icon-utils.js") < html.indexOf("app.js"));
+  for (const file of ["tokens", "base", "layout", "components", "motion"]) {
+    assert.match(entryCss, new RegExp(`@import url\\(["']styles/${file}\\.css["']\\)`));
+  }
+});
+
+test("primary interface no longer uses emoji as controls", () => {
+  assert.doesNotMatch(html, /[🌙☀️📋🤖🆕🧹⚙️📎🧠📝]/u);
+});

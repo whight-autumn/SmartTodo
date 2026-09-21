@@ -1,5 +1,5 @@
 /* ==========================================================
-   智能任务管家 · AI 助手
+   SmartTodo · 知行助手
    功能：任务待办 / 子任务 / 提醒 / DeepSeek 对话
    ========================================================== */
 
@@ -10,6 +10,8 @@ const draftStore = window.DraftStore;
 const aiProvider = window.AIProvider;
 const uiAppearance = window.UIAppearance;
 const noteUtils = window.NoteUtils;
+const iconUtils = window.IconUtils;
+if (!iconUtils) throw new Error("图标模块加载失败");
 
 /* ---------- 数据层 ---------- */
 const STORAGE_KEYS = {
@@ -232,7 +234,8 @@ const els = {
 function initTheme() {
   const saved = localStorage.getItem(STORAGE_KEYS.theme) || "dark";
   document.documentElement.setAttribute("data-theme", saved);
-  els.themeBtn.textContent = saved === "dark" ? "🌙" : "☀️";
+  els.themeBtn.dataset.theme = saved;
+  els.themeBtn.setAttribute("aria-label", saved === "dark" ? "切换为浅色主题" : "切换为深色主题");
 }
 
 function toggleTheme() {
@@ -240,8 +243,9 @@ function toggleTheme() {
   const next = current === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
   localStorage.setItem(STORAGE_KEYS.theme, next);
-  els.themeBtn.textContent = next === "dark" ? "🌙" : "☀️";
-  showToast(next === "dark" ? "已切换为深色模式 🌙" : "已切换为浅色模式 ☀️");
+  els.themeBtn.dataset.theme = next;
+  els.themeBtn.setAttribute("aria-label", next === "dark" ? "切换为浅色主题" : "切换为深色主题");
+  showToast(next === "dark" ? "已切换为深色模式" : "已切换为浅色模式");
 }
 
 els.themeBtn.addEventListener("click", toggleTheme);
@@ -452,19 +456,20 @@ function queueTaskRender() {
 }
 
 function setTaskMode(mode, targetTask = null) {
+  const submitButton = els.form.querySelector(".submit-btn");
   if (mode === "sub" && targetTask) {
     els.type.value = "sub";
     els.parentRow.classList.remove("hidden");
     els.parent.value = targetTask.id;
     els.formTip.textContent = `子任务模式（当前挂载到：${targetTask.title}）`;
-    els.form.querySelector(".submit-btn").textContent = "＋ 添加子任务";
+    submitButton.innerHTML = `${iconUtils.iconMarkup("add")}<span>添加子任务</span>`;
     return;
   }
   els.type.value = "main";
   els.parent.value = "";
   els.parentRow.classList.add("hidden");
-  els.formTip.textContent = "默认添加主任务；也可点主任务卡片上的「➕ 子任务」快速挂载。";
-  els.form.querySelector(".submit-btn").textContent = "＋ 添加主任务";
+  els.formTip.textContent = "默认添加主任务；也可通过任务操作添加子任务。";
+  submitButton.innerHTML = `${iconUtils.iconMarkup("add")}<span>添加主任务</span>`;
 }
 
 function renderTaskAttachments(task) {
@@ -1831,8 +1836,8 @@ function applyAICollapseState() {
   const panel = document.querySelector(".ai-panel");
   main.classList.toggle("ai-collapsed", aiCollapsed);
   panel.classList.toggle("is-collapsed", aiCollapsed);
-  els.aiCollapseBtn.textContent = aiCollapsed ? "⌄" : "⌃";
   els.aiCollapseBtn.title = aiCollapsed ? "展开助手" : "收起助手";
+  els.aiCollapseBtn.setAttribute("aria-label", aiCollapsed ? "展开助手" : "收起助手");
   els.aiCollapseBtn.setAttribute("aria-expanded", String(!aiCollapsed));
 }
 
@@ -1958,6 +1963,7 @@ function renderInitialVersion() {
    初始化
    ========================================================== */
 function init() {
+  iconUtils.mountIcons(document);
   initTheme();
   initBrightness();
   renderInitialVersion();
