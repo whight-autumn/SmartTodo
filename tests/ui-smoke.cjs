@@ -207,6 +207,13 @@ app.whenReady().then(async () => {
     await reloaded;
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    const hierarchy = await window.webContents.executeJavaScript(`({
+      parent: document.querySelector('[data-id="context-parent"]')?.dataset.depth,
+      child: document.querySelector('[data-id="focused-child"]')?.dataset.depth,
+      actions: [...document.querySelectorAll('[data-id="active"] [data-action]')]
+        .map(node => node.dataset.action)
+    })`);
+
     const result = await window.webContents.executeJavaScript(`
       new Promise(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -776,6 +783,11 @@ app.whenReady().then(async () => {
     assert.equal(result.resetBrightness, "100");
     assert.equal(result.brightnessOutput, "100%");
     assert.equal(result.initialFilter, "active");
+    assert.equal(hierarchy.parent, "0");
+    assert.equal(hierarchy.child, "1");
+    for (const action of ["pin", "add-subtask", "edit-note", "delete"]) {
+      assert.ok(hierarchy.actions.includes(action), action);
+    }
     assert.equal(noteResult.originalRemarks, "原始备注 https://example.com/old");
     assert.equal(noteResult.unchangedUpdatedAt, noteResult.originalUpdatedAt);
     assert.equal(noteResult.unchangedDialogOpen, false);

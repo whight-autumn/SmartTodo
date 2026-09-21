@@ -308,7 +308,7 @@ function sortTasksForDisplay(list) {
   return taskModel.sortTasks(list);
 }
 
-
+const icon = (name, label = "") => iconUtils.iconMarkup(name, label ? { label } : {});
 
 function getTaskMeta(task) {
   const dueText = getRemindText(task);
@@ -316,9 +316,9 @@ function getTaskMeta(task) {
   if (task.remindTime) {
     const isOverdue = !task.done && new Date(task.remindTime).getTime() < Date.now();
     if (isOverdue) {
-      timeBadge = `<span class="task-overdue">⏰ 已过提醒时间</span>`;
+      timeBadge = `<span class="task-overdue">${icon("warning")}<span>已过提醒时间</span></span>`;
     } else {
-      timeBadge = `<span class="task-time">⏰ ${formatTime(task.remindTime)}</span>`;
+      timeBadge = `<span class="task-time"><span class="task-meta-label">提醒</span>${formatTime(task.remindTime)}</span>`;
       if (dueText) timeBadge += `<span class="task-due">${dueText}</span>`;
     }
   }
@@ -481,7 +481,7 @@ function renderTaskAttachments(task) {
     const isImage = /^image\//i.test(attachment.mimeType);
     const preview = isImage
       ? '<img class="task-attachment-thumb" loading="lazy" alt="">'
-      : "<span class=\"task-file-icon\" aria-hidden=\"true\">📄</span>";
+      : `<span class="task-file-icon" aria-hidden="true">${icon("file")}</span>`;
     return `
       <button type="button" class="task-attachment" data-action="open-attachment"
         data-task-id="${taskId}" data-storage-name="${storageName}" aria-label="打开附件 ${name}">
@@ -548,12 +548,13 @@ function hydrateTaskAttachmentPreviews() {
 
 function createTaskItem(task, depth, archive = false, visibleSet = null) {
   const li = document.createElement("li");
-  li.className = "task-item"
+  li.className = "task-item task-row task-chapter"
     + (task.done ? " task-done" : "")
     + (depth > 0 ? " sub-task" : "")
     + (archive ? " archive-item" : "");
-  li.style.setProperty("--depth", depth);
   li.dataset.id = task.id;
+  li.dataset.depth = String(depth);
+  li.dataset.priority = task.priority;
   const children = taskIndex.childrenByParent.get(task.id) || [];
   const hasChildren = children.some(child => !visibleSet || visibleSet.has(child.id));
   const collapsed = currentFilter === "attention" ? false : !!collapsedMap[task.id];
@@ -565,14 +566,15 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
     ? "<button class=\"task-btn collapse\" title=\""
       + (collapsed ? "展开子任务" : "折叠子任务")
       + "\" aria-expanded=\"" + String(!collapsed) + "\" data-action=\"collapse\">"
-      + (collapsed ? "▸" : "▾")
+      + icon("collapse")
+      + `<span class="sr-only">${collapsed ? "展开子任务" : "折叠子任务"}</span>`
       + "</button>"
     : "";
   const addSubHtml = !archive && !task.parentId
-    ? "<button class=\"task-btn subtask\" title=\"为此主任务添加子任务\" data-action=\"add-subtask\">＋ 子任务</button>"
+    ? `<button class="task-btn subtask" title="为此主任务添加子任务" data-action="add-subtask">${icon("subtask")}<span>子任务</span></button>`
     : "";
   const archiveAction = archive
-    ? "<button class=\"task-btn undo-complete\" title=\"撤销完成\" data-action=\"undo-complete\">撤销</button>"
+    ? `<button class="task-btn undo-complete" title="撤销完成" data-action="undo-complete">${icon("undo")}<span>撤销</span></button>`
     : "";
   const priorityHtml = "<select class=\"task-btn priority-select priority-" + task.priority
     + "\" title=\"修改优先级\" data-action=\"change-priority\">"
@@ -584,18 +586,25 @@ function createTaskItem(task, depth, archive = false, visibleSet = null) {
     ? "<div class=\"task-note-preview\">" + noteUtils.linkifyNote(task.remarks) + "</div>"
     : "";
   const attachmentsHtml = renderTaskAttachments(task);
-  const editNoteHtml = "<button class=\"task-btn edit-note\" type=\"button\" title=\"编辑备注与附件\" data-action=\"edit-note\">📝</button>";
+  const editNoteHtml = `<button class="task-btn edit-note" type="button" title="编辑备注与附件" data-action="edit-note">${icon("note")}<span class="sr-only">编辑备注与附件</span></button>`;
   const pinHtml = !archive
-    ? "<button class=\"task-btn pin" + (task.pinned ? " active" : "") + "\" title=\"置顶\" data-action=\"pin\">📌</button>"
+    ? `<button class="task-btn pin${task.pinned ? " active" : ""}" title="${task.pinned ? "取消置顶" : "置顶"}" data-action="pin">${icon("pin")}<span class="sr-only">${task.pinned ? "取消置顶" : "置顶"}</span></button>`
     : "";
-  li.innerHTML = "<input type=\"checkbox\" class=\"task-check\" data-action=\"toggle-complete\" "
-    + (task.done ? "checked" : "") + ">"
-    + "<div class=\"task-content\"><div class=\"task-title\">"
-    + escapeHTML(task.title) + "</div>" + parentHtml + remarksHtml + attachmentsHtml
-    + "<div class=\"task-meta\">" + getTaskMeta(task) + "</div></div>"
-    + "<div class=\"task-actions\">" + collapseHtml + addSubHtml
-    + priorityHtml + archiveAction + editNoteHtml + pinHtml
-    + "<button class=\"task-btn delete\" title=\"删除\" data-action=\"delete\">🗑️</button></div>";
+  li.innerHTML = `<div class="task-row__rail" aria-hidden="true"></div>
+    <label class="task-check-wrap">
+      <input type="checkbox" class="task-check" data-action="toggle-complete"
+        aria-label="标记「${escapeHTML(task.title)}」为${task.done ? "未完成" : "已完成"}" ${task.done ? "checked" : ""}>
+      <span class="task-check-visual" aria-hidden="true">${icon("check")}</span>
+    </label>
+    <div class="task-content task-row__content">
+      <div class="task-row__heading"><span class="task-title">${escapeHTML(task.title)}</span></div>
+      ${parentHtml}${remarksHtml}${attachmentsHtml}
+      <div class="task-row__meta task-meta">${getTaskMeta(task)}</div>
+    </div>
+    <div class="task-row__actions task-actions">${collapseHtml}${addSubHtml}${priorityHtml}
+      ${archiveAction}${editNoteHtml}${pinHtml}
+      <button class="task-btn delete" title="删除" data-action="delete">${icon("delete")}<span class="sr-only">删除任务</span></button>
+    </div>`;
   return li;
 }
 

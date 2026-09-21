@@ -28,3 +28,11 @@ test("runtime scripts and styles are local", () => {
 test("primary interface no longer uses emoji as controls", () => {
   assert.doesNotMatch(html, /[🌙☀️📋🤖🆕🧹⚙️📎🧠📝]/u);
 });
+
+test("task workbench exposes progressive composition and labelled filters", () => {
+  assert.match(html, /class="[^"]*task-composer/);
+  assert.match(html, /aria-label="任务筛选"/);
+  assert.match(html, /data-filter="attention"/);
+  assert.match(html, /data-filter="active"/);
+  assert.match(html, /data-filter="completed"/);
+});
