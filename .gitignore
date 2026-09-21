@@ -23,3 +23,6 @@ Thumbs.db
 
 # 隔离功能开发工作树
 .worktrees/
+
+# Agent execution ledger and task briefs
+.superpowers/
