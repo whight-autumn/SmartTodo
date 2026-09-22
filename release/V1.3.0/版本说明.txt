@@ -26,4 +26,4 @@ SmartTodo V1.3.0 版本说明
 - 本构建未进行商业代码签名，首次运行可能出现 Windows SmartScreen 提示。
 
 五、完整性校验
-SHA-256：构建完成后写入
+SHA-256：64F5D89889E089EB0FA1E735145C0BF3511300AA7AC2356AD38271970E7521BA
