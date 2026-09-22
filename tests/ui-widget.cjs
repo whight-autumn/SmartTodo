@@ -35,7 +35,7 @@ function assertStaticSurface() {
     "widget-heading", "widget-date", "widget-count", "widget-list", "widget-open-main"
   ]) assert.match(html, new RegExp(`id="${id}"`), id);
   assert.doesNotMatch(`${html}\n${js}`, /widget-header-open|headerOpen/);
-  assert.match(html, /<span class="widget-version">V1\.2\.2<\/span>/);
+  assert.match(html, /<span class="widget-version">V1\.3\.0<\/span>/);
   assert.match(html, /<h1 id="widget-heading">今日要务<\/h1>/);
   assert.match(html, /<footer class="widget-footer">[\s\S]*id="widget-open-main"[\s\S]*<\/footer>/);
   assert.doesNotMatch(html, /id="widget-hide"/);

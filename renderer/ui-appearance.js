@@ -62,7 +62,7 @@
 
   function formatDisplayVersion(value) {
     const match = String(value || "").replace(/^v/i, "").match(/^(\d+)\.(\d+)\.(\d+)/);
-    return match ? `${match[1]}.${match[2]}.${match[3]}` : "1.2.2";
+    return match ? `${match[1]}.${match[2]}.${match[3]}` : "1.3.0";
   }
 
   return {

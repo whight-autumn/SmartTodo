@@ -98,5 +98,5 @@ contextBridge.exposeInMainWorld("desktop", {
   },
 
   // 应用版本
-  version: process.env.npm_package_version || "1.2.2"
+  version: process.env.npm_package_version || "1.3.0"
 });
