@@ -974,6 +974,73 @@ app.whenReady().then(async () => {
         };
       })()
     `);
+
+    const recurrenceSeeded = once(window.webContents, "did-finish-load");
+    await window.webContents.executeJavaScript(`
+      (() => {
+        const now = Date.now();
+        const anchorAt = new Date(now - (7 * 24 * 60 * 60 * 1000) - (60 * 1000)).toISOString();
+        const currentKey = RecurrenceModel.getCycleKey("weekly", new Date(now));
+        const previousKey = RecurrenceModel.offsetCycleKey("weekly", currentKey, -1);
+        localStorage.setItem("smart_reminder_fingerprints", "[]");
+        localStorage.setItem("smart_tasks", JSON.stringify([{
+          id: "recurring-runtime",
+          title: "每周运行时刷新验证",
+          remarks: "",
+          remindTime: anchorAt,
+          priority: "high",
+          parentId: null,
+          done: false,
+          completedAt: null,
+          pinned: true,
+          createdAt: now - (14 * 24 * 60 * 60 * 1000),
+          updatedAt: null,
+          attachments: [],
+          recurrence: {
+            type: "weekly",
+            anchorAt,
+            activeCycleKey: previousKey,
+            lastRolledAt: null
+          },
+          systemMeta: null
+        }]));
+        location.reload();
+      })()
+    `);
+    await recurrenceSeeded;
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const firstRecurrenceLoad = await window.webContents.executeJavaScript(`
+      (() => {
+        const storedTasks = JSON.parse(localStorage.getItem("smart_tasks") || "[]");
+        const root = storedTasks.find(task => task.id === "recurring-runtime");
+        return {
+          rootDone: root?.done,
+          activeCycleKey: root?.recurrence?.activeCycleKey || "",
+          currentCycleKey: RecurrenceModel.getCycleKey("weekly", new Date()),
+          carryoverCount: storedTasks.filter(task => task.systemMeta?.role === "recurrence-carryover").length,
+          fingerprints: JSON.parse(localStorage.getItem("smart_reminder_fingerprints") || "[]"),
+          reminderToastCount: [...document.querySelectorAll(".toast")]
+            .filter(toast => toast.textContent.includes("任务提醒")).length
+        };
+      })()
+    `);
+
+    const recurrenceReloaded = once(window.webContents, "did-finish-load");
+    await window.webContents.executeJavaScript("location.reload()");
+    await recurrenceReloaded;
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const secondRecurrenceLoad = await window.webContents.executeJavaScript(`
+      (() => {
+        const storedTasks = JSON.parse(localStorage.getItem("smart_tasks") || "[]");
+        return {
+          carryoverCount: storedTasks.filter(task => task.systemMeta?.role === "recurrence-carryover").length,
+          fingerprints: JSON.parse(localStorage.getItem("smart_reminder_fingerprints") || "[]"),
+          reminderToastCount: [...document.querySelectorAll(".toast")]
+            .filter(toast => toast.textContent.includes("任务提醒")).length
+        };
+      })()
+    `);
+
     assert.match(result.activeText, /创建\s+2026-09-14 09:05/);
     assert.match(result.completedText, /创建\s+2026-09-13 16:20/);
     assert.match(result.completedText, /完成\s+2026-09-14 10:45/);
@@ -998,6 +1065,14 @@ app.whenReady().then(async () => {
     assert.equal(formResult.storedRecurrence.activeCycleKey, "W:2026-10-05");
     assert.equal(formResult.subtaskRecurrence, "none");
     assert.equal(formResult.subtaskRecurrenceDisabled, true);
+    assert.equal(firstRecurrenceLoad.rootDone, false);
+    assert.equal(firstRecurrenceLoad.activeCycleKey, firstRecurrenceLoad.currentCycleKey);
+    assert.equal(firstRecurrenceLoad.carryoverCount, 1);
+    assert.equal(firstRecurrenceLoad.fingerprints.length, 1);
+    assert.equal(firstRecurrenceLoad.reminderToastCount, 1);
+    assert.equal(secondRecurrenceLoad.carryoverCount, 1);
+    assert.deepEqual(secondRecurrenceLoad.fingerprints, firstRecurrenceLoad.fingerprints);
+    assert.equal(secondRecurrenceLoad.reminderToastCount, 0);
     assert.equal(hierarchy.parent, "0");
     assert.equal(hierarchy.child, "1");
     for (const action of ["pin", "add-subtask", "edit-note", "delete"]) {

@@ -54,6 +54,18 @@ test("recurring task submission requires a reminder and stores a normalized recu
   assert.match(appSource, /重复任务需要设置首次提醒时间/);
 });
 
+test("recurring runtime persists reminder fingerprints and schedules the next 04:00 boundary", () => {
+  assert.match(appSource, /reminderFingerprints:\s*"smart_reminder_fingerprints"/);
+  assert.match(appSource, /let recurrenceTimer = null/);
+  assert.match(appSource, /function scheduleNextRecurrenceBoundary\(/);
+  assert.match(appSource, /recurrenceModel\.getNextDailyBoundary\(new Date\(\)\)/);
+  assert.match(appSource, /recurrenceTimer\s*=\s*setTimeout\(/);
+  assert.match(appSource, /function applyRecurringTaskRollovers\(/);
+  assert.match(appSource, /document\.addEventListener\("visibilitychange"[\s\S]*?applyRecurringTaskRollovers\(\)/);
+  assert.match(appSource, /recurrenceModel\.getReminderFingerprint\(task\)/);
+  assert.match(appSource, /function saveReminderFingerprints\(/);
+});
+
 test("motion dependencies load before application code", () => {
   assert.ok(html.indexOf("vendor/gsap.min.js") < html.indexOf("motion.js"));
   assert.ok(html.indexOf("motion.js") < html.indexOf("app.js"));

@@ -26,7 +26,8 @@ const STORAGE_KEYS = {
   provider: "ai_provider_config",
   collapsed: "smart_tasks_collapsed",
   theme: "smart_theme",
-  aiCollapsed: "smart_ai_collapsed"
+  aiCollapsed: "smart_ai_collapsed",
+  reminderFingerprints: "smart_reminder_fingerprints"
 };
 
 const ATTACHMENT_LIMIT = 10;
@@ -150,7 +151,11 @@ let currentFilter = "active";
 let remindersEnabled = true;
 let reminderInterval = null;
 let maintenanceInterval = null;
-let remindedSet = new Set();
+let recurrenceTimer = null;
+const savedReminderFingerprints = loadJSON(STORAGE_KEYS.reminderFingerprints, []);
+let remindedSet = new Set(Array.isArray(savedReminderFingerprints)
+  ? savedReminderFingerprints.filter(value => typeof value === "string")
+  : []);
 const storedProviderConfig = loadJSON(STORAGE_KEYS.provider, {});
 let providerConfig = aiProvider.normalizeProviderConfig({
   ...storedProviderConfig,
@@ -339,6 +344,7 @@ els.time.addEventListener("dblclick", guardReminderTimeDoubleClick);
    任务与子任务
    ========================================================== */
 function publishTaskWidgetSnapshot() {
+  applyRecurringTaskRollovers(Date.now(), { publishWidget: false });
   if (!window.desktop?.publishTaskWidgetSnapshot) return Promise.resolve(false);
   const theme = document.documentElement.getAttribute("data-theme") || "dark";
   const brightness = uiAppearance.resolveBrightness(els.brightnessSlider.value).value;
@@ -347,10 +353,54 @@ function publishTaskWidgetSnapshot() {
   ).catch(() => false);
 }
 
-function saveTasks() {
+function saveTasks({ publishWidget = true } = {}) {
   taskIndexDirty = true;
   saveJSON(STORAGE_KEYS.tasks, tasks);
-  if (widgetPublishingReady) void publishTaskWidgetSnapshot();
+  reconcileReminderFingerprints();
+  if (publishWidget && widgetPublishingReady) void publishTaskWidgetSnapshot();
+}
+
+function saveReminderFingerprints() {
+  saveJSON(STORAGE_KEYS.reminderFingerprints, [...remindedSet].slice(-500));
+}
+
+function reconcileReminderFingerprints() {
+  const validFingerprints = new Set(tasks
+    .map(task => recurrenceModel.getReminderFingerprint(task))
+    .filter(Boolean));
+  let changed = false;
+  remindedSet.forEach(fingerprint => {
+    if (validFingerprints.has(fingerprint)) return;
+    remindedSet.delete(fingerprint);
+    changed = true;
+  });
+  if (changed) saveReminderFingerprints();
+  return changed;
+}
+
+function applyRecurringTaskRollovers(now = Date.now(), { publishWidget = true } = {}) {
+  const result = taskModel.rollRecurringTasks(tasks, now, uid);
+  if (!result.changed) return false;
+  tasks = result.tasks;
+  taskIndexDirty = true;
+  saveTasks({ publishWidget });
+  reconcileReminderFingerprints();
+  renderParentOptions();
+  queueTaskRender();
+  return true;
+}
+
+function scheduleNextRecurrenceBoundary() {
+  clearTimeout(recurrenceTimer);
+  const delay = Math.max(
+    1000,
+    recurrenceModel.getNextDailyBoundary(new Date()).getTime() - Date.now()
+  );
+  recurrenceTimer = setTimeout(() => {
+    applyRecurringTaskRollovers();
+    checkReminders();
+    scheduleNextRecurrenceBoundary();
+  }, delay);
 }
 
 function refreshTaskIndex() {
@@ -437,7 +487,6 @@ function pruneExpiredCompletedTasks(now = Date.now()) {
     : task);
   removedIds.forEach(id => {
     delete collapsedMap[id];
-    remindedSet.delete(id);
   });
   saveTasks();
   void cleanupTaskAttachmentDirectories([...removedIds]);
@@ -1352,7 +1401,6 @@ els.list.addEventListener("click", async event => {
     tasks = tasks.filter(item => !idsToDelete.has(item.id));
     idsToDelete.forEach(id => {
       delete collapsedMap[id];
-      remindedSet.delete(id);
     });
     saveTasks();
     void cleanupTaskAttachmentDirectories([...idsToDelete]);
@@ -1558,18 +1606,19 @@ async function fireReminder(task) {
 function checkReminders() {
   if (!remindersEnabled) return;
   const now = Date.now();
+  let ledgerChanged = false;
   tasks.forEach(task => {
-    if (!task.remindTime || task.done) return;
-    if (remindedSet.has(task.id)) return;
+    if (!task.remindTime || task.done || task.systemMeta?.role === "recurrence-carryover") return;
+    const fingerprint = recurrenceModel.getReminderFingerprint(task);
+    if (!fingerprint || remindedSet.has(fingerprint)) return;
     const time = new Date(task.remindTime).getTime();
-    if (time <= now + 3 * 1000 && time >= now - 30 * 1000) {
+    if (Number.isFinite(time) && time <= now + 3 * 1000) {
       fireReminder(task);
-      remindedSet.add(task.id);
-    }
-    if (time < now - 30 * 1000) {
-      remindedSet.add(task.id);
+      remindedSet.add(fingerprint);
+      ledgerChanged = true;
     }
   });
+  if (ledgerChanged) saveReminderFingerprints();
 }
 
 /* ==========================================================
@@ -2113,6 +2162,7 @@ els.saveKeyBtn.addEventListener("click", () => {
    ========================================================== */
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
+    applyRecurringTaskRollovers();
     checkReminders();
     scrollChat();
   } else {
@@ -2189,8 +2239,9 @@ function init() {
   renderInitialVersion();
   initializeTaskWidgetVisibility();
   applyAICollapseState();
+  applyRecurringTaskRollovers(Date.now(), { publishWidget: false });
   pruneExpiredCompletedTasks();
-  saveTasks();
+  saveTasks({ publishWidget: false });
   reconcileTaskAttachments();
   renderParentOptions();
   renderTasks();
@@ -2198,12 +2249,14 @@ function init() {
   if (!aiCollapsed) renderChatHistory();
   resetTaskForm();
   restoreTaskDraft();
+  checkReminders();
 
   if ("Notification" in window && Notification.permission === "default") {
     Notification.requestPermission();
   }
 
   reminderInterval = setInterval(checkReminders, 5000);
+  scheduleNextRecurrenceBoundary();
   maintenanceInterval = setInterval(() => {
     if (pruneExpiredCompletedTasks()) queueTaskRender();
   }, 60 * 60 * 1000);

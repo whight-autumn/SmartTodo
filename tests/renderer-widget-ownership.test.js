@@ -39,3 +39,13 @@ test("desktop note control initializes from native state and performs a true tog
   assert.match(appSource, /toggleTaskWidgetVisibility/);
   assert.doesNotMatch(appSource, /setTaskWidgetVisible\?\.\(true\)/);
 });
+
+test("widget snapshots reconcile recurring tasks before publishing", () => {
+  const publishBody = appSource.match(/function publishTaskWidgetSnapshot\([^)]*\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(publishBody, /applyRecurringTaskRollovers\(Date\.now\(\),\s*\{\s*publishWidget:\s*false\s*\}\)/);
+  assert.ok(
+    publishBody.indexOf("applyRecurringTaskRollovers") < publishBody.indexOf("createWidgetSnapshot"),
+    "rollover must run before creating the widget snapshot"
+  );
+  assert.match(appSource, /function saveTasks\(\{\s*publishWidget\s*=\s*true\s*\}\s*=\s*\{\}\)/);
+});
