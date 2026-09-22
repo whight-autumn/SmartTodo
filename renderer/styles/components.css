@@ -68,7 +68,15 @@
   transform: translateY(-4px);
 }
 .brightness-control input { top: calc(100% + 22px); width: 114px; accent-color: var(--accent); }
-.brightness-control output { top: calc(100% + 48px); }
+.brightness-control output {
+  top: calc(100% + 48px);
+  display: block;
+  min-width: 4ch;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
 .brightness-control:hover::after,
 .brightness-control:focus-within::after,
 .brightness-control.is-open::after,

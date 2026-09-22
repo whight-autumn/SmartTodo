@@ -78,6 +78,16 @@ test("brightness popover keeps a continuous hover path to the slider", () => {
   assert.match(componentsCss, /\.brightness-control:(?:hover|focus-within)[\s\S]*?\.brightness-control\.is-open/);
 });
 
+test("brightness percentage reserves one line for three digits", () => {
+  const rule = [...componentsCss.matchAll(/\.brightness-control output\s*\{[^}]*\}/gs)]
+    .map(match => match[0])
+    .find(value => /white-space:\s*nowrap/.test(value)) || "";
+  assert.match(rule, /white-space:\s*nowrap/);
+  assert.match(rule, /min-width:\s*4ch/);
+  assert.match(rule, /text-align:\s*right/);
+  assert.match(rule, /font-variant-numeric:\s*tabular-nums/);
+});
+
 test("interactive controls expose restrained press and selection feedback", () => {
   assert.match(motionCss, /transition:[^;]*transform/);
   assert.match(componentsCss, /:active:not\(:disabled\)[\s\S]*?transform:/);

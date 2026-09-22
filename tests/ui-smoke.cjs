@@ -300,6 +300,11 @@ app.whenReady().then(async () => {
           const brightnessBridge = getComputedStyle(brightnessControl, "::before");
           brightnessControl.dispatchEvent(new PointerEvent("pointerenter"));
           const brightnessOpenedByPointer = brightnessControl.classList.contains("is-open");
+          const brightnessValue = document.getElementById("brightness-value");
+          const brightnessTextRange = document.createRange();
+          brightnessTextRange.selectNodeContents(brightnessValue);
+          const brightnessValueLines = brightnessTextRange.getClientRects().length;
+          const brightnessValueWhiteSpace = getComputedStyle(brightnessValue).whiteSpace;
           const reminder = document.getElementById("task-time");
           const reminderDoubleClickCanceled = !reminder.dispatchEvent(new MouseEvent("mousedown", {
             bubbles: true,
@@ -332,6 +337,8 @@ app.whenReady().then(async () => {
               brightnessBridgeHeight: parseFloat(brightnessBridge.height),
               brightnessBridgeWidth: parseFloat(brightnessBridge.width),
               brightnessOpenedByPointer,
+              brightnessValueLines,
+              brightnessValueWhiteSpace,
               reminderDoubleClickCanceled,
               completedPressed: document.querySelector('[data-filter="completed"]').getAttribute("aria-pressed"),
               activePressed: document.querySelector('[data-filter="active"]').getAttribute("aria-pressed"),
@@ -928,6 +935,8 @@ app.whenReady().then(async () => {
     assert.ok(result.brightnessBridgeHeight >= 7);
     assert.ok(result.brightnessBridgeWidth >= 140);
     assert.equal(result.brightnessOpenedByPointer, true);
+    assert.equal(result.brightnessValueLines, 1);
+    assert.equal(result.brightnessValueWhiteSpace, "nowrap");
     assert.equal(result.reminderDoubleClickCanceled, true);
     assert.equal(result.completedPressed, "true");
     assert.equal(result.activePressed, "false");
