@@ -149,15 +149,18 @@
 .task-composer { grid-template-columns: minmax(0, 1fr); }
 .task-composer__primary { display: contents; }
 .task-composer__title { grid-column: 1; grid-row: 1; }
-.task-composer__details { grid-column: 1; grid-row: 2; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.task-composer__details { grid-column: 1; grid-row: 2; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .task-composer__note, .task-composer__details > .form-row { grid-column: 1 / -1; }
-.form-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .task-composer__primary .submit-btn { grid-column: 1; grid-row: 3; width: 100%; min-width: 9rem; }
 .task-composer__parent { grid-column: 1; grid-row: 4; }
 .task-composer .input { min-height: 34px; padding-block: 5px; }
 .task-composer__parent { display: flex; align-items: center; }
 .task-composer__parent .parent-label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px; width: 100%; color: var(--text-muted); font-size: .78rem; }
 .form-row label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px; color: var(--text-muted); font-size: .78rem; }
+.task-field-error { grid-column: 1 / -1; min-height: 1em; margin: 1px 0 0; color: var(--danger); font-size: .7rem; }
+.task-field-error:empty { display: none; }
+.input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
 .task-form-tip { margin: 0; color: var(--text-muted); font-size: .75rem; }
 .task-composer__tip { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 

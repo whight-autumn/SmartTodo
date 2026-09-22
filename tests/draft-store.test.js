@@ -14,7 +14,8 @@ test("draft store round-trips a partially filled task form", () => {
     remindTime: "",
     priority: "high",
     type: "main",
-    parentId: ""
+    parentId: "",
+    recurrenceType: "weekly"
   };
   writeDraft(storage, draft);
   assert.deepEqual(readDraft(storage), draft);

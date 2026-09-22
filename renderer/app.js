@@ -5,6 +5,7 @@
 
 "use strict";
 
+const recurrenceModel = window.RecurrenceModel;
 const taskModel = window.TaskModel;
 const widgetModel = window.WidgetModel;
 const draftStore = window.DraftStore;
@@ -187,6 +188,8 @@ const els = {
   time: $("task-time"),
   priority: $("task-priority"),
   type: $("task-type"),
+  recurrence: $("task-recurrence"),
+  reminderError: $("task-reminder-error"),
   parent: $("task-parent"),
   parentRow: $("parent-task-row"),
   formTip: $("task-form-tip"),
@@ -453,6 +456,7 @@ async function cleanupTaskAttachmentDirectories(taskIds) {
 
 function resetTaskForm() {
   els.form.reset();
+  setReminderValidation();
   setTaskMode("main");
 }
 
@@ -472,7 +476,8 @@ function getTaskFormDraft() {
     remindTime: els.time.value,
     priority: els.priority.value,
     type: els.type.value,
-    parentId: els.parent.value
+    parentId: els.parent.value,
+    recurrenceType: els.recurrence.value
   };
 }
 
@@ -506,6 +511,9 @@ function restoreTaskDraft() {
     els.parent.value = draft.parentId;
   } else {
     setTaskMode("main");
+    els.recurrence.value = ["daily", "weekly", "monthly", "yearly"].includes(draft.recurrenceType)
+      ? draft.recurrenceType
+      : "none";
   }
 }
 
@@ -523,6 +531,7 @@ function setTaskMode(mode, targetTask = null) {
   const submitButton = els.form.querySelector(".submit-btn");
   if (mode === "sub" && targetTask) {
     els.type.value = "sub";
+    syncRecurrenceAvailability();
     els.parentRow.classList.remove("hidden");
     els.parent.value = targetTask.id;
     els.formTip.textContent = `子任务模式（当前挂载到：${targetTask.title}）`;
@@ -530,10 +539,28 @@ function setTaskMode(mode, targetTask = null) {
     return;
   }
   els.type.value = "main";
+  syncRecurrenceAvailability();
   els.parent.value = "";
   els.parentRow.classList.add("hidden");
   els.formTip.textContent = "默认添加主任务；也可通过任务操作添加子任务。";
   submitButton.innerHTML = `${iconUtils.iconMarkup("add")}<span>添加主任务</span>`;
+}
+
+function setReminderValidation(message = "") {
+  const invalid = !!message;
+  els.time.setAttribute("aria-invalid", String(invalid));
+  els.time.classList.toggle("input-error", invalid);
+  els.reminderError.textContent = message;
+}
+
+function syncRecurrenceAvailability() {
+  const isSubtask = els.type.value === "sub";
+  if (isSubtask && els.recurrence.value !== "none") {
+    els.recurrence.value = "none";
+    showToast("子任务跟随主任务周期，已恢复为不重复", "warning");
+  }
+  els.recurrence.disabled = isSubtask;
+  if (isSubtask) setReminderValidation();
 }
 
 function renderTaskAttachments(task) {
@@ -1361,7 +1388,10 @@ els.form.addEventListener("submit", e => {
   const timeRaw = els.time.value;
   const priority = els.priority.value;
   const type = els.type.value;
+  const recurrenceType = type === "main" ? els.recurrence.value : "none";
   const parentId = type === "sub" ? els.parent.value : null;
+
+  setReminderValidation();
 
   if (!title) {
     showToast("请输入任务名称", "warning");
@@ -1376,11 +1406,22 @@ els.form.addEventListener("submit", e => {
   if (timeRaw) {
     const d = new Date(timeRaw);
     if (Number.isNaN(d.getTime())) {
+      setReminderValidation("请选择有效的提醒时间");
+      els.time.focus({ preventScroll: true });
       showToast("请选择有效的提醒时间", "warning");
       return;
     }
     remindTime = d.toISOString();
   }
+
+  if (recurrenceType !== "none" && !remindTime) {
+    setReminderValidation("重复任务需要设置首次提醒时间");
+    els.time.focus({ preventScroll: true });
+    showToast("请为重复任务设置提醒时间", "warning");
+    return;
+  }
+
+  const recurrence = recurrenceModel.createRecurrence(recurrenceType, remindTime);
 
   const task = {
     id: uid(),
@@ -1392,7 +1433,11 @@ els.form.addEventListener("submit", e => {
     done: false,
     completedAt: null,
     pinned: false,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    updatedAt: null,
+    attachments: [],
+    recurrence,
+    systemMeta: null
   };
 
   tasks.push(task);
@@ -1429,6 +1474,11 @@ els.type.addEventListener("change", () => {
   } else {
     setTaskMode("main");
   }
+});
+
+els.time.addEventListener("input", () => setReminderValidation());
+els.recurrence.addEventListener("change", () => {
+  if (els.recurrence.value === "none") setReminderValidation();
 });
 
 els.form.addEventListener("input", scheduleTaskDraftSave);

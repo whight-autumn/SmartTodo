@@ -926,6 +926,54 @@ app.whenReady().then(async () => {
         };
       })()
     `);
+    const formResult = await window.webContents.executeJavaScript(`
+      (async () => {
+        const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const form = document.getElementById("task-form");
+        const title = document.getElementById("task-title");
+        const time = document.getElementById("task-time");
+        const recurrence = document.getElementById("task-recurrence");
+        const type = document.getElementById("task-type");
+        const beforeCount = JSON.parse(localStorage.getItem("smart_tasks") || "[]").length;
+
+        title.value = "每周工时填报";
+        title.dispatchEvent(new Event("input", { bubbles: true }));
+        recurrence.value = "weekly";
+        recurrence.dispatchEvent(new Event("change", { bubbles: true }));
+        form.requestSubmit();
+        await frames();
+
+        const invalidCount = JSON.parse(localStorage.getItem("smart_tasks") || "[]").length;
+        const invalidState = {
+          count: invalidCount,
+          ariaInvalid: time.getAttribute("aria-invalid"),
+          error: document.getElementById("task-reminder-error").textContent,
+          focused: document.activeElement === time
+        };
+
+        time.value = "2026-10-05T09:00";
+        time.dispatchEvent(new Event("input", { bubbles: true }));
+        time.dispatchEvent(new Event("change", { bubbles: true }));
+        form.requestSubmit();
+        await frames();
+        const storedTasks = JSON.parse(localStorage.getItem("smart_tasks") || "[]");
+        const stored = storedTasks.find(task => task.title === "每周工时填报");
+
+        recurrence.value = "daily";
+        recurrence.dispatchEvent(new Event("change", { bubbles: true }));
+        type.value = "sub";
+        type.dispatchEvent(new Event("change", { bubbles: true }));
+
+        return {
+          beforeCount,
+          invalidState,
+          afterCount: storedTasks.length,
+          storedRecurrence: stored?.recurrence || null,
+          subtaskRecurrence: recurrence.value,
+          subtaskRecurrenceDisabled: recurrence.disabled
+        };
+      })()
+    `);
     assert.match(result.activeText, /创建\s+2026-09-14 09:05/);
     assert.match(result.completedText, /创建\s+2026-09-13 16:20/);
     assert.match(result.completedText, /完成\s+2026-09-14 10:45/);
@@ -941,6 +989,15 @@ app.whenReady().then(async () => {
     assert.equal(result.completedPressed, "true");
     assert.equal(result.activePressed, "false");
     assert.equal(result.initialFilter, "active");
+    assert.equal(formResult.invalidState.count, formResult.beforeCount);
+    assert.equal(formResult.invalidState.ariaInvalid, "true");
+    assert.match(formResult.invalidState.error, /需要设置首次提醒时间/);
+    assert.equal(formResult.invalidState.focused, true);
+    assert.equal(formResult.afterCount, formResult.beforeCount + 1);
+    assert.equal(formResult.storedRecurrence.type, "weekly");
+    assert.equal(formResult.storedRecurrence.activeCycleKey, "W:2026-10-05");
+    assert.equal(formResult.subtaskRecurrence, "none");
+    assert.equal(formResult.subtaskRecurrenceDisabled, true);
     assert.equal(hierarchy.parent, "0");
     assert.equal(hierarchy.child, "1");
     for (const action of ["pin", "add-subtask", "edit-note", "delete"]) {

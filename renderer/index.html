@@ -60,7 +60,7 @@
             <input id="task-desc" class="input task-composer__note" type="text" placeholder="备注（可选）" maxlength="200">
             <div class="form-row">
               <label class="time-label"><span>提醒</span>
-                <input id="task-time" class="input" type="datetime-local">
+                <input id="task-time" class="input" type="datetime-local" aria-describedby="task-reminder-error" aria-invalid="false">
               </label>
               <label class="priority-label"><span>优先级</span>
                 <select id="task-priority" class="input task-select">
@@ -75,7 +75,17 @@
                   <option value="sub">子任务</option>
                 </select>
               </label>
+              <label class="recurrence-label"><span>重复</span>
+                <select id="task-recurrence" class="input task-select">
+                  <option value="none" selected>不重复</option>
+                  <option value="daily">每天</option>
+                  <option value="weekly">每周</option>
+                  <option value="monthly">每月</option>
+                  <option value="yearly">每年</option>
+                </select>
+              </label>
             </div>
+            <p id="task-reminder-error" class="task-field-error" role="alert" aria-live="polite"></p>
           </div>
           <div id="parent-task-row" class="task-composer__parent hidden">
             <label class="parent-label"><span>选择主任务</span>

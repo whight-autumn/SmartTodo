@@ -14,7 +14,7 @@ const motionCss = fs.readFileSync(path.join(root, "renderer/styles/motion.css"),
 test("V1.2 shell preserves behavioral IDs and adds semantic regions", () => {
   for (const id of [
     "task-form", "task-title", "task-desc", "task-time", "task-priority", "task-type",
-    "task-parent", "task-list", "chat-box", "user-input", "send-btn", "settings-modal",
+    "task-recurrence", "task-reminder-error", "task-parent", "task-list", "chat-box", "user-input", "send-btn", "settings-modal",
     "task-note-dialog", "confirm-dialog", "brightness-slider", "theme-toggle"
   ]) assert.match(html, new RegExp(`id=["']${id}["']`), id);
   assert.match(html, /class="[^"]*task-workbench/);
@@ -38,10 +38,20 @@ test("primary interface no longer uses emoji as controls", () => {
 
 test("task workbench exposes progressive composition and labelled filters", () => {
   assert.match(html, /class="[^"]*task-composer/);
+  assert.match(html, /id="task-time"[^>]+aria-describedby="task-reminder-error"/);
+  assert.match(html, /id="task-reminder-error"[^>]+role="alert"[^>]+aria-live="polite"/);
+  assert.match(html, /id="task-recurrence"[\s\S]*?<option value="none" selected>不重复<\/option>/);
   assert.match(html, /aria-label="任务筛选"/);
   assert.match(html, /data-filter="attention"/);
   assert.match(html, /data-filter="active"/);
   assert.match(html, /data-filter="completed"/);
+});
+
+test("recurring task submission requires a reminder and stores a normalized recurrence", () => {
+  assert.match(appSource, /function setReminderValidation\(/);
+  assert.match(appSource, /function syncRecurrenceAvailability\(/);
+  assert.match(appSource, /recurrenceModel\.createRecurrence\(recurrenceType, remindTime\)/);
+  assert.match(appSource, /重复任务需要设置首次提醒时间/);
 });
 
 test("motion dependencies load before application code", () => {

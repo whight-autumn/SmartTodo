@@ -46,7 +46,7 @@
 .form-row { gap: 12px; }
 .form-row > label { min-width: 0; }
 .time-label { flex: 1.2 1 14rem; }
-.priority-label, .type-label { flex: 1 1 9rem; }
+.priority-label, .type-label, .recurrence-label { flex: 1 1 9rem; }
 .parent-label { flex: 1 1 auto; }
 .chat-footer { flex-wrap: wrap; gap: 10px; }
 .chat-input { flex: 1 1 100%; }
