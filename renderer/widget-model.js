@@ -1,8 +1,11 @@
 (function exposeWidgetModel(root, factory) {
-  const api = factory();
+  const recurrenceModel = typeof module !== "undefined" && module.exports
+    ? require("./recurrence-model.js")
+    : root.RecurrenceModel;
+  const api = factory(recurrenceModel);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.WidgetModel = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function createWidgetModel() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function createWidgetModel(recurrenceModel) {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const PRIORITIES = new Set(["high", "medium", "low"]);
   let latestRevision = 0;
@@ -11,6 +14,25 @@
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 100;
     return Math.min(125, Math.max(75, Math.round(numeric)));
+  }
+
+  function sanitizeLabel(value) {
+    return typeof value === "string" ? value.trim().slice(0, 80) : "";
+  }
+
+  function getRecurrenceLabel(task) {
+    if (task?.recurrence && recurrenceModel?.formatRecurrenceLabel) {
+      return sanitizeLabel(recurrenceModel.formatRecurrenceLabel(task.recurrence));
+    }
+    return sanitizeLabel(task?.recurrenceLabel);
+  }
+
+  function getCarryoverLabel(task) {
+    if (task?.systemMeta?.role === "recurrence-carryover") {
+      const missedCount = Math.max(1, Number(task.systemMeta.missedCount) || 1);
+      return missedCount > 1 ? `连续 ${missedCount} 期未完成` : "上期未完成";
+    }
+    return sanitizeLabel(task?.carryoverLabel);
   }
 
   function toWidgetTask(task, parentTitle = "", order = 0) {
@@ -23,6 +45,8 @@
       pinned: !!task?.pinned,
       done: !!task?.done,
       createdAt: Number(task?.createdAt) || 0,
+      recurrenceLabel: getRecurrenceLabel(task),
+      carryoverLabel: getCarryoverLabel(task),
       order: Number.isInteger(order) && order >= 0 ? order : 0
     };
   }

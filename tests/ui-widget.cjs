@@ -40,12 +40,16 @@ function assertStaticSurface() {
   assert.match(html, /<footer class="widget-footer">[\s\S]*id="widget-open-main"[\s\S]*<\/footer>/);
   assert.doesNotMatch(html, /id="widget-hide"/);
   assert.match(html, /id="widget-status"[^>]+role="status"[^>]+aria-live="polite"/);
+  assert.ok(html.indexOf('src="recurrence-model.js"') < html.indexOf('src="widget-model.js"'));
   assert.doesNotMatch(`${html}\n${js}`, /data-action="(?:edit|delete|attachment|ai|create)"/i);
   assert.match(css, /button,\s*input,\s*a,\s*\[role="button"\]\s*\{[^}]*-webkit-app-region:\s*no-drag/s);
   assert.match(css, /\.widget-task__title\s*\{[^}]*min-width:\s*0[^}]*-webkit-line-clamp:\s*2/s);
   assert.match(css, /\.widget-task\s*\{[^}]*border-bottom:\s*1px solid var\(--line\)/s);
   assert.doesNotMatch(css.match(/\.widget-task\s*\{[^}]*\}/s)?.[0] || "", /border-radius/);
   assert.match(js, /row\.classList\.add\("is-child"\)/);
+  assert.match(js, /label\.textContent = text/);
+  assert.match(js, /widget-task__recurrence/);
+  assert.match(js, /widget-task__carryover/);
   assert.match(css, /\.widget-task\.is-child\s*\{[^}]*padding-inline-start:/s);
   const shellRule = css.match(/\.widget-shell\s*\{[^}]*\}/s)?.[0] || "";
   assert.match(shellRule, /color-mix\([\s\S]*?transparent/);
@@ -121,8 +125,8 @@ app.whenReady().then(async () => {
       localStorage.setItem("smart_ui_brightness", "100");
       localStorage.setItem("smart_tasks", JSON.stringify([
         { id: "overdue", title: "核对逾期交付", remarks: "private", remindTime: new Date(now - 3600000).toISOString(), priority: "medium", parentId: null, done: false, completedAt: null, pinned: false, createdAt: now - 7000 },
-        { id: "child-soon", title: "整理季度材料", remarks: "", remindTime: new Date(now + 1800000).toISOString(), priority: "medium", parentId: "parent", done: false, completedAt: null, pinned: false, createdAt: now - 6000 },
-        { id: "parent", title: "年度计划", remarks: "", remindTime: null, priority: "medium", parentId: null, done: false, completedAt: null, pinned: true, createdAt: now - 5000 },
+        { id: "child-soon", title: "整理季度材料", remarks: "", remindTime: new Date(now + 1800000).toISOString(), priority: "medium", parentId: "parent", done: false, completedAt: null, pinned: false, createdAt: now - 6000, systemMeta: { role: "recurrence-carryover", sourceTaskId: "parent", sourceCycleKey: "W:2026-09-14", sourceCycleEndKey: "W:2026-09-14", missedCount: 1 } },
+        { id: "parent", title: "年度计划", remarks: "", remindTime: new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString(), priority: "medium", parentId: null, done: false, completedAt: null, pinned: true, createdAt: now - 5000, recurrence: { type: "weekly", anchorAt: new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString(), activeCycleKey: RecurrenceModel.getCycleKey("weekly", new Date(now)), lastRolledAt: null } },
         { id: "high-long", title: "完成跨设备窗口缩放与超长中文标题在两行以内稳定呈现的企业级兼容性验收", remarks: "", remindTime: null, priority: "high", parentId: null, done: false, completedAt: null, pinned: false, createdAt: now - 4000 },
         { id: "normal", title: "复盘今日工作", remarks: "", remindTime: null, priority: "medium", parentId: null, done: false, completedAt: null, pinned: false, createdAt: now - 3000 },
         { id: "reserve", title: "准备明日清单", remarks: "", remindTime: null, priority: "low", parentId: null, done: false, completedAt: null, pinned: false, createdAt: now - 2000 },
@@ -160,6 +164,8 @@ app.whenReady().then(async () => {
       return {
         order: [...document.querySelectorAll('.widget-task')].map(row => row.dataset.taskId),
         parent: document.querySelector('[data-task-id="child-soon"] .widget-task__parent')?.textContent,
+        recurrence: document.querySelector('[data-task-id="parent"] .widget-task__recurrence')?.textContent,
+        carryover: document.querySelector('[data-task-id="child-soon"] .widget-task__carryover')?.textContent,
         titleHeight: title.getBoundingClientRect().height,
         lineHeight: parseFloat(style.lineHeight),
         theme: document.documentElement.dataset.theme,
@@ -168,6 +174,8 @@ app.whenReady().then(async () => {
     })()`);
     assert.deepEqual(initial.order, ["overdue", "child-soon", "parent", "high-long", "normal"]);
     assert.equal(initial.parent, "归属 · 年度计划");
+    assert.match(initial.recurrence, /^每周/);
+    assert.equal(initial.carryover, "上期未完成");
     assert.ok(initial.titleHeight <= initial.lineHeight * 2 + 2);
     assert.equal(initial.theme, "light");
     fs.writeFileSync(widgetCapturePath, (await widgetWindow.webContents.capturePage()).toPNG());
@@ -213,7 +221,7 @@ app.whenReady().then(async () => {
       const geometry = await widgetWindow.webContents.executeJavaScript(`(() => {
         const viewport = { width: innerWidth, height: innerHeight };
         const nodes = [...document.querySelectorAll('.widget-task, .widget-footer')];
-        const readableNodes = [...document.querySelectorAll('.widget-brand__copy strong, .widget-version, .widget-tool, #widget-date, #widget-count, #widget-heading, .widget-task__title, .widget-task__meta, .widget-action')];
+        const readableNodes = [...document.querySelectorAll('.widget-brand__copy strong, .widget-version, .widget-tool, #widget-date, #widget-count, #widget-heading, .widget-task__title, .widget-task__meta, .widget-task__recurrence, .widget-task__carryover, .widget-action')];
         return {
           documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
           shellOverflow: Math.max(0, document.getElementById('widget-shell').scrollWidth - document.getElementById('widget-shell').clientWidth),

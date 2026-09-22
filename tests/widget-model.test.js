@@ -48,6 +48,33 @@ test("snapshot contains only display fields and resolves a child parent title", 
   assert.equal(Object.hasOwn(snapshot.tasks[0], "attachments"), false);
 });
 
+test("snapshot exposes labels but not writable recurrence metadata", () => {
+  const snapshot = createWidgetSnapshot([
+    task("weekly", {
+      recurrence: {
+        type: "weekly",
+        anchorAt: "2026-09-21T09:00:00.000Z",
+        activeCycleKey: "W:2026-09-21",
+        lastRolledAt: null
+      }
+    }),
+    task("carry", {
+      parentId: "weekly",
+      systemMeta: {
+        role: "recurrence-carryover",
+        sourceTaskId: "weekly",
+        sourceCycleKey: "W:2026-09-14",
+        sourceCycleEndKey: "W:2026-09-14",
+        missedCount: 1
+      }
+    })
+  ], {}, NOW);
+  assert.match(snapshot.tasks.find(item => item.id === "weekly").recurrenceLabel, /^每周/);
+  assert.equal(snapshot.tasks.find(item => item.id === "carry").carryoverLabel, "上期未完成");
+  assert.equal(Object.hasOwn(snapshot.tasks[0], "recurrence"), false);
+  assert.equal(Object.hasOwn(snapshot.tasks[1], "systemMeta"), false);
+});
+
 test("normalizes malformed snapshots without accepting writable task data", () => {
   assert.deepEqual(normalizeWidgetSnapshot(null), {
     revision: 0, theme: "dark", brightness: 100, tasks: []

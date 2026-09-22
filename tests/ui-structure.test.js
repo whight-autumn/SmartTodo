@@ -66,6 +66,12 @@ test("recurring runtime persists reminder fingerprints and schedules the next 04
   assert.match(appSource, /function saveReminderFingerprints\(/);
 });
 
+test("native reminder delivery contains asynchronous bridge failures", () => {
+  const body = appSource.match(/async function fireReminder\(task\)\s*\{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(body, /await window\.desktop\.notify\(title, body\)/);
+  assert.match(body, /catch \(e\)/);
+});
+
 test("motion dependencies load before application code", () => {
   assert.ok(html.indexOf("vendor/gsap.min.js") < html.indexOf("motion.js"));
   assert.ok(html.indexOf("motion.js") < html.indexOf("app.js"));

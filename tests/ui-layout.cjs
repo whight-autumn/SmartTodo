@@ -75,6 +75,12 @@ app.whenReady().then(async () => {
         completedAt: null,
         pinned: false,
         createdAt: new Date(2026, 8, 14, 6, 30).getTime(),
+        recurrence: {
+          type: "weekly",
+          anchorAt: "2026-09-21T09:00:00.000Z",
+          activeCycleKey: "W:2026-09-21",
+          lastRolledAt: null
+        },
         attachments: [{
           id: "long-file",
           name: "项目验收与不同缩放比例兼容性验证材料最终修订版本.pdf",
@@ -94,7 +100,14 @@ app.whenReady().then(async () => {
         completedAt: null,
         pinned: false,
         createdAt: new Date(2026, 8, 14, 6, 35).getTime(),
-        attachments: []
+        attachments: [],
+        systemMeta: {
+          role: "recurrence-carryover",
+          sourceTaskId: "long-content",
+          sourceCycleKey: "W:2026-09-07",
+          sourceCycleEndKey: "W:2026-09-14",
+          missedCount: 2
+        }
       }]));
       localStorage.setItem("deepseek_chat_state", JSON.stringify({
         activeSessionId: "layout-chat",
@@ -149,6 +162,8 @@ app.whenReady().then(async () => {
             longTaskOverflow: longTask.scrollWidth - longTask.clientWidth,
             actionOverlap,
             messageOverlap,
+            recurrenceLabel: longTask.querySelector('.task-recurrence-tag')?.textContent || '',
+            carryoverLabel: document.querySelector('[data-id="layout-child"] .task-carryover-tag')?.textContent || '',
             headerCenterDelta: Math.max(...headerCenters) - Math.min(...headerCenters),
             columns: getComputedStyle(workspace).gridTemplateColumns,
             aiTop: aiSidecar.getBoundingClientRect().top,
@@ -162,6 +177,8 @@ app.whenReady().then(async () => {
       }
       assert.equal(geometry.actionOverlap, false, `${label} task actions overlap`);
       assert.equal(geometry.messageOverlap, false, `${label} chat messages overlap`);
+      assert.match(geometry.recurrenceLabel, /^每周/, `${label} recurrence label`);
+      assert.equal(geometry.carryoverLabel, "连续 2 期未完成", `${label} carryover label`);
       assert.ok(geometry.headerCenterDelta <= 1.5, `${label} header center delta: ${geometry.headerCenterDelta}`);
       if (geometry.viewport < 1024) {
         assert.ok(geometry.aiTop >= geometry.taskBottom - 1,

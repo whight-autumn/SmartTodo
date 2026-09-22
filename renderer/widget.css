@@ -246,13 +246,17 @@ button, input, a, [role="button"] {
 }
 
 .widget-task__parent,
-.widget-task__reminder {
+.widget-task__reminder,
+.widget-task__recurrence,
+.widget-task__carryover {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .widget-task__reminder { color: var(--accent-strong); }
+.widget-task__recurrence { color: var(--accent-strong); }
+.widget-task__carryover { color: var(--amber); font-weight: 650; }
 .widget-task[data-attention="overdue"] .widget-task__reminder { color: var(--danger); font-weight: 700; }
 
 .widget-empty {

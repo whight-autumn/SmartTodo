@@ -89,6 +89,16 @@
       priority.textContent = "高优先级";
       meta.appendChild(priority);
     }
+    for (const [className, text] of [
+      ["widget-task__recurrence", task.recurrenceLabel],
+      ["widget-task__carryover", task.carryoverLabel]
+    ]) {
+      if (!text) continue;
+      const label = document.createElement("span");
+      label.className = className;
+      label.textContent = text;
+      meta.appendChild(label);
+    }
     if (meta.childElementCount) body.appendChild(meta);
 
     row.append(checkWrap, body);

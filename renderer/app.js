@@ -429,6 +429,12 @@ const icon = (name, label = "") => iconUtils.iconMarkup(name, label ? { label } 
 
 function getTaskMeta(task) {
   const dueText = getRemindText(task);
+  const recurrenceLabel = recurrenceModel.formatRecurrenceLabel(task.recurrence);
+  const carryoverLabel = task.systemMeta?.role === "recurrence-carryover"
+    ? (task.systemMeta.missedCount > 1
+      ? `连续 ${task.systemMeta.missedCount} 期未完成`
+      : "上期未完成")
+    : "";
   let timeBadge = "";
   if (task.remindTime) {
     const isOverdue = !task.done && new Date(task.remindTime).getTime() < Date.now();
@@ -460,6 +466,12 @@ function getTaskMeta(task) {
     <span class="task-meta-chip task-type-tag">类型：${typeLabel}</span>
     ${timeBadge}
     <span class="task-meta-chip priority-badge priority-${task.priority}">优先级：${PRIORITY_LABELS[task.priority] || "中"}</span>
+    ${recurrenceLabel
+      ? `<span class="task-meta-chip task-recurrence-tag">${escapeHTML(recurrenceLabel)}</span>`
+      : ""}
+    ${carryoverLabel
+      ? `<span class="task-meta-chip task-carryover-tag">${escapeHTML(carryoverLabel)}</span>`
+      : ""}
     ${timestamps}
   `;
 }
@@ -1588,7 +1600,7 @@ async function fireReminder(task) {
 
   try {
     if (window.desktop && window.desktop.notify) {
-      window.desktop.notify(title, body);
+      await window.desktop.notify(title, body);
       return;
     }
     if (!("Notification" in window)) return;
