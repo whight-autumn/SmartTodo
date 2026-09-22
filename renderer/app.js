@@ -627,7 +627,7 @@ function syncRecurrenceAvailability() {
 function renderTaskAttachments(task) {
   if (!task.attachments?.length) return "";
   const items = task.attachments.map(attachment => {
-    const taskId = escapeHTML(task.id);
+    const taskId = escapeHTML(taskModel.getAttachmentOwnerId(task, attachment));
     const storageName = escapeHTML(attachment.storageName);
     const name = escapeHTML(attachment.name);
     const isImage = /^image\//i.test(attachment.mimeType);
@@ -922,7 +922,10 @@ function renderPendingFilePreview(pending) {
 function renderTaskNoteDraft() {
   if (!taskNoteDraft) return;
   const retainedItems = taskNoteDraft.retainedAttachments.map(attachment => {
-    const taskId = escapeHTML(taskNoteDraft.taskId);
+    const taskId = escapeHTML(taskModel.getAttachmentOwnerId(
+      { id: taskNoteDraft.taskId },
+      attachment
+    ));
     const storageName = escapeHTML(attachment.storageName);
     return `
     <li class="task-note-attachment-entry" data-task-id="${taskId}" data-storage-name="${storageName}">
@@ -949,7 +952,10 @@ function renderTaskNoteDraft() {
     </li>
   `);
   const removedItems = taskNoteDraft.removedAttachments.map(attachment => {
-    const taskId = escapeHTML(taskNoteDraft.taskId);
+    const taskId = escapeHTML(taskModel.getAttachmentOwnerId(
+      { id: taskNoteDraft.taskId },
+      attachment
+    ));
     const storageName = escapeHTML(attachment.storageName);
     return `
     <li class="task-note-attachment-entry is-removing" data-task-id="${taskId}" data-storage-name="${storageName}">
@@ -1036,7 +1042,11 @@ async function saveTaskNoteEdit() {
     let prepared = {
       attachments: []
     };
-    if (draft.pendingFiles.length || draft.removedAttachments.length) {
+    const localRemovedAttachments = draft.removedAttachments
+      .filter(attachment => !attachment.sourceTaskId);
+    const localOriginalAttachments = draft.originalAttachments
+      .filter(attachment => !attachment.sourceTaskId);
+    if (draft.pendingFiles.length || localRemovedAttachments.length) {
       if (!window.desktop?.prepareTaskAttachmentChanges
           || !window.desktop?.commitTaskAttachmentChanges
           || !window.desktop?.rollbackTaskAttachmentChanges) {
@@ -1045,8 +1055,8 @@ async function saveTaskNoteEdit() {
       prepared = await window.desktop.prepareTaskAttachmentChanges({
         taskId: draft.taskId,
         files: draft.pendingFiles.map(item => item.file),
-        removeStorageNames: draft.removedAttachments.map(attachment => attachment.storageName),
-        existingCount: draft.originalAttachments.length
+        removeStorageNames: localRemovedAttachments.map(attachment => attachment.storageName),
+        existingCount: localOriginalAttachments.length
       });
       if (!prepared || typeof prepared.transactionId !== "string" || !prepared.transactionId) {
         throw new Error("附件事务结果无效");
@@ -1060,11 +1070,11 @@ async function saveTaskNoteEdit() {
       }
     }
 
-    const removalStorageNames = new Set(
-      draft.removedAttachments.map(attachment => attachment.storageName)
+    const removedAttachmentIds = new Set(
+      draft.removedAttachments.map(attachment => attachment.id)
     );
     const retainedAttachments = draft.originalAttachments
-      .filter(attachment => !removalStorageNames.has(attachment.storageName));
+      .filter(attachment => !removedAttachmentIds.has(attachment.id));
 
     const editResult = taskModel.applyTaskNoteEdit(task, {
       remarks: draft.remarks,
@@ -1092,7 +1102,7 @@ async function saveTaskNoteEdit() {
         }
         cleanup.failedStorageNames.forEach(storageName => failedCleanupStorageNames.add(storageName));
       } catch (cleanupError) {
-        draft.removedAttachments.forEach(attachment => (
+        localRemovedAttachments.forEach(attachment => (
           failedCleanupStorageNames.add(attachment.storageName)
         ));
         cleanupFailureMessage = cleanupError?.message || "未知错误";
@@ -1109,7 +1119,7 @@ async function saveTaskNoteEdit() {
       els.noteFileInput.value = "";
       renderTaskNoteDraft();
       setTaskNoteSaving(false);
-      const failedNames = draft.removedAttachments
+      const failedNames = localRemovedAttachments
         .filter(attachment => failedCleanupStorageNames.has(attachment.storageName))
         .map(attachment => attachment.name);
       const detail = cleanupFailureMessage || `${failedNames.join("、")} 清理失败`;
@@ -1141,11 +1151,7 @@ async function saveTaskNoteEdit() {
 
 function reconcileTaskAttachments() {
   if (!window.desktop?.reconcileTaskAttachments) return;
-  const references = tasks.map(task => ({
-    taskId: task.id,
-    storageNames: (Array.isArray(task.attachments) ? task.attachments : [])
-      .map(attachment => attachment.storageName)
-  }));
+  const references = taskModel.buildAttachmentReferences(tasks);
   window.desktop.reconcileTaskAttachments(references).catch(error => {
     console.warn("启动附件清理失败：", error);
   });
@@ -1376,7 +1382,7 @@ els.list.addEventListener("click", async event => {
     try {
       if (!window.desktop?.openTaskAttachment) throw new Error("当前环境无法打开附件");
       await window.desktop.openTaskAttachment({
-        taskId: task.id,
+        taskId: actionElement.dataset.taskId,
         storageName: actionElement.dataset.storageName
       });
     } catch (error) {

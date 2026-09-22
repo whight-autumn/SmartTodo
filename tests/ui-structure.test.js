@@ -72,6 +72,14 @@ test("native reminder delivery contains asynchronous bridge failures", () => {
   assert.match(body, /catch \(e\)/);
 });
 
+test("carryover attachments resolve through their source task without deleting source files", () => {
+  assert.match(appSource, /taskModel\.getAttachmentOwnerId\(task, attachment\)/);
+  assert.match(appSource, /taskId:\s*actionElement\.dataset\.taskId/);
+  assert.match(appSource, /const localRemovedAttachments = draft\.removedAttachments/);
+  assert.match(appSource, /filter\(attachment => !attachment\.sourceTaskId\)/);
+  assert.match(appSource, /taskModel\.buildAttachmentReferences\(tasks\)/);
+});
+
 test("motion dependencies load before application code", () => {
   assert.ok(html.indexOf("vendor/gsap.min.js") < html.indexOf("motion.js"));
   assert.ok(html.indexOf("motion.js") < html.indexOf("app.js"));

@@ -15,6 +15,7 @@
   const ATTENTION_WINDOW_MS = 24 * 60 * 60 * 1000;
   const MAX_TASK_ATTACHMENTS = 10;
   const MAX_TASK_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+  const TASK_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 
   function normalizePriority(priority) {
     return Object.prototype.hasOwnProperty.call(PRIORITY_WEIGHT, priority)
@@ -48,7 +49,7 @@
     const addedAt = Number(raw.addedAt);
     if (!name.trim() || /[\\/:]/.test(name) || !Number.isFinite(size) || size < 0 || size > MAX_TASK_ATTACHMENT_BYTES) return null;
     if (!Number.isFinite(addedAt) || addedAt <= 0) return null;
-    return {
+    const normalized = {
       id: String(raw.id),
       name,
       storageName: String(raw.storageName),
@@ -56,6 +57,38 @@
       size,
       addedAt
     };
+    if (TASK_ID_PATTERN.test(String(raw.sourceTaskId || ""))) {
+      normalized.sourceTaskId = String(raw.sourceTaskId);
+    }
+    return normalized;
+  }
+
+  function getAttachmentOwnerId(task, attachment) {
+    const sourceTaskId = String(attachment?.sourceTaskId || "");
+    if (TASK_ID_PATTERN.test(sourceTaskId)) return sourceTaskId;
+    return String(task?.id || "");
+  }
+
+  function buildAttachmentReferences(taskList) {
+    const references = new Map();
+    (Array.isArray(taskList) ? taskList : []).forEach(task => {
+      const taskId = String(task?.id || "");
+      if (TASK_ID_PATTERN.test(taskId) && !references.has(taskId)) {
+        references.set(taskId, new Set());
+      }
+    });
+    (Array.isArray(taskList) ? taskList : []).forEach(task => {
+      (Array.isArray(task?.attachments) ? task.attachments : []).forEach(attachment => {
+        const ownerTaskId = getAttachmentOwnerId(task, attachment);
+        if (!TASK_ID_PATTERN.test(ownerTaskId)) return;
+        if (!references.has(ownerTaskId)) references.set(ownerTaskId, new Set());
+        references.get(ownerTaskId).add(String(attachment.storageName || ""));
+      });
+    });
+    return [...references].map(([taskId, storageNames]) => ({
+      taskId,
+      storageNames: [...storageNames]
+    }));
   }
 
   function normalizeSystemMeta(raw) {
@@ -209,7 +242,10 @@
       pinned: false,
       createdAt: details.createdAt,
       updatedAt: null,
-      attachments: root.attachments.map(attachment => ({ ...attachment })),
+      attachments: root.attachments.map(attachment => ({
+        ...attachment,
+        sourceTaskId: root.id
+      })),
       recurrence: recurrenceModel.normalizeRecurrence(null),
       systemMeta: {
         role: "recurrence-carryover",
@@ -351,6 +387,8 @@
     ATTENTION_WINDOW_MS,
     normalizePriority,
     normalizeAttachment,
+    getAttachmentOwnerId,
+    buildAttachmentReferences,
     normalizeSystemMeta,
     applyTaskNoteEdit,
     normalizeTasks,

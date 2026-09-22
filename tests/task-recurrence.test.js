@@ -67,8 +67,36 @@ test("an unfinished occurrence creates one carryover and rolls the stable root",
   assert.equal(carry.priority, "high");
   assert.equal(carry.pinned, false);
   assert.deepEqual(carry.attachments.map(item => item.id), ["hours-sheet"]);
+  assert.equal(carry.attachments[0].sourceTaskId, "root");
   assert.notEqual(carry.attachments, nextRoot.attachments);
   assert.equal(carry.recurrence.type, "none");
+});
+
+test("carryover attachment references keep their source owner and reconcile safely", () => {
+  const inherited = taskModel.normalizeAttachment({ ...attachment, sourceTaskId: "root" });
+  const unsafe = taskModel.normalizeAttachment({ ...attachment, sourceTaskId: "../root" });
+  assert.equal(inherited.sourceTaskId, "root");
+  assert.equal(Object.hasOwn(unsafe, "sourceTaskId"), false);
+
+  const carry = {
+    ...root(),
+    id: "carry",
+    parentId: "root",
+    attachments: [inherited],
+    recurrence: { type: "none" },
+    systemMeta: {
+      role: "recurrence-carryover",
+      sourceTaskId: "root",
+      sourceCycleKey: "W:2026-09-14",
+      sourceCycleEndKey: "W:2026-09-14",
+      missedCount: 1
+    }
+  };
+  assert.equal(taskModel.getAttachmentOwnerId(carry, inherited), "root");
+  assert.deepEqual(taskModel.buildAttachmentReferences([root(), carry]), [
+    { taskId: "root", storageNames: ["hours-sheet.xlsx"] },
+    { taskId: "carry", storageNames: [] }
+  ]);
 });
 
 test("rolling twice in one cycle is idempotent", () => {
