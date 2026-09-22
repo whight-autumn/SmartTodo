@@ -24,6 +24,9 @@ test("V1.2 shell preserves behavioral IDs and adds semantic regions", () => {
 test("runtime scripts and styles are local", () => {
   assert.doesNotMatch(html, /<(script|link)[^>]+(src|href)=["']https?:\/\//i);
   assert.ok(html.indexOf("icon-utils.js") < html.indexOf("app.js"));
+  const recurrenceScript = html.indexOf('src="recurrence-model.js"');
+  assert.ok(recurrenceScript >= 0, "recurrence model script should be loaded");
+  assert.ok(recurrenceScript < html.indexOf('src="task-model.js"'));
   for (const file of ["tokens", "base", "layout", "components", "motion"]) {
     assert.match(entryCss, new RegExp(`@import url\\(["']styles/${file}\\.css["']\\)`));
   }
