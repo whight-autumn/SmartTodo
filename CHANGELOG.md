@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.1] - 2026-09-22
+
+### Changed
+
+- npm 包名、Windows 产品名、应用标识和作者信息统一为 SmartTodo 品牌。
+- Windows x64 便携包统一命名为 `SmartTodo-1.3.1.exe`。
+- 当前运行数据目录统一为 `%APPDATA%\SmartTodo\运行数据`。
+
+### Compatibility
+
+- 首次启动按顺序兼容迁移 `%APPDATA%\智能任务管家\运行数据` 与更早的 `%APPDATA%\smart-assistant`。
+- SmartTodo 新目录已有数据时不执行迁移，不覆盖任务、会话、设置或附件。
+- 保留既有 `localStorage` 键名、任务结构和附件结构。
+
+### Testing
+
+- `npm test`：153 项，151 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。
+- `npm run test:ui`：主窗口、周期任务、响应式矩阵与桌面任务笺完整通过。
+- `npm run dist`：生成 `SmartTodo-1.3.1.exe`，文件版本与产品版本均为 1.3.1。
+
 ## [1.3.0] - 2026-09-22
 
 ### Added

@@ -7,16 +7,20 @@
 <p align="center"><b>本地优先的 Windows 桌面任务管理器与可选 AI 助手</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.3.0-315e50" alt="Version 1.3.0">
+  <img src="https://img.shields.io/badge/version-1.3.1-315e50" alt="Version 1.3.1">
   <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
-  <img src="https://img.shields.io/badge/node:test-122%20tests-9c473b" alt="node:test 122 tests">
+  <img src="https://img.shields.io/badge/node:test-153%20tests-9c473b" alt="node:test 153 tests">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-315e50" alt="Windows x64">
   <img src="https://img.shields.io/badge/License-MIT-69736e" alt="MIT">
 </p>
 
-SmartTodo 将任务、备注、附件、会话和配置保存在本机，无需账号或后端服务。V1.3.0 在“文房案台”现代中式视觉系统上加入本地周期任务，同时保留既有一次性任务的轻量使用方式。
+SmartTodo 将任务、备注、附件、会话和配置保存在本机，无需账号或后端服务。V1.3.1 统一应用、模块、Windows 身份、运行目录与便携包名称，并保留 V1.3.0 的本地周期任务能力。
 
-## V1.3.0 亮点
+## V1.3.1 亮点
+
+- 品牌统一：npm 包、Windows 产品标识、窗口、托盘、文档和便携包统一使用 `SmartTodo`。
+- 打包统一：Windows x64 便携包固定命名为 `SmartTodo-<版本>.exe`。
+- 数据目录统一：新运行目录为 `%APPDATA%\SmartTodo\运行数据`；首次启动自动迁移此前使用的两个旧目录，不覆盖已经存在的新目录数据。
 
 - 周期任务：默认仍为一次性任务；主任务可选择每天、每周、每月或每年重复，选择重复后必须设置首次提醒时间。
 - 本地周期刷新：每天 04:00、每周一 04:00、每月 1 日 04:00、每年 1 月 1 日 04:00 进入新周期；程序启动、恢复可见及跨日运行时都会补做刷新。
@@ -30,7 +34,7 @@ SmartTodo 将任务、备注、附件、会话和配置保存在本机，无需�
 - 亮度显示修复：`100%` 保持单行显示，亮度按钮与悬浮拉条之间保留连续可进入区域。
 - 操作反馈：按钮按压、输入聚焦、筛选选中和任务勾选均提供克制而清晰的即时反馈；亮度拉条可从图标连续悬停进入。
 - 克制动效：本地 GSAP 只服务于状态变化，并完整尊重 `prefers-reduced-motion`；桌面任务笺使用单一 180ms CSS 完成反馈。
-- 原有数据兼容：继续使用既有 `localStorage` 键名、任务结构、运行数据目录和附件目录，无需迁移。
+- 原有数据兼容：继续使用既有 `localStorage` 键名、任务结构和附件结构；目录迁移在首次启动时自动完成。
 
 ## 功能
 
@@ -86,7 +90,7 @@ SmartTodo/
 │   └── icons.svg                   # 统一线性图标符号
 ├── tests/                          # 单元与真实 Electron 窗口测试
 ├── assets/                         # 品牌源文件、字体与应用图标
-└── release/V1.3.0/                 # V1.3.0 版本说明与本地构建产物
+└── release/V1.3.1/                 # V1.3.1 版本说明与本地构建产物
 ```
 
 逐文件职责见 [`docs/文件说明.md`](docs/文件说明.md)。
@@ -101,7 +105,7 @@ npm test
 npm run test:ui
 ```
 
-V1.3.0 当前共有 149 项单元测试：147 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。UI 流水线覆盖真实 Electron 主窗口、周期刷新与提醒去重、承接附件引用、提醒时间双击保护、亮度浮层悬停桥、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的标签、排序、焦点、双向开关、同步、回滚和溢出行为。
+V1.3.1 当前共有 153 项单元测试：151 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。测试新增 SmartTodo 打包身份、新运行目录、两级旧目录迁移优先级和新数据不覆盖保护；UI 流水线继续覆盖真实 Electron 主窗口、周期刷新与提醒去重、承接附件引用、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的关键行为。
 
 ## 构建
 
@@ -109,23 +113,23 @@ V1.3.0 当前共有 149 项单元测试：147 项通过，2 项因当前 Windows
 npm run dist
 ```
 
-该命令生成 Windows x64 便携版到 `dist/`。发布副本位于 `release/V1.3.0/`；EXE 由 `.gitignore` 排除，应通过 GitHub Releases 分发。未签名构建首次运行时可能触发 Windows SmartScreen 提示。
+该命令生成 `dist/SmartTodo-1.3.1.exe`。发布副本位于 `release/V1.3.1/`；EXE 由 `.gitignore` 排除，应通过 GitHub Releases 分发。未签名构建首次运行时可能触发 Windows SmartScreen 提示。
 
 ## 数据与升级兼容
 
 运行数据目录：
 
 ```text
-%APPDATA%\智能任务管家\运行数据
+%APPDATA%\SmartTodo\运行数据
 ```
 
 任务附件目录：
 
 ```text
-%APPDATA%\智能任务管家\运行数据\task-attachments\<任务ID>\
+%APPDATA%\SmartTodo\运行数据\task-attachments\<任务ID>\
 ```
 
-V1.3.0 兼容 V1.0.7 及所有 V1.2.x 的任务、草稿、主题、AI 配置、会话和受管附件；既有任务会自动按“一次性任务”读取，无需迁移。升级前请从托盘完全退出旧版本，并建议备份整个“运行数据”目录。若需回退，也应先备份该目录；不要分发其中的 API Key。
+V1.3.1 兼容 V1.0.7 至 V1.3.0 的任务、草稿、主题、AI 配置、会话和受管附件。首次启动会优先从 `%APPDATA%\智能任务管家\运行数据` 迁移，若不存在则兼容更早的 `%APPDATA%\smart-assistant`；当 SmartTodo 新目录已有数据时不会覆盖。升级前请从托盘完全退出旧版本，并建议备份整个“运行数据”目录；不要分发其中的 API Key。
 
 ## 安全边界
 

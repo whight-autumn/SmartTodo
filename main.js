@@ -5,7 +5,11 @@
 const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, screen, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { buildManagedUserDataPath, buildTaskAttachmentPath } = require("./main-paths");
+const {
+  buildManagedUserDataPath,
+  buildTaskAttachmentPath,
+  migrateLegacyUserData: migrateLegacyUserDataFiles
+} = require("./main-paths");
 const { createTaskAttachmentStore } = require("./task-attachment-store");
 const { registerTaskAttachmentIpc } = require("./task-attachment-ipc");
 const WidgetModel = require("./renderer/widget-model.js");
@@ -17,8 +21,8 @@ const { registerWidgetIpc } = require("./widget-ipc.js");
 // SmartTodo's lightweight UI is more reliable with software composition.
 app.disableHardwareAcceleration();
 
-const legacyUserDataPath = path.join(app.getPath("appData"), "smart-assistant");
-const managedUserDataPath = buildManagedUserDataPath(app.getPath("appData"));
+const appDataPath = app.getPath("appData");
+const managedUserDataPath = buildManagedUserDataPath(appDataPath);
 app.setPath("userData", managedUserDataPath);
 const taskAttachmentStore = createTaskAttachmentStore({
   rootPath: buildTaskAttachmentPath(app.getPath("userData"))
@@ -86,16 +90,7 @@ function createMainWindow() {
 
 function migrateLegacyUserData() {
   try {
-    const localStoragePath = path.join(managedUserDataPath, "Local Storage");
-    const legacyLocalStoragePath = path.join(legacyUserDataPath, "Local Storage");
-    fs.mkdirSync(managedUserDataPath, { recursive: true });
-    if (!fs.existsSync(localStoragePath) && fs.existsSync(legacyLocalStoragePath)) {
-      fs.cpSync(legacyUserDataPath, managedUserDataPath, {
-        recursive: true,
-        force: false,
-        errorOnExist: false
-      });
-    }
+    migrateLegacyUserDataFiles({ appDataPath });
   } catch (error) {
     console.warn("旧运行数据迁移失败，将继续使用新目录：", error.message);
   }

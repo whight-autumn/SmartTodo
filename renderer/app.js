@@ -2235,7 +2235,7 @@ if (window.desktop?.onTaskWidgetAction) {
 }
 
 function renderInitialVersion() {
-  const fallback = window.desktop?.version || "1.3.0";
+  const fallback = window.desktop?.version || "1.3.1";
   const current = uiAppearance.formatDisplayVersion(fallback);
   if (els.version) els.version.textContent = `V${current}`;
 

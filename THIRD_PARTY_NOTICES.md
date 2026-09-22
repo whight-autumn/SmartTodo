@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-SmartTodo V1.2 bundles the following third-party runtime assets so the interface remains fully local and does not depend on a network connection.
+SmartTodo V1.3.1 bundles the following third-party runtime assets so the interface remains fully local and does not depend on a network connection.
 
 ## GSAP 3.15.0
 

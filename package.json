@@ -1,9 +1,9 @@
 {
-  "name": "smart-assistant",
-  "version": "1.3.0",
-  "description": "智能任务管家 · AI 助手 - 桌面版",
+  "name": "smarttodo",
+  "version": "1.3.1",
+  "description": "SmartTodo · 本地优先任务与 AI 助手",
   "main": "main.js",
-  "author": "Smart Assistant",
+  "author": "萤火",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -12,8 +12,8 @@
     "dist": "electron-builder --win portable"
   },
   "build": {
-    "appId": "com.smart.assistant",
-    "productName": "智能任务管家",
+    "appId": "com.smarttodo.app",
+    "productName": "SmartTodo",
     "compression": "normal",
     "files": [
       "main.js",
@@ -40,11 +40,11 @@
           ]
         }
       ],
-      "artifactName": "${productName}-${version}.exe",
+      "artifactName": "SmartTodo-${version}.exe",
       "signAndEditExecutable": true
     },
     "portable": {
-      "artifactName": "${productName}-${version}.exe"
+      "artifactName": "SmartTodo-${version}.exe"
     }
   },
   "devDependencies": {
