@@ -8,6 +8,8 @@ const HANDLED = [
   "widget:get-snapshot",
   "widget:toggle-task",
   "widget:task-action-result",
+  "widget:get-visible",
+  "widget:toggle-visible",
   "widget:set-visible",
   "widget:show-main"
 ];
@@ -40,14 +42,19 @@ function createHarness({ timeout = 50 } = {}) {
   const mainWindow = { webContents: mainContents, isDestroyed: () => false };
   const widgetWindow = { webContents: widgetContents, isDestroyed: () => false };
   const visibility = [];
+  let widgetVisible = true;
   let showMainCalls = 0;
   const registration = registerWidgetIpc({
     ipcMain,
     getMainWindow: () => mainWindow,
     getWidgetWindow: () => widgetWindow,
     setWidgetVisible(value) {
+      widgetVisible = value;
       visibility.push(value);
       return value;
+    },
+    isWidgetVisible() {
+      return widgetVisible;
     },
     showMainWindow() {
       showMainCalls += 1;
@@ -148,10 +155,21 @@ test("sender and payload boundaries reject privilege escalation", async () => {
 
 test("main controls visibility while widget may only hide itself and open main", async () => {
   const harness = createHarness();
+  assert.equal(await harness.invoke("widget:get-visible", harness.mainContents), true);
+  assert.equal(await harness.invoke("widget:toggle-visible", harness.mainContents), false);
+  assert.equal(await harness.invoke("widget:get-visible", harness.mainContents), false);
   assert.equal(await harness.invoke("widget:set-visible", harness.mainContents, { visible: true }), true);
   assert.equal(await harness.invoke("widget:set-visible", harness.widgetContents, { visible: false }), false);
   await assert.rejects(harness.invoke("widget:set-visible", harness.widgetContents, { visible: true }));
-  assert.deepEqual(harness.visibility, [true, false]);
+  assert.deepEqual(harness.visibility, [false, true, false]);
   assert.equal(await harness.invoke("widget:show-main", harness.widgetContents), true);
   assert.equal(harness.getShowMainCalls(), 1);
+});
+
+test("only the main renderer may read or toggle widget visibility", async () => {
+  const harness = createHarness();
+  for (const sender of [harness.widgetContents, harness.intruder]) {
+    await assert.rejects(harness.invoke("widget:get-visible", sender));
+    await assert.rejects(harness.invoke("widget:toggle-visible", sender));
+  }
 });

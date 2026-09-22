@@ -83,7 +83,33 @@ app.whenReady().then(async () => {
           size: 4096,
           addedAt: 1800000000000
         }]
+      }, {
+        id: "layout-child",
+        title: "用于验证父任务操作区自然换行的子任务",
+        remarks: "",
+        remindTime: null,
+        priority: "medium",
+        parentId: "long-content",
+        done: false,
+        completedAt: null,
+        pinned: false,
+        createdAt: new Date(2026, 8, 14, 6, 35).getTime(),
+        attachments: []
       }]));
+      localStorage.setItem("deepseek_chat_state", JSON.stringify({
+        activeSessionId: "layout-chat",
+        sessions: [{
+          id: "layout-chat",
+          title: "布局验证",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          messages: [
+            { role: "assistant", content: "随时说～" },
+            { role: "user", content: "根据我的任务列表梳理上周任务完成情况" },
+            { role: "assistant", content: "我会按已完成、进行中和需要关注三个层级整理。" }
+          ]
+        }]
+      }));
       location.reload();
     `);
     await reloaded;
@@ -102,12 +128,28 @@ app.whenReady().then(async () => {
           const taskWorkbench = document.querySelector(".task-workbench");
           const longTask = document.querySelector('[data-id="long-content"]');
           const aiSidecar = document.querySelector(".ai-sidecar");
+          const actionRects = [...longTask.querySelectorAll('.task-row__actions > *')]
+            .map(node => node.getBoundingClientRect());
+          const actionOverlap = actionRects.some((rect, index) => actionRects.slice(index + 1).some(other =>
+            Math.min(rect.right, other.right) - Math.max(rect.left, other.left) > .5
+            && Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top) > .5
+          ));
+          const messages = [...document.querySelectorAll('.chat-box > .msg')]
+            .map(node => node.getBoundingClientRect());
+          const messageOverlap = messages.some((rect, index) => index > 0 && rect.top < messages[index - 1].bottom - .5);
+          const visibleHeaderItems = [...document.querySelectorAll('.brand-tools > *')]
+            .filter(node => getComputedStyle(node).display !== 'none')
+            .map(node => node.getBoundingClientRect());
+          const headerCenters = visibleHeaderItems.map(rect => rect.top + rect.height / 2);
           resolve({
             viewport: document.documentElement.clientWidth,
             bodyOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
             workspaceOverflow: workspace.scrollWidth - workspace.clientWidth,
             taskOverflow: taskWorkbench.scrollWidth - taskWorkbench.clientWidth,
             longTaskOverflow: longTask.scrollWidth - longTask.clientWidth,
+            actionOverlap,
+            messageOverlap,
+            headerCenterDelta: Math.max(...headerCenters) - Math.min(...headerCenters),
             columns: getComputedStyle(workspace).gridTemplateColumns,
             aiTop: aiSidecar.getBoundingClientRect().top,
             taskBottom: taskWorkbench.getBoundingClientRect().bottom
@@ -118,6 +160,9 @@ app.whenReady().then(async () => {
       for (const key of ["bodyOverflow", "workspaceOverflow", "taskOverflow", "longTaskOverflow"]) {
         assert.ok(geometry[key] <= 1, `${label} ${key}: ${geometry[key]}`);
       }
+      assert.equal(geometry.actionOverlap, false, `${label} task actions overlap`);
+      assert.equal(geometry.messageOverlap, false, `${label} chat messages overlap`);
+      assert.ok(geometry.headerCenterDelta <= 1.5, `${label} header center delta: ${geometry.headerCenterDelta}`);
       if (geometry.viewport < 1024) {
         assert.ok(geometry.aiTop >= geometry.taskBottom - 1,
           `${label} should stack: aiTop ${geometry.aiTop}, taskBottom ${geometry.taskBottom}`);

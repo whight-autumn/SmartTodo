@@ -71,6 +71,8 @@ contextBridge.exposeInMainWorld("desktop", {
   openExternalUrl: url => ipcRenderer.invoke("task-attachment:open-external", url),
   publishTaskWidgetSnapshot: snapshot => ipcRenderer.invoke("widget:publish-snapshot", snapshot),
   completeTaskWidgetAction: result => ipcRenderer.invoke("widget:task-action-result", result),
+  getTaskWidgetVisibility: () => ipcRenderer.invoke("widget:get-visible"),
+  toggleTaskWidgetVisibility: () => ipcRenderer.invoke("widget:toggle-visible"),
   setTaskWidgetVisible: visible => ipcRenderer.invoke("widget:set-visible", { visible }),
   onTaskWidgetAction: callback => {
     const listener = (_event, payload) => callback(clonePayload(payload));
@@ -96,5 +98,5 @@ contextBridge.exposeInMainWorld("desktop", {
   },
 
   // 应用版本
-  version: process.env.npm_package_version || "1.2.0"
+  version: process.env.npm_package_version || "1.2.2"
 });

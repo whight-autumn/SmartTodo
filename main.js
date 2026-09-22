@@ -12,6 +12,11 @@ const WidgetModel = require("./renderer/widget-model.js");
 const { createWidgetController } = require("./widget-controller.js");
 const { registerWidgetIpc } = require("./widget-ipc.js");
 
+// Chromium's accelerated native date/time editor can leave some Windows GPU
+// combinations on a black compositor frame after segment text is selected.
+// SmartTodo's lightweight UI is more reliable with software composition.
+app.disableHardwareAcceleration();
+
 const legacyUserDataPath = path.join(app.getPath("appData"), "smart-assistant");
 const managedUserDataPath = buildManagedUserDataPath(app.getPath("appData"));
 app.setPath("userData", managedUserDataPath);
@@ -196,6 +201,7 @@ app.whenReady().then(() => {
     getMainWindow: () => mainWindow,
     getWidgetWindow: widgetController.getWindow,
     setWidgetVisible: widgetController.setVisible,
+    isWidgetVisible: widgetController.isVisible,
     showMainWindow,
     normalizeSnapshot: WidgetModel.normalizeWidgetSnapshot
   });

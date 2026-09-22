@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f5f1e8">
-  <title>SmartTodo V1.2 · by 萤火</title>
+  <title>SmartTodo V1.2.2 · by 萤火</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,12 +12,12 @@
 
   <div class="app-shell">
     <header class="app-header brand-bar">
-      <div class="brand brand-lockup" aria-label="SmartTodo V1.2">
+      <div class="brand brand-lockup" aria-label="SmartTodo V1.2.2">
         <img class="brand-icon brand-mark" src="../assets/brand/icon-master.svg" alt="" width="48" height="48">
         <span class="brand-text-wrap brand-copy">
           <span class="brand-main-line">
             <strong class="brand-name">SmartTodo</strong>
-            <span id="app-version" class="brand-version">V1.2</span>
+            <span id="app-version" class="brand-version">V1.2.2</span>
           </span>
           <small class="brand-owner">by 萤火</small>
         </span>
@@ -88,13 +88,13 @@
         </form>
 
         <div class="filter-bar" aria-label="任务筛选">
-          <button class="filter-btn attention-filter" type="button" data-filter="attention">
+          <button class="filter-btn attention-filter" type="button" data-filter="attention" aria-pressed="false">
             需关注 <span class="filter-count" data-filter-count="attention">0</span>
           </button>
-          <button class="filter-btn active" type="button" data-filter="active">
+          <button class="filter-btn active" type="button" data-filter="active" aria-pressed="true">
             进行中 <span class="filter-count" data-filter-count="active">0</span>
           </button>
-          <button class="filter-btn" type="button" data-filter="completed">
+          <button class="filter-btn" type="button" data-filter="completed" aria-pressed="false">
             已完成 <span class="filter-count" data-filter-count="completed">0</span>
           </button>
         </div>

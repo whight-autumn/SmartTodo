@@ -7,11 +7,15 @@ const { formatDisplayVersion } = require("../renderer/ui-appearance.js");
 
 const root = path.resolve(__dirname, "..");
 
-test("package and visible V1.2 versions agree", () => {
-  assert.equal(pkg.version, "1.2.0");
-  assert.equal(formatDisplayVersion(pkg.version), "1.2");
-  assert.equal(formatDisplayVersion("v1.2.8"), "1.2");
-  assert.equal(formatDisplayVersion("invalid"), "1.2");
+test("package and visible V1.2.2 versions agree", () => {
+  assert.equal(pkg.version, "1.2.2");
+  assert.equal(formatDisplayVersion(pkg.version), "1.2.2");
+  assert.equal(formatDisplayVersion("v1.2.8"), "1.2.8");
+  assert.equal(formatDisplayVersion("invalid"), "1.2.2");
+
+  for (const file of ["renderer/index.html", "renderer/widget.html"]) {
+    assert.match(fs.readFileSync(path.join(root, file), "utf8"), /V1\.2\.2/);
+  }
 });
 
 test("runtime fallbacks no longer reference V1.0.7", () => {

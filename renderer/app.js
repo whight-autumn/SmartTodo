@@ -204,6 +204,7 @@ const els = {
   themeBtn: $("theme-toggle"),
   widgetToggle: $("task-widget-toggle"),
   globalSettingsBtn: $("global-settings-btn"),
+  brightnessControl: document.querySelector(".brightness-control"),
   brightnessSlider: $("brightness-slider"),
   brightnessValue: $("brightness-value"),
   settingsBtn: $("ai-settings-btn"),
@@ -273,6 +274,35 @@ function initBrightness() {
   applyBrightness(uiAppearance.loadBrightness(localStorage));
 }
 
+let brightnessCloseTimer = null;
+
+function openBrightnessControl() {
+  clearTimeout(brightnessCloseTimer);
+  brightnessCloseTimer = null;
+  els.brightnessControl.classList.add("is-open");
+}
+
+function closeBrightnessControlSoon() {
+  clearTimeout(brightnessCloseTimer);
+  brightnessCloseTimer = setTimeout(() => {
+    const focusedInside = els.brightnessControl.contains(document.activeElement);
+    if (!els.brightnessControl.matches(":hover") && !focusedInside) {
+      els.brightnessControl.classList.remove("is-open");
+    }
+  }, 180);
+}
+
+els.brightnessControl.addEventListener("pointerenter", openBrightnessControl);
+els.brightnessControl.addEventListener("pointerleave", closeBrightnessControlSoon);
+els.brightnessControl.addEventListener("focusin", openBrightnessControl);
+els.brightnessControl.addEventListener("focusout", closeBrightnessControlSoon);
+els.brightnessControl.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  clearTimeout(brightnessCloseTimer);
+  els.brightnessControl.classList.remove("is-open");
+  els.brightnessSlider.blur();
+});
+
 els.brightnessSlider.addEventListener("input", event => {
   applyBrightness(event.target.value);
 });
@@ -285,6 +315,22 @@ els.brightnessSlider.addEventListener("dblclick", () => {
   applyBrightness(uiAppearance.DEFAULT_BRIGHTNESS, true);
   showToast("界面亮度已恢复为 100%");
 });
+
+function guardReminderTimeDoubleClick(event) {
+  if (event.detail > 1) {
+    event.preventDefault();
+    event.stopPropagation();
+    const value = els.time.value;
+    els.time.blur();
+    requestAnimationFrame(() => {
+      els.time.value = value;
+      els.time.focus({ preventScroll: true });
+    });
+  }
+}
+
+els.time.addEventListener("mousedown", guardReminderTimeDoubleClick);
+els.time.addEventListener("dblclick", guardReminderTimeDoubleClick);
 
 /* ==========================================================
    任务与子任务
@@ -1396,8 +1442,10 @@ els.parent.addEventListener("change", () => {
 
 document.querySelectorAll(".filter-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
+    document.querySelectorAll(".filter-btn").forEach(b => {
+      b.classList.toggle("active", b === btn);
+      b.setAttribute("aria-pressed", String(b === btn));
+    });
     currentFilter = btn.dataset.filter;
     visibleTaskLimit = TASK_PAGE_SIZE;
     els.list.scrollTop = 0;
@@ -2036,18 +2084,30 @@ function syncTaskWidgetVisibility(value) {
   const visible = typeof value === "boolean" ? value : !!value?.visible;
   els.widgetToggle?.setAttribute("aria-pressed", String(visible));
   if (els.widgetToggle) {
-    els.widgetToggle.title = visible ? "桌面任务笺已显示" : "显示桌面任务笺";
-    els.widgetToggle.setAttribute("aria-label", visible ? "桌面任务笺已显示" : "显示桌面任务笺");
+    const actionLabel = visible ? "隐藏桌面任务笺" : "显示桌面任务笺";
+    els.widgetToggle.title = actionLabel;
+    els.widgetToggle.setAttribute("aria-label", actionLabel);
   }
 }
 
 els.widgetToggle?.addEventListener("click", async () => {
+  els.widgetToggle.disabled = true;
   try {
-    await window.desktop?.setTaskWidgetVisible?.(true);
+    const visible = await window.desktop?.toggleTaskWidgetVisibility?.();
+    syncTaskWidgetVisibility(visible);
   } catch {
-    showToast("桌面任务笺暂时无法显示", "error");
+    showToast("桌面任务笺状态切换失败，请稍后重试", "error");
+  } finally {
+    els.widgetToggle.disabled = false;
   }
 });
+
+function initializeTaskWidgetVisibility() {
+  if (!window.desktop?.getTaskWidgetVisibility) return;
+  window.desktop.getTaskWidgetVisibility()
+    .then(syncTaskWidgetVisibility)
+    .catch(() => syncTaskWidgetVisibility(false));
+}
 
 if (window.desktop?.onTaskWidgetVisibility) {
   window.desktop.onTaskWidgetVisibility(syncTaskWidgetVisibility);
@@ -2057,7 +2117,7 @@ if (window.desktop?.onTaskWidgetAction) {
 }
 
 function renderInitialVersion() {
-  const fallback = window.desktop?.version || "1.2.0";
+  const fallback = window.desktop?.version || "1.2.2";
   const current = uiAppearance.formatDisplayVersion(fallback);
   if (els.version) els.version.textContent = `V${current}`;
 
@@ -2077,6 +2137,7 @@ function init() {
   initTheme();
   initBrightness();
   renderInitialVersion();
+  initializeTaskWidgetVisibility();
   applyAICollapseState();
   pruneExpiredCompletedTasks();
   saveTasks();

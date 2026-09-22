@@ -296,6 +296,16 @@ app.whenReady().then(async () => {
           slider.dispatchEvent(new Event("change", { bubbles: true }));
           const storedBrightness = localStorage.getItem("smart_ui_brightness");
           slider.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+          const brightnessControl = slider.closest(".brightness-control");
+          const brightnessBridge = getComputedStyle(brightnessControl, "::before");
+          brightnessControl.dispatchEvent(new PointerEvent("pointerenter"));
+          const brightnessOpenedByPointer = brightnessControl.classList.contains("is-open");
+          const reminder = document.getElementById("task-time");
+          const reminderDoubleClickCanceled = !reminder.dispatchEvent(new MouseEvent("mousedown", {
+            bubbles: true,
+            cancelable: true,
+            detail: 2
+          }));
           const typeTag = document.querySelector(".task-type-tag");
           const priorityTag = document.querySelector(".priority-high");
           const typeStyle = getComputedStyle(typeTag);
@@ -319,6 +329,12 @@ app.whenReady().then(async () => {
               storedBrightness,
               resetBrightness: localStorage.getItem("smart_ui_brightness"),
               brightnessOutput: document.getElementById("brightness-value").textContent,
+              brightnessBridgeHeight: parseFloat(brightnessBridge.height),
+              brightnessBridgeWidth: parseFloat(brightnessBridge.width),
+              brightnessOpenedByPointer,
+              reminderDoubleClickCanceled,
+              completedPressed: document.querySelector('[data-filter="completed"]').getAttribute("aria-pressed"),
+              activePressed: document.querySelector('[data-filter="active"]').getAttribute("aria-pressed"),
               lightTheme
             });
           }));
@@ -909,6 +925,12 @@ app.whenReady().then(async () => {
     assert.equal(result.storedBrightness, "120");
     assert.equal(result.resetBrightness, "100");
     assert.equal(result.brightnessOutput, "100%");
+    assert.ok(result.brightnessBridgeHeight >= 7);
+    assert.ok(result.brightnessBridgeWidth >= 140);
+    assert.equal(result.brightnessOpenedByPointer, true);
+    assert.equal(result.reminderDoubleClickCanceled, true);
+    assert.equal(result.completedPressed, "true");
+    assert.equal(result.activePressed, "false");
     assert.equal(result.initialFilter, "active");
     assert.equal(hierarchy.parent, "0");
     assert.equal(hierarchy.child, "1");

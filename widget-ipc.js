@@ -7,6 +7,8 @@ const CHANNELS = [
   "widget:get-snapshot",
   "widget:toggle-task",
   "widget:task-action-result",
+  "widget:get-visible",
+  "widget:toggle-visible",
   "widget:set-visible",
   "widget:show-main"
 ];
@@ -44,6 +46,7 @@ function registerWidgetIpc({
   getMainWindow,
   getWidgetWindow,
   setWidgetVisible,
+  isWidgetVisible,
   showMainWindow,
   normalizeSnapshot,
   actionTimeoutMs = 5000
@@ -147,6 +150,18 @@ function registerWidgetIpc({
     if (!fromMain && !fromWidget) throw new Error("任务笺可见性来源无效");
     if (fromWidget && payload.visible) throw new Error("任务笺不能自行显示");
     return setWidgetVisible(payload.visible);
+  });
+
+  ipcMain.handle("widget:get-visible", async (event, payload) => {
+    requireSender(event, mainContents, "读取任务笺可见性");
+    if (payload !== undefined) throw new Error("读取任务笺可见性参数无效");
+    return !!isWidgetVisible();
+  });
+
+  ipcMain.handle("widget:toggle-visible", async (event, payload) => {
+    requireSender(event, mainContents, "切换任务笺可见性");
+    if (payload !== undefined) throw new Error("切换任务笺可见性参数无效");
+    return setWidgetVisible(!isWidgetVisible());
   });
 
   ipcMain.handle("widget:show-main", async (event, payload) => {

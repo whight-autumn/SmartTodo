@@ -65,6 +65,8 @@ test("preload exposes no renderer-controlled path import API", () => {
   for (const method of [
     "publishTaskWidgetSnapshot",
     "completeTaskWidgetAction",
+    "getTaskWidgetVisibility",
+    "toggleTaskWidgetVisibility",
     "setTaskWidgetVisible",
     "onTaskWidgetAction",
     "onTaskWidgetVisibility"
@@ -78,6 +80,8 @@ test("preload widget bridge uses fixed channels and exact listener cleanup", asy
   const source = fs.readFileSync(path.join(__dirname, "..", "preload.js"), "utf8");
   assert.match(source, /ipcRenderer\.invoke\("widget:publish-snapshot"/);
   assert.match(source, /ipcRenderer\.invoke\("widget:task-action-result"/);
+  assert.match(source, /ipcRenderer\.invoke\("widget:get-visible"/);
+  assert.match(source, /ipcRenderer\.invoke\("widget:toggle-visible"/);
   assert.match(source, /ipcRenderer\.invoke\("widget:set-visible"/);
   assert.match(source, /ipcRenderer\.on\("widget:action"/);
   assert.match(source, /ipcRenderer\.on\("widget:visibility"/);

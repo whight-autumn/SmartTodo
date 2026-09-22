@@ -7,20 +7,22 @@
 <p align="center"><b>本地优先的 Windows 桌面任务管理器与可选 AI 助手</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.2.0-315e50" alt="Version 1.2.0">
+  <img src="https://img.shields.io/badge/version-1.2.2-315e50" alt="Version 1.2.2">
   <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
-  <img src="https://img.shields.io/badge/node:test-115%20tests-9c473b" alt="node:test 115 tests">
+  <img src="https://img.shields.io/badge/node:test-122%20tests-9c473b" alt="node:test 122 tests">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-315e50" alt="Windows x64">
   <img src="https://img.shields.io/badge/License-MIT-69736e" alt="MIT">
 </p>
 
-SmartTodo 将任务、备注、附件、会话和配置保存在本机，无需账号或后端服务。V1.2 采用“文房案台”现代中式视觉系统，并增加与主界面协调的桌面任务笺。
+SmartTodo 将任务、备注、附件、会话和配置保存在本机，无需账号或后端服务。V1.2.2 延续“文房案台”现代中式视觉系统，并重点改善 Windows 渲染稳定性与日常操作反馈。
 
-## V1.2 亮点
+## V1.2.2 亮点
 
 - 现代新中式界面：暖纸、竹青、漆夜与朱砂构成深浅双主题，统一使用重新绘制的竹叶流萤图标。
 - 响应式工作台：覆盖 1366×768 至 2560×1440、窄窗口以及 125%／150% 缩放；长标题、长链接和长文件名不会造成横向撕裂。
 - 桌面任务笺：默认位于当前桌面右侧，以半透明 320×440 小窗展示最多 5 项未完成任务；优先顺序为“已逾期 → 24 小时内到期 → 置顶 → 高优先级 → 其余任务”。
+- 时间输入稳定性：阻断原生分钟分段双击时的异常 GPU 重绘路径，并使用更稳定的软件合成，避免窗口黑屏。
+- 操作反馈：按钮按压、输入聚焦、筛选选中和任务勾选均提供克制而清晰的即时反馈；亮度拉条可从图标连续悬停进入。
 - 克制动效：本地 GSAP 只服务于状态变化，并完整尊重 `prefers-reduced-motion`；桌面任务笺使用单一 180ms CSS 完成反馈。
 - 原有数据兼容：继续使用既有 `localStorage` 键名、任务结构、运行数据目录和附件目录，无需迁移。
 
@@ -50,7 +52,7 @@ API Key 仅存储在本机运行数据中，不写入仓库或日志。
 
 ## 桌面任务笺
 
-- 从主界面右上角任务笺按钮，或系统托盘中的“桌面任务笺”开关显示小窗。
+- 主界面右上角任务笺按钮可直接显示或收起小窗，并与系统托盘中的“桌面任务笺”开关同步状态。
 - 小窗记住可见性与最后位置；显示器断开后会自动回到主显示器可见范围。
 - 任务笺始终保持 `alwaysOnTop: false`，不会覆盖其他工作窗口，也不会在出现时抢夺键盘焦点。
 - 主界面是 `smart_tasks` 的唯一写入者。小窗完成任务时必须由主界面持久化；保存失败会恢复原状态并提示在主界面重试。
@@ -75,7 +77,7 @@ SmartTodo/
 │   └── icons.svg                   # 统一线性图标符号
 ├── tests/                          # 单元与真实 Electron 窗口测试
 ├── assets/                         # 品牌源文件、字体与应用图标
-└── release/V1.2/                   # V1.2 版本说明与本地构建产物
+└── release/V1.2.2/                 # V1.2.2 版本说明与本地构建产物
 ```
 
 逐文件职责见 [`docs/文件说明.md`](docs/文件说明.md)。
@@ -90,7 +92,7 @@ npm test
 npm run test:ui
 ```
 
-V1.2 当前共有 115 项单元测试：113 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。UI 流水线覆盖真实 Electron 主窗口、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的排序、焦点、同步、回滚和溢出行为。
+V1.2.2 当前共有 122 项单元测试：120 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。UI 流水线覆盖真实 Electron 主窗口、提醒时间双击保护、亮度浮层悬停桥、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的排序、焦点、双向开关、同步、回滚和溢出行为。
 
 ## 构建
 
@@ -98,7 +100,7 @@ V1.2 当前共有 115 项单元测试：113 项通过，2 项因当前 Windows �
 npm run dist
 ```
 
-该命令生成 Windows x64 便携版到 `dist/`。发布副本位于 `release/V1.2/`；EXE 由 `.gitignore` 排除，应通过 GitHub Releases 分发。未签名构建首次运行时可能触发 Windows SmartScreen 提示。
+该命令生成 Windows x64 便携版到 `dist/`。发布副本位于 `release/V1.2.2/`；EXE 由 `.gitignore` 排除，应通过 GitHub Releases 分发。未签名构建首次运行时可能触发 Windows SmartScreen 提示。
 
 ## 数据与升级兼容
 
@@ -114,7 +116,7 @@ npm run dist
 %APPDATA%\智能任务管家\运行数据\task-attachments\<任务ID>\
 ```
 
-V1.2 兼容 V1.0.7 的任务、草稿、主题、AI 配置、会话和受管附件。升级前请从托盘完全退出旧版本，并建议备份整个“运行数据”目录。不要分发包含 API Key 的运行数据。
+V1.2.2 兼容 V1.0.7、V1.2.0 与 V1.2.1 的任务、草稿、主题、AI 配置、会话和受管附件。升级前请从托盘完全退出旧版本，并建议备份整个“运行数据”目录。不要分发包含 API Key 的运行数据。
 
 ## 安全边界
 

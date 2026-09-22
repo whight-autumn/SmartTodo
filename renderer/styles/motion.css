@@ -4,9 +4,12 @@
 }
 
 .toast { animation: toast-enter 280ms var(--ease-state) both; }
-.btn, .icon-btn, .filter-btn, .task-btn, .input, .chat-input, .panel {
+.btn, .icon-btn, .filter-btn, .task-btn, .input, .chat-input, .panel,
+.brightness-control, .brightness-control::after, .brightness-control input,
+.brightness-control output, .task-check-visual {
   transition: color 180ms var(--ease-state), background-color 180ms var(--ease-state),
-    border-color 180ms var(--ease-state), box-shadow 180ms var(--ease-state);
+    border-color 180ms var(--ease-state), box-shadow 180ms var(--ease-state),
+    opacity 160ms var(--ease-state), transform 120ms var(--ease-state);
 }
 dialog[open] .dialog-sheet { animation: toast-enter 240ms var(--ease-state) both; }
 

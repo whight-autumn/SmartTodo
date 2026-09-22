@@ -155,6 +155,10 @@ function createWidgetController({
     return !!widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible();
   }
 
+  function toggle() {
+    return setVisible(!isVisible());
+  }
+
   function flush() {
     if (writeTimer !== null) {
       clearTimeoutFn(writeTimer);
@@ -189,6 +193,7 @@ function createWidgetController({
     show,
     hide,
     setVisible,
+    toggle,
     isVisible,
     getWindow: () => widgetWindow,
     flush,

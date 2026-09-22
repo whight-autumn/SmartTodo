@@ -16,6 +16,8 @@ body {
 
 .widget-shell {
   --widget-brightness: 100%;
+  --widget-glass-alpha-top: 84%;
+  --widget-glass-alpha-bottom: 78%;
   position: relative;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
@@ -29,12 +31,18 @@ body {
   border-radius: 17px;
   color: var(--text);
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--surface-raised) 91%, transparent), color-mix(in srgb, var(--surface) 94%, transparent)),
-    var(--surface);
-  box-shadow: 0 18px 46px rgba(13, 21, 18, .22), inset 0 1px rgba(255, 255, 255, .12);
-  backdrop-filter: blur(19px) saturate(116%);
-  -webkit-backdrop-filter: blur(19px) saturate(116%);
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--surface-raised) var(--widget-glass-alpha-top), transparent),
+      color-mix(in srgb, var(--surface) var(--widget-glass-alpha-bottom), transparent));
+  box-shadow: 0 20px 50px rgba(13, 21, 18, .2), inset 0 1px rgba(255, 255, 255, .14);
+  backdrop-filter: blur(22px) saturate(118%);
+  -webkit-backdrop-filter: blur(22px) saturate(118%);
   filter: brightness(var(--widget-brightness));
+}
+
+[data-theme="dark"] .widget-shell {
+  --widget-glass-alpha-top: 88%;
+  --widget-glass-alpha-bottom: 82%;
 }
 
 .no-transparency .widget-shell {

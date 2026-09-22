@@ -5,6 +5,8 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "renderer/index.html"), "utf8");
+const appSource = fs.readFileSync(path.join(root, "renderer/app.js"), "utf8");
+const mainSource = fs.readFileSync(path.join(root, "main.js"), "utf8");
 const entryCss = fs.readFileSync(path.join(root, "renderer/style.css"), "utf8");
 const componentsCss = fs.readFileSync(path.join(root, "renderer/styles/components.css"), "utf8");
 const motionCss = fs.readFileSync(path.join(root, "renderer/styles/motion.css"), "utf8");
@@ -58,4 +60,36 @@ test("semantic outline and task rows avoid decorative-only structure", () => {
 
 test("motion stylesheet only transitions composited visual properties", () => {
   assert.doesNotMatch(motionCss, /transition:\s*min-height/);
+});
+
+test("reminder editing guards native double-click repaint failures", () => {
+  const guard = appSource.match(/function guardReminderTimeDoubleClick[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(guard, /event\.detail\s*>\s*1/);
+  assert.match(guard, /event\.preventDefault\(\)/);
+  assert.match(appSource, /els\.time\.addEventListener\("mousedown", guardReminderTimeDoubleClick\)/);
+
+  const disableHardwareAcceleration = mainSource.indexOf("app.disableHardwareAcceleration()");
+  assert.ok(disableHardwareAcceleration >= 0, "production should opt into stable software composition");
+  assert.ok(disableHardwareAcceleration < mainSource.indexOf("app.whenReady()"));
+});
+
+test("brightness popover keeps a continuous hover path to the slider", () => {
+  assert.match(componentsCss, /\.brightness-control::before\s*\{[\s\S]*?top:\s*100%[\s\S]*?height:\s*\d+px/);
+  assert.match(componentsCss, /\.brightness-control:(?:hover|focus-within)[\s\S]*?\.brightness-control\.is-open/);
+});
+
+test("interactive controls expose restrained press and selection feedback", () => {
+  assert.match(motionCss, /transition:[^;]*transform/);
+  assert.match(componentsCss, /:active:not\(:disabled\)[\s\S]*?transform:/);
+  assert.match(html, /data-filter="active"[^>]+aria-pressed="true"/);
+  assert.match(appSource, /setAttribute\("aria-pressed", String\(b === btn\)\)/);
+});
+
+test("header, task controls, and chat messages use natural flow without corrective offsets", () => {
+  const rule = selector => componentsCss.match(new RegExp(`${selector}\\s*\\{[^}]*\\}`, "s"))?.[0] || "";
+  assert.doesNotMatch(rule("\\.brand-principle"), /transform\s*:/);
+  assert.doesNotMatch(rule("\\.task-btn\\.subtask"), /transform\s*:/);
+  assert.doesNotMatch(rule("\\.msg\\.user"), /transform\s*:/);
+  assert.doesNotMatch(rule("\\.chat-box > \\.msg\\.ai:first-child"), /transform\s*:/);
+  assert.doesNotMatch(rule("\\.chat-box > \\.msg\\.ai:not\\(:first-child\\)"), /(?:transform\s*:|margin-top\s*:\s*-)/);
 });

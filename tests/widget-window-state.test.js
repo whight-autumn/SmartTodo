@@ -157,6 +157,17 @@ test("controller clamps before show and close hides without destroying", () => {
   assert.deepEqual(harness.visibility, [true, false]);
 });
 
+test("controller toggles from the authoritative native visibility state", () => {
+  const harness = createControllerHarness();
+  const window = harness.controller.create();
+  assert.equal(window.isVisible(), true);
+  assert.equal(harness.controller.toggle(), false);
+  assert.equal(window.isVisible(), false);
+  assert.equal(harness.controller.toggle(), true);
+  assert.equal(window.isVisible(), true);
+  assert.deepEqual(harness.visibility, [true, false, true]);
+});
+
 test("controller debounces atomic preference persistence", () => {
   const harness = createControllerHarness({
     saved: { visible: false, displayId: 1, bounds: { x: 1500, y: 30, width: 320, height: 440 } }

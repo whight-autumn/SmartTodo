@@ -11,7 +11,6 @@
     list: document.getElementById("widget-list"),
     empty: document.getElementById("widget-empty"),
     status: document.getElementById("widget-status"),
-    headerOpen: document.getElementById("widget-header-open"),
     headerHide: document.getElementById("widget-header-hide"),
     openMain: document.getElementById("widget-open-main"),
   };
@@ -146,7 +145,6 @@
     }
   }
 
-  elements.headerOpen.addEventListener("click", () => void bridge.showMainWindow());
   elements.headerHide.addEventListener("click", () => void bridge.setVisible(false));
   elements.openMain.addEventListener("click", () => void bridge.showMainWindow());
   iconUtils.mountIcons(document);

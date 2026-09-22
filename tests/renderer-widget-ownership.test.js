@@ -33,3 +33,9 @@ test("theme and persisted brightness changes republish appearance", () => {
   assert.match(appSource, /if \(persist\)[\s\S]{0,300}publishTaskWidgetSnapshot/);
   assert.match(appSource, /onTaskWidgetVisibility/);
 });
+
+test("desktop note control initializes from native state and performs a true toggle", () => {
+  assert.match(appSource, /getTaskWidgetVisibility/);
+  assert.match(appSource, /toggleTaskWidgetVisibility/);
+  assert.doesNotMatch(appSource, /setTaskWidgetVisible\?\.\(true\)/);
+});

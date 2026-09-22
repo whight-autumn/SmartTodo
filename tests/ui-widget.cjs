@@ -11,6 +11,7 @@ const { clampWidgetBounds } = require("../widget-window-state.js");
 
 const projectRoot = path.resolve(__dirname, "..");
 const testDataPath = path.join(os.tmpdir(), `smarttodo-widget-${process.pid}`);
+const widgetCapturePath = path.join(os.tmpdir(), "smarttodo-widget-glass.png");
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -30,10 +31,11 @@ function assertStaticSurface() {
   const css = fs.readFileSync(path.join(projectRoot, "renderer", "widget.css"), "utf8");
   const js = fs.readFileSync(path.join(projectRoot, "renderer", "widget.js"), "utf8");
   for (const id of [
-    "widget-shell", "widget-drag-region", "widget-header-open", "widget-header-hide",
+    "widget-shell", "widget-drag-region", "widget-header-hide",
     "widget-heading", "widget-date", "widget-count", "widget-list", "widget-open-main"
   ]) assert.match(html, new RegExp(`id="${id}"`), id);
-  assert.match(html, /<span class="widget-version">V1\.2<\/span>/);
+  assert.doesNotMatch(`${html}\n${js}`, /widget-header-open|headerOpen/);
+  assert.match(html, /<span class="widget-version">V1\.2\.2<\/span>/);
   assert.match(html, /<h1 id="widget-heading">今日要务<\/h1>/);
   assert.match(html, /<footer class="widget-footer">[\s\S]*id="widget-open-main"[\s\S]*<\/footer>/);
   assert.doesNotMatch(html, /id="widget-hide"/);
@@ -45,6 +47,10 @@ function assertStaticSurface() {
   assert.doesNotMatch(css.match(/\.widget-task\s*\{[^}]*\}/s)?.[0] || "", /border-radius/);
   assert.match(js, /row\.classList\.add\("is-child"\)/);
   assert.match(css, /\.widget-task\.is-child\s*\{[^}]*padding-inline-start:/s);
+  const shellRule = css.match(/\.widget-shell\s*\{[^}]*\}/s)?.[0] || "";
+  assert.match(shellRule, /color-mix\([\s\S]*?transparent/);
+  assert.doesNotMatch(shellRule, /,\s*var\(--surface\)\s*;/);
+  assert.match(css, /\.no-transparency \.widget-shell\s*\{[^}]*background:\s*var\(--surface-raised\)/s);
   assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*transition-duration:\s*1ms\s*!important[\s\S]*transform:\s*none\s*!important/);
   assert.doesNotMatch(`${html}\n${css}\n${js}`, /\p{Extended_Pictographic}/u);
 }
@@ -96,6 +102,7 @@ app.whenReady().then(async () => {
       getMainWindow: () => mainWindow,
       getWidgetWindow: controller.getWindow,
       setWidgetVisible: controller.setVisible,
+      isWidgetVisible: controller.isVisible,
       showMainWindow() {
         mainWindow.show();
         mainWindow.focus();
@@ -138,6 +145,14 @@ app.whenReady().then(async () => {
     assert.equal(widgetWindow.isAlwaysOnTop(), false);
     assert.equal(widgetWindow.isVisible(), true);
     assert.notEqual(BrowserWindow.getFocusedWindow()?.id, widgetWindow.id);
+    await waitFor(mainWindow, `document.getElementById("task-widget-toggle").getAttribute("aria-pressed") === "true"`);
+
+    await mainWindow.webContents.executeJavaScript(`document.getElementById("task-widget-toggle").click()`);
+    await waitFor(mainWindow, `document.getElementById("task-widget-toggle").getAttribute("aria-pressed") === "false"`);
+    assert.equal(widgetWindow.isVisible(), false);
+    await mainWindow.webContents.executeJavaScript(`document.getElementById("task-widget-toggle").click()`);
+    await waitFor(mainWindow, `document.getElementById("task-widget-toggle").getAttribute("aria-pressed") === "true"`);
+    assert.equal(widgetWindow.isVisible(), true);
 
     const initial = await widgetWindow.webContents.executeJavaScript(`(() => {
       const title = document.querySelector('[data-task-id="high-long"] .widget-task__title');
@@ -155,6 +170,8 @@ app.whenReady().then(async () => {
     assert.equal(initial.parent, "归属 · 年度计划");
     assert.ok(initial.titleHeight <= initial.lineHeight * 2 + 2);
     assert.equal(initial.theme, "light");
+    fs.writeFileSync(widgetCapturePath, (await widgetWindow.webContents.capturePage()).toPNG());
+    assert.ok(fs.statSync(widgetCapturePath).size > 8 * 1024);
 
     await mainWindow.webContents.executeJavaScript(`(() => {
       document.getElementById("theme-toggle").click();
@@ -233,7 +250,7 @@ app.whenReady().then(async () => {
     assert.ok(corrected.y >= primary.workArea.y);
     assert.ok(corrected.y + corrected.height <= primary.workArea.y + primary.workArea.height);
 
-    console.log("Widget UI smoke passed");
+    console.log(`Widget UI smoke passed: ${widgetCapturePath}`);
   } catch (error) {
     console.error(error);
     failure = error;
