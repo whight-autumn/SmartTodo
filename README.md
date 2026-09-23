@@ -4,7 +4,7 @@
 
 <h1 align="center">SmartTodo</h1>
 
-<p align="center"><b>本地优先、简洁克制的 Windows 桌面任务管理器</b></p>
+<p align="center"><b>本地优先、低调简洁的 Windows 桌面任务管理器</b></p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.3.1-315e50" alt="Version 1.3.1">
