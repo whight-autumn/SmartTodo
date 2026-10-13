@@ -37,6 +37,16 @@ test("settings center control icons resolve to authored decorative SVG symbols",
   }
 });
 
+test("brightness icon renders the authored half-light symbol through the icon system", () => {
+  assert.equal(iconMarkup("brightness"), '<svg class="ui-icon" aria-hidden="true" focusable="false"><use href="icons.svg#icon-brightness"></use></svg>');
+  const svg = fs.readFileSync(path.resolve(__dirname, "../renderer/icons.svg"), "utf8");
+  const symbol = svg.match(/<symbol id="icon-brightness"[^>]*>[\s\S]*?<\/symbol>/)?.[0] || "";
+  assert.match(symbol, /viewBox="0 0 24 24"/);
+  assert.match(symbol, /stroke="currentColor" stroke-width="1\.7"/);
+  assert.match(symbol, /<circle cx="12" cy="12" r="8"\s*\/>/);
+  assert.match(symbol, /<path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" stroke="none"\s*\/>/);
+});
+
 test("brand assets are generated from the V1.2 master", async () => {
   const root = path.resolve(__dirname, "..");
   const svg = fs.readFileSync(path.join(root, "assets/brand/icon-master.svg"), "utf8");

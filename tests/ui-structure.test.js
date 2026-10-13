@@ -81,6 +81,24 @@ test("settings ledger keeps the fixed header, wraps paths and reflows navigation
   assert.match(motionCss, /prefers-reduced-motion: reduce/);
 });
 
+test("selected settings tab icons inherit the jade foreground while migration warning stays vermilion", () => {
+  const selected = componentsCss.match(/\.settings-tab\[aria-selected="true"\]\s*\{[^}]*\}/)?.[0] || "";
+  const icon = componentsCss.match(/\.settings-tab\[aria-selected="true"\] \.ui-icon\s*\{[^}]*\}/)?.[0] || "";
+  assert.match(selected, /color:\s*var\(--accent-strong\)/);
+  assert.match(icon, /color:\s*inherit\s*;/);
+  assert.doesNotMatch(icon, /var\(--danger\)/);
+  assert.match(componentsCss, /\.settings-migration-warning > \[data-icon\]\s*\{[^}]*color:\s*var\(--danger\)/);
+});
+
+test("brightness control mounts a decorative SVG while retaining its accessible slider and amber size", () => {
+  const control = html.match(/<label class="brightness-control"[\s\S]*?<\/label>/)?.[0] || "";
+  assert.match(control, /<span class="brightness-icon" aria-hidden="true" data-icon="brightness"><\/span>/);
+  assert.doesNotMatch(control, /◐/u);
+  assert.match(control, /id="brightness-slider" type="range" min="75" max="125" step="5" value="100"\s+aria-label="界面亮度" aria-valuetext="100%"/);
+  assert.match(componentsCss, /\.brightness-icon\s*\{[^}]*color:\s*var\(--amber\)[^}]*font-size:\s*1\.1rem/);
+  assert.match(componentsCss, /\.brightness-icon \.ui-icon\s*\{[^}]*width:\s*1em;[^}]*height:\s*1em;/);
+});
+
 test("V1.2 shell preserves behavioral IDs and adds semantic regions", () => {
   for (const id of [
     "task-form", "task-title", "task-desc", "task-time", "task-priority", "task-type",

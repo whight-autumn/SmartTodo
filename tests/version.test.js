@@ -27,6 +27,7 @@ test("visible version and invalid-version fallback agree with V1.4.0", () => {
   }
   assert.match(read("renderer/index.html"), /<title>SmartTodo V1\.4\.0/);
   assert.match(read("renderer/index.html"), /id="app-version"[^>]*>V1\.4\.0<\/span>/);
+  assert.match(read("renderer/widget.html"), /<span class="widget-version">V1\.4\.0<\/span>/);
   assert.match(read("renderer/app.js"), /window\.desktop\?\.version \|\| "1\.4\.0"/);
   assert.match(read("preload.js"), /npm_package_version \|\| "1\.4\.0"/);
 });

@@ -90,6 +90,7 @@
 .brightness-control:focus-within,
 .brightness-control.is-open { color: var(--accent-strong); border-color: var(--jade-2); background: var(--accent-soft); }
 .brightness-icon { color: var(--amber); font-size: 1.1rem; }
+.brightness-icon .ui-icon { width: 1em; height: 1em; }
 .brightness-value { min-width: 3rem; font-variant-numeric: tabular-nums; }
 
 .panel {
@@ -401,7 +402,7 @@ dialog::backdrop { background: rgba(17, 24, 21, .48); }
 }
 .settings-tab:hover:not(:disabled) { background: var(--surface-soft); }
 .settings-tab[aria-selected="true"] { border-color: var(--line); color: var(--accent-strong); background: var(--surface-raised); }
-.settings-tab[aria-selected="true"] .ui-icon { color: var(--danger); }
+.settings-tab[aria-selected="true"] .ui-icon { color: inherit; }
 .settings-tab:active:not(:disabled) { transform: translateY(1px); }
 .settings-panel__head { margin-bottom: 24px; }
 .settings-panel__head h4 { margin: 0 0 8px; color: var(--text); font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; }

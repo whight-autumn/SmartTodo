@@ -7,7 +7,7 @@
     "theme", "add", "pin", "subtask", "note", "delete", "collapse",
     "undo", "new-session", "clear", "settings", "upload", "analyze",
     "send", "close", "file", "image", "warning", "check",
-    "general", "folder", "eye", "eye-off"
+    "general", "folder", "eye", "eye-off", "brightness"
   ]);
 
   const escapeAttribute = value => String(value).replace(/[&"<>]/g, char => ({
