@@ -211,24 +211,16 @@ const els = {
   sendBtn: $("send-btn"),
   themeBtn: $("theme-toggle"),
   widgetToggle: $("task-widget-toggle"),
-  globalSettingsBtn: $("global-settings-btn"),
   brightnessControl: document.querySelector(".brightness-control"),
   brightnessSlider: $("brightness-slider"),
   brightnessValue: $("brightness-value"),
-  settingsBtn: $("ai-settings-btn"),
-  modal: $("settings-modal"),
   apiKeyInput: $("api-key-input"),
-  saveKeyBtn: $("save-key-btn"),
   sendTasksBtn: $("send-tasks-btn"),
   fileInput: $("file-input"),
   attachmentArea: $("chat-attachments"),
   aiClearBtn: $("ai-clear-btn"),
   aiNewSessionBtn: $("ai-new-session-btn"),
   aiCollapseBtn: $("ai-collapse-btn"),
-  providerSelect: $("provider-select"),
-  baseUrlInput: $("base-url-input"),
-  modelInput: $("model-input"),
-  dataPathHint: $("data-path-hint"),
   noteDialog: $("task-note-dialog"),
   noteHeading: $("task-note-heading"),
   noteInput: $("task-note-input"),
@@ -1978,7 +1970,7 @@ async function sendMessage(text) {
   if (!text.trim()) return;
 
   if (!aiKey) {
-    openSettings();
+    void settingsController.open("ai", els.sendBtn);
     showToast("请先在设置中配置 DeepSeek API Key", "warning");
     els.apiKeyInput.focus();
     return;
@@ -2110,70 +2102,21 @@ els.fileInput.addEventListener("change", e => {
 /* ==========================================================
    设置模块
    ========================================================== */
-function renderProviderSettings() {
-  els.providerSelect.value = providerConfig.provider;
-  els.baseUrlInput.value = providerConfig.baseUrl;
-  els.modelInput.value = providerConfig.model;
-  els.apiKeyInput.value = aiKey;
-  if (window.desktop?.getDataPath) {
-    window.desktop.getDataPath().then(dataPath => {
-      els.dataPathHint.textContent = `运行数据位置：${dataPath}`;
-    }).catch(() => {});
-  }
-}
-
-els.providerSelect.addEventListener("change", () => {
-  const preset = aiProvider.PROVIDER_PRESETS[els.providerSelect.value];
-  if (!preset) return;
-  els.baseUrlInput.value = preset.baseUrl;
-  els.modelInput.value = preset.model;
+const settingsController = window.SettingsController.create({
+  document,
+  desktop: window.desktop,
+  aiProvider,
+  motion,
+  readAIConfig: () => providerConfig,
+  writeAIConfig: nextConfig => {
+    saveJSON(STORAGE_KEYS.provider, nextConfig);
+    localStorage.setItem(STORAGE_KEYS.apiKey, nextConfig.apiKey);
+    providerConfig = nextConfig;
+    aiKey = nextConfig.apiKey;
+  },
+  notify: showToast
 });
-
-let settingsPreviousFocus = null;
-
-function openSettings() {
-  if (els.modal.open) return;
-  settingsPreviousFocus = document.activeElement;
-  renderProviderSettings();
-  els.modal.showModal();
-  motion.animateDialog(els.modal.querySelector(".dialog-sheet"));
-}
-
-els.settingsBtn.addEventListener("click", openSettings);
-els.globalSettingsBtn.addEventListener("click", openSettings);
-els.modal.querySelectorAll("[data-close-modal]").forEach(el => {
-  el.addEventListener("click", () => els.modal.close());
-});
-els.modal.addEventListener("close", () => {
-  const target = settingsPreviousFocus?.isConnected ? settingsPreviousFocus : els.title;
-  target.focus({ preventScroll: true });
-});
-els.modal.addEventListener("click", event => {
-  if (event.target !== els.modal) return;
-  const bounds = els.modal.getBoundingClientRect();
-  if (event.clientX < bounds.left || event.clientX > bounds.right
-      || event.clientY < bounds.top || event.clientY > bounds.bottom) els.modal.close();
-});
-
-els.saveKeyBtn.addEventListener("click", () => {
-  const key = els.apiKeyInput.value.trim();
-  const nextConfig = aiProvider.normalizeProviderConfig({
-    provider: els.providerSelect.value,
-    baseUrl: els.baseUrlInput.value,
-    model: els.modelInput.value,
-    apiKey: key
-  });
-  if (!key || !nextConfig.baseUrl || !nextConfig.model) {
-    showToast("请输入 API Key", "warning");
-    return;
-  }
-  providerConfig = nextConfig;
-  aiKey = key;
-  saveJSON(STORAGE_KEYS.provider, providerConfig);
-  localStorage.setItem(STORAGE_KEYS.apiKey, key);
-  els.modal.close();
-  showToast("API Key 已保存", "success");
-});
+window.addEventListener("beforeunload", () => settingsController.dispose());
 
 /* ==========================================================
    窗口焦点恢复后重新检查提醒

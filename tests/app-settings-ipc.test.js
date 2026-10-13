@@ -128,6 +128,16 @@ test("cancel and empty chooser results create no selection capability", async t 
   }
 });
 
+test("canceling or returning no directory preserves the prior unused native selection", async t => {
+  for (const canceled of [true, false]) {
+    const f = fixture(t);
+    const selected = await f.invoke("settings:choose-data-directory");
+    f.dialog.result = { canceled, filePaths: canceled ? [f.targetPath] : [] };
+    assert.deepEqual(await f.invoke("settings:choose-data-directory"), { canceled: true, selectionId: null, path: null });
+    assert.deepEqual(await f.invoke("settings:request-data-migration", { selectionId: selected.selectionId }), { queued: true });
+  }
+});
+
 test("migration flushes before queueing the exact native path then relaunches and quits", async t => {
   const f = fixture(t);
   const selected = await f.invoke("settings:choose-data-directory");

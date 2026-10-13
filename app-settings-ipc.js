@@ -89,7 +89,6 @@ function registerAppSettingsIpc({ ipcMain, dialog, app, getMainWindow, getRuntim
   });
 
   handle("settings:choose-data-directory", "DIRECTORY_CHOICE_FAILED", null, async (event, _value, window) => {
-    clearSelections();
     const revision = ++chooserRevision;
     const result = await dialog.showOpenDialog(window, { properties: ["openDirectory", "createDirectory"] });
     requireMainSender(event);
@@ -99,6 +98,7 @@ function registerAppSettingsIpc({ ipcMain, dialog, app, getMainWindow, getRuntim
     if (typeof selectedPath !== "string" || !path.isAbsolute(selectedPath) || selectedPath.includes("\0")) {
       throw new SettingsError("DIRECTORY_CHOICE_FAILED");
     }
+    clearSelections();
     const selectionId = randomUUID();
     const timer = setTimeout(() => removeSelection(selectionId), SELECTION_LIFETIME_MS);
     timer.unref?.();
