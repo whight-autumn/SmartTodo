@@ -7,6 +7,24 @@
 
   const SECTIONS = ["general", "ai", "storage"];
   const SELECTION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const RECOVERY_COPY = {
+    configuration: "运行数据配置无法读取，已使用安全的默认目录。请保留原数据并检查目录配置。",
+    interrupted: "迁移曾被中断，已恢复原数据。请保留恢复目录和目标副本，确认数据后再迁移。",
+    validation: "请重新选择独立、可写的空目录。",
+    copy: "复制未能完成，请检查目录权限与磁盘空间后重试。",
+    verification: "数据校验未通过，请保留原数据，关闭可能修改数据的程序后重试。",
+    promotion: "目标目录无法启用，请检查目录权限后重新选择空目录。",
+    backup: "无法创建旧数据备份；已保留验证后的目标副本。请保留两份数据并检查备份目录权限。",
+    journal: "无法保存恢复记录；已保留验证后的目标副本。请检查配置目录权限后重试。",
+    bootstrap: "无法保存新目录配置；已保留验证后的目标副本。请检查配置目录权限后重试。"
+  };
+  const WARNING_COPY = {
+    "rollback-backup": "旧目录无法恢复，原数据仍保留在时间戳备份目录中。请保留该目录。",
+    "staging-retained": "迁移暂存目录已保留。请确认原数据完整后再检查暂存副本。",
+    "result-unsaved": "迁移结果未能保存。请保留所有数据副本并检查配置目录权限。"
+  };
+  const displayPath = value => typeof value === "string" && value.length <= 4096 && !value.includes("\0") &&
+    (/^[A-Za-z]:[\\/]/.test(value) || /^\\\\[^\\]+\\[^\\]+/.test(value) || value.startsWith("/")) ? value : null;
 
   function create({ document, desktop, aiProvider, motion, readAIConfig, writeAIConfig, notify }) {
     const byId = id => document.getElementById(id);
@@ -251,8 +269,29 @@
         if (disposed || !result) return;
         if (result.ok === false || !["success", "failure"].includes(result.status)) throw new Error("Unavailable migration result");
         const success = result.status === "success";
-        const message = success ? "数据迁移成功，已使用新目录。" : "数据迁移失败，仍在使用原目录。请检查目标目录后重试。";
-        status("storage-status", message, success ? "success" : "error");
+        let currentPath;
+        try { currentPath = displayPath((await desktop.getAppSettings?.())?.storage?.currentPath); } catch { /* Result remains available as text below. */ }
+        if (disposed) return;
+        const backupPath = displayPath(result.backupPath);
+        // A failed result only carries backupPath when that original-data
+        // backup was committed as active, independent of login API readback.
+        const recoveredBackup = !success && Boolean(backupPath);
+        const message = success ? "数据迁移成功，已使用新目录。" : recoveredBackup
+          ? "数据迁移失败，已从备份目录恢复原数据。"
+          : result.failureCode === "configuration" ? "运行数据配置无法读取，已使用安全的默认目录。"
+          : "数据迁移失败，仍在使用原目录。";
+        const details = [message];
+        const activePath = recoveredBackup ? backupPath : currentPath || (success ? displayPath(result.targetPath) : null);
+        if (activePath) details.push(`${recoveredBackup ? "当前恢复目录" : "当前数据目录"}：${activePath}`);
+        if (success && backupPath) details.push(`旧数据备份目录：${backupPath}`);
+        if (!success) details.push(Object.hasOwn(RECOVERY_COPY, result.failureCode)
+          ? RECOVERY_COPY[result.failureCode] : "请保留原数据，检查目标目录后重试。");
+        if (Array.isArray(result.warningCodes)) {
+          for (const code of [...new Set(result.warningCodes)].slice(0, 3)) {
+            if (Object.hasOwn(WARNING_COPY, code)) details.push(WARNING_COPY[code]);
+          }
+        }
+        status("storage-status", details.join("\n"), success ? "success" : "error");
         notify?.(message, success ? "success" : "error");
       } catch {
         if (!disposed) {

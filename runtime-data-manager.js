@@ -6,6 +6,23 @@ const { buildManagedUserDataPath } = require("./main-paths.js");
 
 const SCHEMA_VERSION = 1;
 const REQUEST_ID = /^[A-Za-z0-9_-]{1,128}$/;
+const FAILURE_SUMMARIES = {
+  configuration: "The runtime data configuration is invalid or unreadable. The default directory is being used.",
+  interrupted: "The migration was interrupted. Existing original runtime data was recovered; the copied target was not activated.",
+  validation: "The migration paths are unavailable, unsafe, or the target is not empty.",
+  copy: "Runtime data could not be copied safely. The original directory is still active.",
+  verification: "Runtime data verification failed. The original directory is still active.",
+  promotion: "The target directory could not be activated. The original directory is still active.",
+  backup: "The timestamped backup could not be created. The original directory is still active; the verified target was retained.",
+  journal: "The recovery journal could not be saved. The original directory was not moved; the verified target was retained.",
+  bootstrap: "The new runtime path could not be saved. The original directory is still active; the verified target was retained."
+};
+const WARNING_CODES = ["rollback-backup", "staging-retained", "result-unsaved"];
+const WARNING_SUMMARIES = {
+  "rollback-backup": "The original data remains in its timestamped backup because the source directory could not be restored.",
+  "staging-retained": "The request staging directory could not be safely removed and was retained.",
+  "result-unsaved": "The migration result could not be saved. Original data was retained."
+};
 
 function buildBootstrapPath(appDataPath) {
   return path.join(normalizeAbsolutePath(appDataPath), "SmartTodo", "bootstrap.json");
@@ -117,6 +134,27 @@ function normalizeResult(value) {
     completedAt: value.completedAt
   };
   if (value.backupPath !== undefined) result.backupPath = normalizeAbsolutePath(value.backupPath);
+  if (value.failureCode !== undefined) {
+    if (typeof value.failureCode !== "string" || !Object.hasOwn(FAILURE_SUMMARIES, value.failureCode)) throw new Error("Invalid failure category.");
+    result.failureCode = value.failureCode;
+  } else {
+    const code = Object.keys(FAILURE_SUMMARIES).find(code => value.error === FAILURE_SUMMARIES[code]);
+    if (code) result.failureCode = code;
+  }
+  if (value.warningCodes !== undefined) {
+    if (!Array.isArray(value.warningCodes) || value.warningCodes.length > WARNING_CODES.length ||
+        value.warningCodes.some(code => !WARNING_CODES.includes(code)) || new Set(value.warningCodes).size !== value.warningCodes.length) {
+      throw new Error("Invalid warning categories.");
+    }
+    result.warningCodes = [...value.warningCodes];
+  } else if (typeof value.warning === "string") {
+    const warnings = Object.keys(WARNING_SUMMARIES).filter(code => value.warning === WARNING_SUMMARIES[code] ||
+      (code !== "result-unsaved" && value.warning === `${WARNING_SUMMARIES[code]} ${WARNING_SUMMARIES["result-unsaved"]}`));
+    if (warnings.length) {
+      if (value.warning !== WARNING_SUMMARIES[warnings[0]] && !warnings.includes("result-unsaved")) warnings.push("result-unsaved");
+      result.warningCodes = warnings;
+    }
+  }
   for (const key of ["error", "warning"]) {
     if (value[key] !== undefined) {
       if (typeof value[key] !== "string" || value[key].length > 300) throw new Error("The migration result is invalid.");
@@ -131,13 +169,18 @@ function defaultState(defaultRuntimePath) {
 }
 
 function readBootstrapState({ appDataPath, defaultRuntimePath = buildManagedUserDataPath(appDataPath) }) {
-  const fallback = defaultState(defaultRuntimePath);
+  function validatedFallback() {
+    try {
+      const fallback = defaultState(defaultRuntimePath);
+      safeRuntimePath(fallback.activeRuntimePath);
+      return fallback;
+    } catch { throw unavailableRuntimeError(); }
+  }
   const bootstrapPath = buildBootstrapPath(appDataPath);
   try {
     assertDirectoryPathWithoutLinks(path.dirname(bootstrapPath));
     if (!fs.existsSync(bootstrapPath)) {
-      safeRuntimePath(fallback.activeRuntimePath);
-      return fallback;
+      return validatedFallback();
     }
     const stat = fs.lstatSync(bootstrapPath);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 64 * 1024) throw new Error("Invalid bootstrap file.");
@@ -148,9 +191,9 @@ function readBootstrapState({ appDataPath, defaultRuntimePath = buildManagedUser
     if (pendingMigration && path.relative(activeRuntimePath, pendingMigration.sourcePath) !== "") throw new Error("Invalid migration source.");
     return { schemaVersion: SCHEMA_VERSION, activeRuntimePath, pendingMigration, migrationResult: normalizeResult(value.migrationResult) };
   } catch {
-    return { ...fallback, migrationResult: {
+    return { ...validatedFallback(), migrationResult: {
       status: "failure", requestId: null, sourcePath: null, targetPath: null, completedAt: null,
-      error: "The runtime data configuration is invalid or unreadable. The default directory is being used."
+      failureCode: "configuration", error: FAILURE_SUMMARIES.configuration
     } };
   }
 }
@@ -311,7 +354,7 @@ function recoverJournaledMigration({ appDataPath, state, homePath, appPath, comp
   const migrationResult = {
     status: "failure", requestId: pending.requestId, sourcePath: pending.sourcePath,
     targetPath: pending.targetPath, completedAt,
-    error: "The migration was interrupted. Existing original runtime data was recovered; the copied target was not activated."
+    failureCode: "interrupted", error: FAILURE_SUMMARIES.interrupted
   };
   if (runtimePath === pending.recoveryPath) migrationResult.backupPath = runtimePath;
   try {
@@ -397,16 +440,8 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
     writeBootstrapState(appDataPath, nextState, pending.requestId);
     return { runtimePath: targetPath, migrationResult };
   } catch {
-    const summaries = {
-      validation: "The migration paths are unavailable, unsafe, or the target is not empty.",
-      copy: "Runtime data could not be copied safely. The original directory is still active.",
-      verification: "Runtime data verification failed. The original directory is still active.",
-      promotion: "The target directory could not be activated. The original directory is still active.",
-      backup: "The timestamped backup could not be created. The original directory is still active; the verified target was retained.",
-      journal: "The recovery journal could not be saved. The original directory was not moved; the verified target was retained.",
-      bootstrap: "The new runtime path could not be saved. The original directory is still active; the verified target was retained."
-    };
-    const migrationResult = { status: "failure", ...baseResult, error: summaries[phase] };
+    const migrationResult = { status: "failure", ...baseResult, failureCode: phase, error: FAILURE_SUMMARIES[phase] };
+    function addWarning(code) { (migrationResult.warningCodes ||= []).push(code); }
     let runtimePath = state.activeRuntimePath;
     if (backupCreated) {
       try {
@@ -423,16 +458,19 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
         // replace an unrelated entry to force a rollback into the old pathname.
         runtimePath = backupPath;
         migrationResult.backupPath = backupPath;
-        migrationResult.warning = "The original data remains in its timestamped backup because the source directory could not be restored.";
+        migrationResult.warning = WARNING_SUMMARIES["rollback-backup"];
+        addWarning("rollback-backup");
       }
     }
     try { cleanupOwnedStaging(stagingPath, parentPath, ownedStat); } catch {
-      migrationResult.warning = "The request staging directory could not be safely removed and was retained.";
+      migrationResult.warning = WARNING_SUMMARIES["staging-retained"];
+      addWarning("staging-retained");
     }
     if (!isUsableRuntime(runtimePath, { homePath, appPath })) throw unavailableRuntimeError();
     try { writeBootstrapState(appDataPath, { ...state, activeRuntimePath: runtimePath, pendingMigration: null, migrationResult }, pending.requestId); } catch {
       if (journalCommitted) throw unavailableRuntimeError();
-      migrationResult.warning = `${migrationResult.warning || ""} The migration result could not be saved. Original data was retained.`.trim();
+      migrationResult.warning = `${migrationResult.warning || ""} ${WARNING_SUMMARIES["result-unsaved"]}`.trim();
+      addWarning("result-unsaved");
     }
     return { runtimePath, migrationResult };
   }

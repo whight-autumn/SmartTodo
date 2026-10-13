@@ -296,7 +296,7 @@ test("initialization consumes migration result exactly once with safe toast and 
     assert.equal(f.calls.consume, 1);
     assert.equal(f.calls.notices.length, 1);
     const summary = f.get("storage-status").textContent;
-    assert.equal(f.calls.notices[0].message, summary);
+    assert.match(f.calls.notices[0].message, /数据迁移/);
     assert.doesNotMatch(summary, /secret|raw system/);
     if (status === "failure") assert.match(summary, /原目录/);
     await f.controller.open("storage");
@@ -305,6 +305,74 @@ test("initialization consumes migration result exactly once with safe toast and 
     assert.equal(f.calls.notices.length, 1);
     assert.equal(f.get("storage-status").textContent, summary);
   }
+});
+
+test("successful result keeps current path and confirmed backup visible after one-time consumption", async t => {
+  const backupPath = 'C:\\Old\\运行数据.backup-20261013-020304';
+  const f = fixture(t, { desktop: { async consumeMigrationResult() {
+    f.calls.consume++; return { status: "success", targetPath: "D:\\New\\<b>data</b>", backupPath, error: "RAW_MARKER" };
+  }, async getAppSettings() { return { ...snapshot(), storage: { currentPath: "D:\\New\\<b>data</b>", isDefault: false } }; } } });
+  await settle();
+  assert.ok(f.get("storage-status").textContent.includes(backupPath));
+  assert.ok(f.get("storage-status").textContent.includes("D:\\New\\<b>data</b>"));
+  assert.doesNotMatch(f.get("storage-status").textContent, /RAW_MARKER/);
+  await f.controller.open("storage");
+  assert.equal(f.calls.consume, 1);
+  assert.equal(f.calls.notices.length, 1);
+  assert.ok(f.get("storage-status").textContent.includes(backupPath));
+});
+
+test("ordinary failure renders bounded category guidance and retained staging warning", async t => {
+  const f = fixture(t, { desktop: { async consumeMigrationResult() {
+    return { status: "failure", failureCode: "verification", warningCodes: ["staging-retained"],
+      error: "RAW_MARKER", warning: "RAW_MARKER" };
+  } } });
+  await settle();
+  const message = f.get("storage-status").textContent;
+  assert.match(message, /原目录/);
+  assert.match(message, /校验|验证/);
+  assert.match(message, /暂存.*保留/);
+  assert.doesNotMatch(message, /RAW_MARKER/);
+});
+
+test("backup recovery explicitly names the active recovery path without claiming original active", async t => {
+  const backupPath = "C:\\Old\\data.backup-20261013-020304";
+  const f = fixture(t, { desktop: { async consumeMigrationResult() {
+    return { status: "failure", failureCode: "interrupted", backupPath, warningCodes: ["rollback-backup"], error: "RAW_MARKER" };
+  }, async getAppSettings() { return { ...snapshot(), storage: { currentPath: backupPath, isDefault: false } }; } } });
+  await settle();
+  const message = f.get("storage-status").textContent;
+  assert.ok(message.includes(backupPath));
+  assert.match(message, /恢复|备份/);
+  assert.doesNotMatch(message, /仍在使用原目录|RAW_MARKER/);
+});
+
+test("unrecognized result categories and warning text cannot leak into storage feedback", async t => {
+  const f = fixture(t, { desktop: { async consumeMigrationResult() {
+    return { status: "failure", failureCode: "RAW_MARKER", warningCodes: ["RAW_MARKER"], error: "RAW_MARKER", warning: "RAW_MARKER" };
+  } } });
+  await settle();
+  assert.doesNotMatch(f.get("storage-status").textContent, /RAW_MARKER/);
+  assert.ok(f.get("storage-status").textContent.length < 500);
+});
+
+test("confirmed backup recovery remains explicit when the OS settings snapshot fails", async t => {
+  const backupPath = "C:\\Old\\data.backup-20261013-020304";
+  const f = fixture(t, { desktop: { async consumeMigrationResult() {
+    return { status: "failure", failureCode: "interrupted", backupPath };
+  }, async getAppSettings() { throw new Error("RAW_MARKER"); } } });
+  await settle();
+  assert.ok(f.get("storage-status").textContent.includes(backupPath));
+  assert.doesNotMatch(f.get("storage-status").textContent, /仍在使用原目录|RAW_MARKER/);
+});
+
+test("invalid bootstrap result describes the safe default fallback without claiming original active", async t => {
+  const f = fixture(t, { desktop: { async consumeMigrationResult() {
+    return { status: "failure", failureCode: "configuration" };
+  } } });
+  await settle();
+  assert.match(f.get("storage-status").textContent, /默认目录/);
+  assert.doesNotMatch(f.get("storage-status").textContent, /仍在使用原目录/);
 });
 
 test("AI presets retain DeepSeek/OpenAI/custom defaults and successful save normalizes live values", async t => {

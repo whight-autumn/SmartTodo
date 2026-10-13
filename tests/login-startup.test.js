@@ -7,6 +7,33 @@ const modulePath = path.join(__dirname, "..", "login-startup.js");
 const adapters = fs.existsSync(modulePath) ? require(modulePath) : {};
 const execPath = "C:\\SmartTodo\\SmartTodo.exe";
 
+for (const spec of [
+  { name: "portable", env: { PORTABLE_EXECUTABLE_FILE: "D:\\Apps\\SmartTodo.exe" }, packaged: true, wantPath: "D:\\Apps\\SmartTodo.exe", wantArgs: ["--hidden"] },
+  { name: "packaged", env: {}, packaged: true, wantPath: execPath, wantArgs: ["--hidden"] },
+  { name: "development", env: {}, packaged: false, wantPath: execPath, wantArgs: ["C:\\Source\\SmartTodo", "--hidden"] }
+]) {
+  test(`${spec.name} startup writes and reads the persistent full launch specification`, () => {
+    const app = fakeApp(true, { launchItems: [{ path: spec.wantPath, args: spec.wantArgs, enabled: true }] });
+    app.isPackaged = spec.packaged;
+    app.getAppPath = () => "C:\\Source\\SmartTodo";
+    const options = { app, platform: "win32", execPath, env: spec.env, enabled: true };
+    assert.deepEqual(adapters.writeAutoStartState(options), { available: true, enabled: true });
+    assert.deepEqual(app.writes, [{ openAtLogin: true, path: spec.wantPath, args: spec.wantArgs }]);
+    assert.deepEqual(app.reads, [{ path: spec.wantPath, args: spec.wantArgs }]);
+    app.getLoginItemSettings = () => ({ openAtLogin: true, launchItems: [{ path: spec.wantPath, args: [...spec.wantArgs, "extra"], enabled: true }] });
+    assert.equal(adapters.readAutoStartState(options).enabled, false);
+  });
+}
+
+test("invalid portable launcher paths cannot register the extracted executable", () => {
+  for (const value of ["", "relative.exe", "C:\\Apps\\bad\0.exe"]) {
+    const app = fakeApp(true);
+    assert.throws(() => adapters.writeAutoStartState({ app, platform: "win32", execPath,
+      env: { PORTABLE_EXECUTABLE_FILE: value }, enabled: true }));
+    assert.deepEqual(app.writes, []);
+  }
+});
+
 function fakeApp(actualEnabled, windowsSettings = {}) {
   const reads = [];
   const writes = [];

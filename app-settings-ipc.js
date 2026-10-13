@@ -3,6 +3,7 @@ const { randomUUID } = require("node:crypto");
 const { buildManagedUserDataPath } = require("./main-paths.js");
 const { readBootstrapState, queueMigration, consumeMigrationResult } = require("./runtime-data-manager.js");
 const { readAutoStartState, writeAutoStartState } = require("./login-startup.js");
+const { resolveAppLaunchSpec } = require("./app-launch-spec.js");
 
 const SELECTION_LIFETIME_MS = 5 * 60 * 1000;
 const SELECTION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -30,7 +31,7 @@ function exactPayload(value, keys) {
 }
 
 function registerAppSettingsIpc({ ipcMain, dialog, app, getMainWindow, getRuntimePath,
-  appDataPath, homePath, appPath, flushBeforeRelaunch }) {
+  appDataPath, homePath, appPath, flushBeforeRelaunch, launchOptions = {} }) {
   const channels = [];
   const selections = new Map();
   let disposed = false;
@@ -76,7 +77,7 @@ function registerAppSettingsIpc({ ipcMain, dialog, app, getMainWindow, getRuntim
   handle("settings:get", "SETTINGS_READ_FAILED", null, () => {
     const currentPath = getRuntimePath();
     return {
-      autoStart: readAutoStartState({ app }),
+      autoStart: readAutoStartState({ app, ...launchOptions }),
       storage: { currentPath, isDefault: path.relative(buildManagedUserDataPath(appDataPath), currentPath) === "" },
       migrationResult: readBootstrapState({ appDataPath }).migrationResult
     };
@@ -85,7 +86,7 @@ function registerAppSettingsIpc({ ipcMain, dialog, app, getMainWindow, getRuntim
   handle("settings:set-auto-start", "AUTO_START_FAILED", ["enabled"], (_event, value) => {
     const payload = exactPayload(value, ["enabled"]);
     if (typeof payload.enabled !== "boolean") throw new SettingsError("INVALID_PAYLOAD");
-    return writeAutoStartState({ app, enabled: payload.enabled });
+    return writeAutoStartState({ app, ...launchOptions, enabled: payload.enabled });
   });
 
   handle("settings:choose-data-directory", "DIRECTORY_CHOICE_FAILED", null, async (event, _value, window) => {
@@ -117,10 +118,11 @@ function registerAppSettingsIpc({ ipcMain, dialog, app, getMainWindow, getRuntim
     if (!selection || selection.senderId !== event.sender.id || selection.expiresAt <= Date.now()) {
       throw new SettingsError("INVALID_SELECTION");
     }
+    const launchSpec = resolveAppLaunchSpec({ app, ...launchOptions });
     await flushBeforeRelaunch();
     requireMainSender(event);
     queueMigration({ appDataPath, sourcePath: getRuntimePath(), targetPath: selection.path, homePath, appPath });
-    app.relaunch();
+    app.relaunch(launchSpec);
     app.quit();
     return { queued: true };
   });

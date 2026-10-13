@@ -9,7 +9,7 @@ const { readBootstrapState, buildBootstrapPath, performPendingMigration } = requ
 const CHANNELS = ["settings:get", "settings:set-auto-start", "settings:choose-data-directory",
   "settings:request-data-migration", "settings:consume-migration-result"];
 
-function fixture(t) {
+function fixture(t, launchOptions = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "smarttodo-settings-ipc-"));
   const appDataPath = path.join(root, "app-data");
   let runtimePath = path.join(appDataPath, "SmartTodo", "运行数据");
@@ -23,8 +23,10 @@ function fixture(t) {
     enabled: false,
     getLoginItemSettings(options) { calls.push(["readLogin", options]); return { openAtLogin: this.enabled }; },
     setLoginItemSettings(options) { calls.push(["writeLogin", options]); this.enabled = options.openAtLogin; },
-    relaunch() {
-      calls.push(["relaunch"]);
+    isPackaged: true,
+    getAppPath() { return path.join(root, "app"); },
+    relaunch(options) {
+      calls.push(["relaunch", options]);
       assert.equal(readBootstrapState({ appDataPath }).pendingMigration.targetPath, targetPath);
     },
     quit() { calls.push(["quit"]); }
@@ -35,7 +37,7 @@ function fixture(t) {
   };
   const registration = registerAppSettingsIpc({
     ipcMain: { handle(channel, handler) { handlers.set(channel, handler); }, removeHandler(channel) { handlers.delete(channel); } },
-    dialog, app, getMainWindow: () => window, getRuntimePath: () => runtimePath,
+    dialog, app, launchOptions, getMainWindow: () => window, getRuntimePath: () => runtimePath,
     appDataPath, homePath: path.join(root, "home"), appPath: path.join(root, "app"),
     async flushBeforeRelaunch() {
       calls.push(["flush"]);
@@ -47,6 +49,23 @@ function fixture(t) {
     invoke: (channel, ...args) => handlers.get(channel)({ sender }, ...args),
     getRuntimePath: () => runtimePath, setRuntimePath: value => { runtimePath = value; } };
 }
+
+for (const hidden of [false, true]) {
+  test(`portable migration relaunch uses the persistent launcher with hidden=${hidden}`, async t => {
+    const f = fixture(t, { execPath: "C:\\Temp\\extracted.exe", env: { PORTABLE_EXECUTABLE_FILE: "D:\\Apps\\SmartTodo.exe" }, argv: hidden ? ["--hidden"] : [] });
+    const selected = await f.invoke("settings:choose-data-directory");
+    assert.deepEqual(await f.invoke("settings:request-data-migration", { selectionId: selected.selectionId }), { queued: true });
+    assert.deepEqual(f.calls.find(call => call[0] === "relaunch")[1], { execPath: "D:\\Apps\\SmartTodo.exe", args: hidden ? ["--hidden"] : [] });
+  });
+}
+
+test("development migration relaunch retains the application entry before hidden flags", async t => {
+  const f = fixture(t, { execPath: "C:\\Electron\\electron.exe", env: {}, argv: ["--hidden"] });
+  f.app.isPackaged = false;
+  const selected = await f.invoke("settings:choose-data-directory");
+  assert.deepEqual(await f.invoke("settings:request-data-migration", { selectionId: selected.selectionId }), { queued: true });
+  assert.deepEqual(f.calls.find(call => call[0] === "relaunch")[1], { execPath: "C:\\Electron\\electron.exe", args: [path.join(f.root, "app"), "--hidden"] });
+});
 
 function assertError(result, code) {
   assert.deepEqual(Object.keys(result), ["ok", "error"]);

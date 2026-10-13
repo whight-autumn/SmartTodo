@@ -137,6 +137,20 @@ test("runtime migration finishes before the only profile setter and attachment i
   assert.equal(result.calls.find(call => call[0] === "migration")[1].defaultRuntimePath, result.defaultRuntimePath);
 });
 
+test("a real unsafe default junction stops main before profile setters and store construction", t => {
+  const root = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "smarttodo-unsafe-default-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const appDataPath = path.join(root, "app-data");
+  const original = path.join(root, "original");
+  fs.mkdirSync(original);
+  const defaultPath = buildManagedUserDataPath(appDataPath);
+  fs.mkdirSync(path.dirname(defaultPath), { recursive: true });
+  fs.symlinkSync(original, defaultPath, "junction");
+  const result = runMain({ productionPaths: { appDataPath, homePath: path.join(root, "home"), appPath: path.join(root, "app") } });
+  assert.deepEqual(result.calls.map(call => call[0]), ["bootstrap", "error", "quit"]);
+  assert.deepEqual(fs.readdirSync(original), []);
+});
+
 for (const interrupted of [false, true]) {
   test(`a separate queue process exits before production startup ${interrupted ? "rejects an occupied destination" : "migrates the complete profile"}`, async t => {
     const root = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "smarttodo-restart-boundary-"));

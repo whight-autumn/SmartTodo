@@ -28,7 +28,8 @@ const settingsBridgeScript = `(() => {
   };
   window.desktop = {
     getAppSettings: async () => ({ autoStart: { ...state.autoStart },
-      storage: { currentPath: "C:/fixture/current-data", isDefault: false }, migrationResult: null }),
+      storage: { currentPath: localStorage.getItem("smoke_migration_result") === "recovered"
+        ? "C:/fixture/old-data.backup-20261013-000000" : "C:/fixture/current-data", isDefault: false }, migrationResult: null }),
     setAutoStart: async enabled => {
       state.startupCalls.push(enabled);
       if (state.startupMode === "failure") throw new Error("RAW_SETTINGS_SECRET");
@@ -43,7 +44,10 @@ const settingsBridgeScript = `(() => {
     },
     consumeMigrationResult: async () => {
       if (++state.consumes > 1) return null;
-      return { status: localStorage.getItem("smoke_migration_result") || "success",
+      const mode = localStorage.getItem("smoke_migration_result") || "success";
+      return { status: mode === "success" ? "success" : "failure", failureCode: "verification",
+        ...(mode === "failure" ? {} : { backupPath: "C:/fixture/old-data.backup-20261013-000000" }),
+        warningCodes: mode === "recovered" ? ["rollback-backup"] : mode === "failure" ? ["staging-retained"] : [],
         requestId: "RAW_SETTINGS_SECRET", sourcePath: "RAW_SETTINGS_SECRET", targetPath: "RAW_SETTINGS_SECRET",
         completedAt: "2026-10-13T00:00:00.000Z", error: "RAW_SETTINGS_SECRET" };
     }
@@ -1325,6 +1329,8 @@ app.whenReady().then(async () => {
       const keyboard = key => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
       check(state.consumes === 1, "migration result must be consumed once at startup");
       check(byId("storage-status").dataset.type === "success", "startup migration success status");
+      check(byId("storage-status").textContent.includes("C:/fixture/current-data"), "success displays current path");
+      check(byId("storage-status").textContent.includes("C:/fixture/old-data.backup-20261013-000000"), "success displays old backup path");
       const successToasts = [...document.querySelectorAll("#toast-container > *")].filter(node => node.textContent.includes("数据迁移成功"));
       // Earlier smoke interactions may have expired the initial toast; the live
       // storage status remains the durable observable result.
@@ -1435,9 +1441,26 @@ app.whenReady().then(async () => {
     })()`);
     assert.equal(settingsResult.failureResult.type, "error");
     assert.match(settingsResult.failureResult.text, /数据迁移失败/);
+    assert.match(settingsResult.failureResult.text, /仍在使用原目录/);
+    assert.match(settingsResult.failureResult.text, /数据校验未通过/);
+    assert.match(settingsResult.failureResult.text, /暂存目录已保留/);
     assert.equal(settingsResult.failureResult.notifications, 1);
     assert.equal(settingsResult.failureResult.consumes, 1);
     assert.equal(settingsResult.failureResult.rawLeak, false);
+    await window.webContents.executeJavaScript(`localStorage.setItem("smoke_migration_result", "recovered")`);
+    const recoveredReloaded = once(window.webContents, "did-finish-load");
+    window.webContents.reload(); await recoveredReloaded;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    settingsResult.recoveredResult = await window.webContents.executeJavaScript(`({
+      text: document.getElementById("storage-status").textContent,
+      consumes: window.__settingsMock.consumes,
+      rawLeak: document.body.textContent.includes("RAW_SETTINGS_SECRET")
+    })`);
+    assert.match(settingsResult.recoveredResult.text, /当前恢复目录：C:\/fixture\/old-data.backup-20261013-000000/);
+    assert.doesNotMatch(settingsResult.recoveredResult.text, /仍在使用原目录/);
+    assert.match(settingsResult.recoveredResult.text, /旧目录无法恢复/);
+    assert.equal(settingsResult.recoveredResult.consumes, 1);
+    assert.equal(settingsResult.recoveredResult.rawLeak, false);
     assert.deepEqual(rendererErrors, [], "no unhandled renderer errors");
     // The existing page has no CSP. Preserve and report that development warning
     // while failing any new security warning category; never suppress Electron's warnings.

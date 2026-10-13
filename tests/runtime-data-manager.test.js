@@ -49,6 +49,86 @@ test("bootstrap defaults to the managed runtime path", t => {
   assert.equal(fs.existsSync(buildBootstrapPath(options.appDataPath)), false);
 });
 
+for (const corrupt of [false, true]) {
+  test(`${corrupt ? "corrupt" : "missing"} bootstrap refuses a real default directory junction`, t => {
+    const options = fixture(t);
+    const directory = path.join(options.appDataPath, "SmartTodo");
+    fs.mkdirSync(directory, { recursive: true });
+    if (corrupt) writeBootstrap(options, "{");
+    const defaultPath = path.join(directory, "运行数据");
+    fs.symlinkSync(options.sourcePath, defaultPath, "junction");
+    assert.throws(() => readBootstrapState(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+    assert.throws(() => performPendingMigration(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+    assert.equal(fs.lstatSync(defaultPath).isSymbolicLink(), true);
+    assert.deepEqual(fs.readdirSync(options.sourcePath), []);
+  });
+}
+
+test("default path validation errors cannot return a writable fallback", t => {
+  const options = fixture(t);
+  const defaultRuntimePath = path.join(options.root, "unsafe-default");
+  const original = fs.lstatSync;
+  t.mock.method(fs, "lstatSync", (entry, ...args) => {
+    if (entry === defaultRuntimePath) return { isSymbolicLink: () => true, isDirectory: () => true };
+    return original(entry, ...args);
+  });
+  assert.throws(() => readBootstrapState({ ...options, defaultRuntimePath }), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+  assert.equal(fs.existsSync(defaultRuntimePath), false);
+  assert.equal(fs.existsSync(buildBootstrapPath(options.appDataPath)), false);
+});
+
+test("result categories survive bootstrap validation while unknown categories are rejected", t => {
+  const options = fixture(t);
+  const result = { status: "failure", requestId: "request-1", sourcePath: options.sourcePath,
+    targetPath: options.targetPath, completedAt: options.createdAt,
+    failureCode: "verification", warningCodes: ["staging-retained", "rollback-backup"], error: "RAW_MARKER" };
+  const state = { schemaVersion: 1, activeRuntimePath: options.sourcePath, pendingMigration: null, migrationResult: result };
+  writeBootstrap(options, state);
+  assert.deepEqual(readBootstrapState(options).migrationResult, result);
+  for (const change of [{ failureCode: "RAW_MARKER" }, { warningCodes: ["RAW_MARKER"] },
+    { warningCodes: ["staging-retained", "staging-retained"] }]) {
+    writeBootstrap(options, { ...state, migrationResult: { ...result, ...change } });
+    assert.equal(readBootstrapState(options).migrationResult.failureCode, "configuration");
+  }
+});
+
+test("legacy safe failure and warning summaries map to closed categories", t => {
+  const options = fixture(t);
+  const result = { status: "failure", requestId: "request-1", sourcePath: options.sourcePath,
+    targetPath: options.targetPath, completedAt: options.createdAt,
+    error: "Runtime data verification failed. The original directory is still active.",
+    warning: "The request staging directory could not be safely removed and was retained." };
+  writeBootstrap(options, { schemaVersion: 1, activeRuntimePath: options.sourcePath, pendingMigration: null, migrationResult: result });
+  assert.deepEqual(readBootstrapState(options).migrationResult, { ...result, failureCode: "verification", warningCodes: ["staging-retained"] });
+});
+
+test("a retained request staging directory produces a safe persisted warning category", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  queueMigration(options);
+  t.mock.method(fs, "copyFileSync", () => { throw new Error("RAW_MARKER"); });
+  const originalRemove = fs.rmSync;
+  t.mock.method(fs, "rmSync", (entry, ...args) => {
+    if (path.basename(entry) === ".target.staging-request-1") throw new Error("RAW_MARKER");
+    return originalRemove(entry, ...args);
+  });
+  const outcome = performPendingMigration(options);
+  assert.equal(outcome.runtimePath, options.sourcePath);
+  assert.deepEqual(outcome.migrationResult.warningCodes, ["staging-retained"]);
+  assert.deepEqual(consumeMigrationResult(options), outcome.migrationResult);
+  assert.equal(consumeMigrationResult(options), null);
+  assert.ok(fs.existsSync(path.join(options.root, ".target.staging-request-1")));
+  assert.doesNotMatch(JSON.stringify(outcome), /RAW_MARKER/);
+});
+
+test("an ordinary file at the missing-bootstrap default path stops startup", t => {
+  const options = fixture(t);
+  const defaultRuntimePath = path.join(options.root, "default-file");
+  fs.writeFileSync(defaultRuntimePath, "preserve");
+  assert.throws(() => performPendingMigration({ ...options, defaultRuntimePath }), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+  assert.equal(fs.readFileSync(defaultRuntimePath, "utf8"), "preserve");
+});
+
 test("a valid custom bootstrap loads when the unused default path is a file", t => {
   const options = fixture(t);
   const state = { schemaVersion: 1, activeRuntimePath: options.sourcePath, pendingMigration: null, migrationResult: null };
@@ -77,6 +157,7 @@ test("bootstrap rejects malformed and relative custom paths", t => {
     assert.equal(state.activeRuntimePath, fallback);
     assert.equal(state.pendingMigration, null);
     assert.equal(state.migrationResult.status, "failure");
+    assert.equal(state.migrationResult.failureCode, "configuration");
   }
   writeBootstrap(options, {
     schemaVersion: 1,
@@ -234,6 +315,7 @@ test("failed migration boots from the old path and records one consumable result
   assert.equal(outcome.migrationResult.status, "failure");
   assert.equal(outcome.migrationResult.requestId, "request-1");
   assert.equal(outcome.migrationResult.error.includes("secret"), false);
+  assert.equal(outcome.migrationResult.failureCode, "copy");
   assert.equal(fs.readFileSync(path.join(options.sourcePath, "data.txt"), "utf8"), "original");
   assert.equal(fs.existsSync(options.targetPath), false);
   assert.equal(readBootstrapState(options).pendingMigration, null);
@@ -446,6 +528,7 @@ test("bootstrap commit and source-restore failures retain original data in backu
   assert.equal(outcome.migrationResult.status, "failure");
   assert.equal(outcome.migrationResult.backupPath, backupPath);
   assert.ok(outcome.migrationResult.warning);
+  assert.deepEqual(outcome.migrationResult.warningCodes, ["rollback-backup"]);
   assert.equal(readBootstrapState(options).activeRuntimePath, backupPath);
   assert.equal(readBootstrapState(options).pendingMigration, null);
   assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "original");
@@ -548,6 +631,7 @@ test("restart after interruption between source rename and active-path commit se
   const restarted = performPendingMigration(options);
   assert.equal(restarted.runtimePath, backupPath);
   assert.equal(restarted.migrationResult.status, "failure");
+  assert.equal(restarted.migrationResult.failureCode, "interrupted");
   assert.equal(fs.readFileSync(path.join(restarted.runtimePath, "data.txt"), "utf8"), "original");
   assert.equal(readBootstrapState(options).activeRuntimePath, backupPath);
   assert.equal(readBootstrapState(options).pendingMigration, null);
