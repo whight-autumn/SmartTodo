@@ -46,6 +46,16 @@ function containsPath(parent, child) {
   return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`));
 }
 
+function resolveApplicationDirectory(appPath) {
+  const application = normalizeAbsolutePath(appPath);
+  try {
+    return fs.lstatSync(application).isDirectory() ? application : path.dirname(application);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    return path.extname(application).toLowerCase() === ".asar" ? path.dirname(application) : application;
+  }
+}
+
 function assertDirectoryPathWithoutLinks(directoryPath) {
   const root = path.parse(directoryPath).root;
   let current = root;
@@ -77,8 +87,9 @@ function validateMigrationPaths({ sourcePath, targetPath, homePath = os.homedir(
     throw new Error("Source and target directories must be separate.");
   }
   if (appPath) {
-    const application = normalizeAbsolutePath(appPath);
-    if (containsPath(target, application) || containsPath(source, application)) {
+    const application = resolveApplicationDirectory(appPath);
+    if (containsPath(target, application) || containsPath(application, target) ||
+        containsPath(source, application) || containsPath(application, source)) {
       throw new Error("The application directory cannot be moved or replaced.");
     }
   }
@@ -187,10 +198,21 @@ function readBootstrapState({ appDataPath, defaultRuntimePath = buildManagedUser
     const value = JSON.parse(fs.readFileSync(bootstrapPath, "utf8"));
     if (!isPlainObject(value) || value.schemaVersion !== SCHEMA_VERSION) throw new Error("Invalid bootstrap state.");
     const pendingMigration = value.pendingMigration == null ? null : normalizeRequest(value.pendingMigration);
-    const activeRuntimePath = safeRuntimePath(value.activeRuntimePath, os.homedir(), !pendingMigration?.phase);
+    const normalizedActivePath = normalizeAbsolutePath(value.activeRuntimePath);
+    const normalizedDefaultPath = safeRuntimePath(defaultRuntimePath, os.homedir(), false);
+    const customWithoutRecovery = !pendingMigration && path.relative(normalizedDefaultPath, normalizedActivePath) !== "";
+    let activeRuntimePath;
+    try {
+      activeRuntimePath = safeRuntimePath(normalizedActivePath, os.homedir(), !pendingMigration?.phase);
+    } catch (error) {
+      if (customWithoutRecovery) throw unavailableRuntimeError();
+      throw error;
+    }
+    if (customWithoutRecovery && !fs.existsSync(activeRuntimePath)) throw unavailableRuntimeError();
     if (pendingMigration && path.relative(activeRuntimePath, pendingMigration.sourcePath) !== "") throw new Error("Invalid migration source.");
     return { schemaVersion: SCHEMA_VERSION, activeRuntimePath, pendingMigration, migrationResult: normalizeResult(value.migrationResult) };
-  } catch {
+  } catch (error) {
+    if (error?.code === "ERR_RUNTIME_DATA_UNAVAILABLE") throw error;
     return { ...validatedFallback(), migrationResult: {
       status: "failure", requestId: null, sourcePath: null, targetPath: null, completedAt: null,
       failureCode: "configuration", error: FAILURE_SUMMARIES.configuration
@@ -336,7 +358,10 @@ function unavailableRuntimeError() {
 function isUsableRuntime(directoryPath, { homePath, appPath } = {}) {
   try {
     const normalized = safeRuntimePath(directoryPath, homePath);
-    if (appPath && containsPath(normalized, normalizeAbsolutePath(appPath))) return false;
+    if (appPath) {
+      const application = resolveApplicationDirectory(appPath);
+      if (containsPath(normalized, application) || containsPath(application, normalized)) return false;
+    }
     return fs.lstatSync(normalized).isDirectory();
   } catch { return false; }
 }

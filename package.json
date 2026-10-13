@@ -1,6 +1,6 @@
 {
   "name": "smarttodo",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "SmartTodo · 本地优先任务与 AI 助手",
   "main": "main.js",
   "author": "萤火",

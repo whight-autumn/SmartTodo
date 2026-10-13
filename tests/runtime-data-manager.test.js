@@ -147,6 +147,17 @@ test("a valid custom bootstrap loads when the unused default path is a junction"
   assert.deepEqual(performPendingMigration(options), { runtimePath: options.sourcePath, migrationResult: null });
 });
 
+test("a missing custom active runtime stops startup instead of selecting an empty profile", t => {
+  const options = fixture(t);
+  const missingCustomPath = path.join(options.root, "missing-custom-data");
+  writeBootstrap(options, { schemaVersion: 1, activeRuntimePath: missingCustomPath,
+    pendingMigration: null, migrationResult: null });
+  assert.throws(() => readBootstrapState(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+  assert.throws(() => performPendingMigration(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+  assert.equal(fs.existsSync(missingCustomPath), false);
+  assert.equal(fs.existsSync(path.join(options.appDataPath, "SmartTodo", "运行数据")), false);
+});
+
 test("bootstrap rejects malformed and relative custom paths", t => {
   const options = fixture(t);
   const fallback = path.join(options.appDataPath, "SmartTodo", "运行数据");
@@ -190,6 +201,21 @@ test("migration rejects same nested root home and app paths", t => {
   fs.writeFileSync(path.join(options.targetPath, "keep.txt"), "user data");
   assert.throws(() => validateMigrationPaths(options));
   assert.equal(fs.readFileSync(path.join(options.targetPath, "keep.txt"), "utf8"), "user data");
+});
+
+test("migration rejects runtime directories nested inside the application directory", t => {
+  const options = fixture(t);
+  fs.mkdirSync(options.appPath);
+  for (const field of ["sourcePath", "targetPath"]) {
+    const candidate = path.join(options.appPath, "runtime-data");
+    if (field === "sourcePath") fs.mkdirSync(candidate);
+    assert.throws(() => validateMigrationPaths({ ...options, [field]: candidate }));
+  }
+  const packagedAppPath = path.join(options.appPath, "resources", "app.asar");
+  fs.mkdirSync(path.dirname(packagedAppPath), { recursive: true });
+  fs.writeFileSync(packagedAppPath, "asar");
+  assert.throws(() => validateMigrationPaths({ ...options,
+    appPath: packagedAppPath, targetPath: path.join(path.dirname(packagedAppPath), "runtime-data") }));
 });
 
 test("queueMigration writes an atomic pending request", t => {

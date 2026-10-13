@@ -175,6 +175,9 @@
           throw new Error("Unavailable auto-start result");
         }
         renderStartup(result);
+        if (result.available && result.enabled !== enabled) {
+          status("auto-start-status", "Windows 未接受这次更改，已显示系统实际状态。请检查“启动应用”设置后重试。", "error");
+        }
       } catch {
         if (disposed) return;
         renderStartup(previous);

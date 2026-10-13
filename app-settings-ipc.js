@@ -118,7 +118,9 @@ function registerAppSettingsIpc({ ipcMain, dialog, app, getMainWindow, getRuntim
     if (!selection || selection.senderId !== event.sender.id || selection.expiresAt <= Date.now()) {
       throw new SettingsError("INVALID_SELECTION");
     }
-    const launchSpec = resolveAppLaunchSpec({ app, ...launchOptions });
+    // Migration is initiated from the visible settings window; always return
+    // visibly so the user can see the success or recovery result after restart.
+    const launchSpec = resolveAppLaunchSpec({ app, ...launchOptions, hidden: false });
     await flushBeforeRelaunch();
     requireMainSender(event);
     queueMigration({ appDataPath, sourcePath: getRuntimePath(), targetPath: selection.path, homePath, appPath });

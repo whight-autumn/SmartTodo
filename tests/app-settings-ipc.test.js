@@ -51,20 +51,20 @@ function fixture(t, launchOptions = {}) {
 }
 
 for (const hidden of [false, true]) {
-  test(`portable migration relaunch uses the persistent launcher with hidden=${hidden}`, async t => {
+  test(`portable migration relaunch is visible after an originally hidden=${hidden} launch`, async t => {
     const f = fixture(t, { execPath: "C:\\Temp\\extracted.exe", env: { PORTABLE_EXECUTABLE_FILE: "D:\\Apps\\SmartTodo.exe" }, argv: hidden ? ["--hidden"] : [] });
     const selected = await f.invoke("settings:choose-data-directory");
     assert.deepEqual(await f.invoke("settings:request-data-migration", { selectionId: selected.selectionId }), { queued: true });
-    assert.deepEqual(f.calls.find(call => call[0] === "relaunch")[1], { execPath: "D:\\Apps\\SmartTodo.exe", args: hidden ? ["--hidden"] : [] });
+    assert.deepEqual(f.calls.find(call => call[0] === "relaunch")[1], { execPath: "D:\\Apps\\SmartTodo.exe", args: [] });
   });
 }
 
-test("development migration relaunch retains the application entry before hidden flags", async t => {
+test("development migration relaunch retains the application entry and opens visibly", async t => {
   const f = fixture(t, { execPath: "C:\\Electron\\electron.exe", env: {}, argv: ["--hidden"] });
   f.app.isPackaged = false;
   const selected = await f.invoke("settings:choose-data-directory");
   assert.deepEqual(await f.invoke("settings:request-data-migration", { selectionId: selected.selectionId }), { queued: true });
-  assert.deepEqual(f.calls.find(call => call[0] === "relaunch")[1], { execPath: "C:\\Electron\\electron.exe", args: [path.join(f.root, "app"), "--hidden"] });
+  assert.deepEqual(f.calls.find(call => call[0] === "relaunch")[1], { execPath: "C:\\Electron\\electron.exe", args: [path.join(f.root, "app")] });
 });
 
 function assertError(result, code) {

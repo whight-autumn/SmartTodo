@@ -173,7 +173,7 @@ test("unavailable auto-start and absent desktop bridge disable settings with exp
   }
 });
 
-test("auto-start toggle is busy and trusts returned OS state", async t => {
+test("auto-start toggle is busy and explains when the OS rejects the requested state", async t => {
   let finish;
   const f = fixture(t, { desktop: { setAutoStart(enabled) {
     assert.equal(enabled, true); return new Promise(resolve => { finish = resolve; });
@@ -188,6 +188,7 @@ test("auto-start toggle is busy and trusts returned OS state", async t => {
   assert.equal(f.get("auto-start-input").checked, false);
   assert.equal(f.get("auto-start-input").disabled, false);
   assert.equal(f.get("settings-panel-general").getAttribute("aria-busy"), "false");
+  assert.match(f.get("auto-start-status").textContent, /实际状态|Windows.*设置|未接受/);
 });
 
 test("a settings read captured during auto-start save cannot overwrite its final OS state", async t => {

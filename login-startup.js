@@ -12,12 +12,17 @@ function readAutoStartState({ app, platform = process.platform, ...launchOptions
   }
   if (Array.isArray(settings.launchItems)) {
     const executable = path.win32.normalize(execPath).toLowerCase();
-    enabled = enabled && settings.launchItems.some(item =>
+    const matchingItems = settings.launchItems.filter(item =>
       typeof item.path === "string" &&
-      path.win32.normalize(item.path).toLowerCase() === executable &&
-      Array.isArray(item.args) && item.args.length === args.length && item.args.every((arg, index) => arg === args[index]) &&
-      item.enabled === true
+      path.win32.normalize(item.path).toLowerCase() === executable
     );
+    // Electron 31 can omit registry arguments and return [] even though
+    // openAtLogin has already confirmed the complete path + args command.
+    const detailedItems = matchingItems.filter(item => Array.isArray(item.args) && item.args.length > 0);
+    const approvalItems = detailedItems.length > 0
+      ? detailedItems.filter(item => item.args.length === args.length && item.args.every((arg, index) => arg === args[index]))
+      : matchingItems;
+    enabled = enabled && approvalItems.some(item => item.enabled === true);
   }
   return { available: true, enabled };
 }

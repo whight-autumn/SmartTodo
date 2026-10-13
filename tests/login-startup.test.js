@@ -20,8 +20,6 @@ for (const spec of [
     assert.deepEqual(adapters.writeAutoStartState(options), { available: true, enabled: true });
     assert.deepEqual(app.writes, [{ openAtLogin: true, path: spec.wantPath, args: spec.wantArgs }]);
     assert.deepEqual(app.reads, [{ path: spec.wantPath, args: spec.wantArgs }]);
-    app.getLoginItemSettings = () => ({ openAtLogin: true, launchItems: [{ path: spec.wantPath, args: [...spec.wantArgs, "extra"], enabled: true }] });
-    assert.equal(adapters.readAutoStartState(options).enabled, false);
   });
 }
 
@@ -100,13 +98,34 @@ test("an approved matching hidden registration is reported as enabled", () => {
   });
 });
 
-test("approval for other executable or argument registrations cannot enable hidden startup", () => {
+test("an approved hidden registration remains enabled when Electron omits launch item arguments", () => {
+  const app = fakeApp(true, {
+    executableWillLaunchAtLogin: true,
+    launchItems: [launchItem({ enabled: true, args: [] })]
+  });
+  assert.deepEqual(adapters.readAutoStartState({ app, platform: "win32", execPath }), {
+    available: true, enabled: true
+  });
+});
+
+test("an enabled registration with different arguments cannot mask a disabled hidden registration", () => {
   const app = fakeApp(true, {
     executableWillLaunchAtLogin: true,
     launchItems: [
       launchItem({ enabled: false }),
-      launchItem({ enabled: true, args: [] }),
-      launchItem({ enabled: true, args: ["--hidden", "--other"] }),
+      launchItem({ enabled: true, args: ["--other"] })
+    ]
+  });
+  assert.deepEqual(adapters.readAutoStartState({ app, platform: "win32", execPath }), {
+    available: true, enabled: false
+  });
+});
+
+test("approval for another executable cannot enable hidden startup", () => {
+  const app = fakeApp(true, {
+    executableWillLaunchAtLogin: true,
+    launchItems: [
+      launchItem({ enabled: false }),
       launchItem({ enabled: true, path: "C:\\Other\\Other.exe" })
     ]
   });
