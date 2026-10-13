@@ -24,7 +24,7 @@ SmartTodo V1.4.1 版本说明
 
 五、发布产物
 可执行文件名：SmartTodo-1.4.1.exe
-文件大小：待构建后填写
-SHA-256：待构建后填写
+文件大小：74,063,917 字节（70.63 MiB）
+SHA-256：FB15071AFAD17F2237841BBF507F8216EC8E5F2E3EE2CF2CFF2C22F9127874EA
 代码签名：未进行商业代码签名
 GitHub URL：https://github.com/whight-autumn/SmartTodo/releases/tag/v1.4.1
