@@ -285,7 +285,7 @@ function hashManifest(manifest) {
 }
 
 function unavailableRuntimeError() {
-  const error = new Error("Original runtime data is unavailable. Startup was stopped to prevent an empty profile.");
+  const error = new Error("Original runtime data could not be selected safely. Startup was stopped to prevent an empty or inconsistent profile.");
   error.code = "ERR_RUNTIME_DATA_UNAVAILABLE";
   return error;
 }
@@ -300,14 +300,13 @@ function isUsableRuntime(directoryPath, { homePath, appPath } = {}) {
 
 function recoverJournaledMigration({ appDataPath, state, homePath, appPath, completedAt }) {
   const pending = state.pendingMigration;
-  let runtimePath = pending.sourcePath;
-  if (!isUsableRuntime(runtimePath, { homePath, appPath })) {
-    runtimePath = pending.recoveryPath;
-    if (!isUsableRuntime(runtimePath, { homePath, appPath })) throw unavailableRuntimeError();
+  const runtimePath = [pending.sourcePath, pending.recoveryPath].find(candidate => {
+    if (!isUsableRuntime(candidate, { homePath, appPath })) return false;
     try {
-      if (hashManifest(buildFileManifest(runtimePath)) !== pending.recoveryManifestSha256) throw unavailableRuntimeError();
-    } catch { throw unavailableRuntimeError(); }
-  }
+      return hashManifest(buildFileManifest(candidate)) === pending.recoveryManifestSha256;
+    } catch { return false; }
+  });
+  if (!runtimePath) throw unavailableRuntimeError();
   assertBootstrapOutsideRuntime(appDataPath, { sourcePath: runtimePath, targetPath: pending.targetPath });
   const migrationResult = {
     status: "failure", requestId: pending.requestId, sourcePath: pending.sourcePath,
@@ -318,7 +317,9 @@ function recoverJournaledMigration({ appDataPath, state, homePath, appPath, comp
   try {
     writeBootstrapState(appDataPath, { ...state, activeRuntimePath: runtimePath, pendingMigration: null, migrationResult }, pending.requestId);
   } catch {
-    migrationResult.warning = "The recovery result could not be saved. The existing journal was retained for the next startup.";
+    // Opening the selected profile while its original digest remains journaled
+    // would make legitimate Chromium writes indistinguishable from corruption.
+    throw unavailableRuntimeError();
   }
   return { runtimePath, migrationResult };
 }
@@ -333,6 +334,7 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
   let parentPath;
   let backupPath;
   let backupCreated = false;
+  let journalCommitted = false;
   let phase = "validation";
   const date = new Date(typeof now === "function" ? now() : now);
   const completedAt = Number.isFinite(date.getTime()) ? date.toISOString() : new Date().toISOString();
@@ -384,6 +386,7 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
       recoveryManifestSha256: hashManifest(sourceManifest)
     });
     writeBootstrapState(appDataPath, { ...state, pendingMigration: journaledPending }, pending.requestId);
+    journalCommitted = true;
     phase = "backup";
     fs.renameSync(sourcePath, backupPath);
     backupCreated = true;
@@ -428,6 +431,7 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
     }
     if (!isUsableRuntime(runtimePath, { homePath, appPath })) throw unavailableRuntimeError();
     try { writeBootstrapState(appDataPath, { ...state, activeRuntimePath: runtimePath, pendingMigration: null, migrationResult }, pending.requestId); } catch {
+      if (journalCommitted) throw unavailableRuntimeError();
       migrationResult.warning = `${migrationResult.warning || ""} The migration result could not be saved. Original data was retained.`.trim();
     }
     return { runtimePath, migrationResult };

@@ -391,7 +391,7 @@ test("source changes while the staged copy is hashed are detected", t => {
   assert.equal(fs.existsSync(options.targetPath), false);
 });
 
-test("backup rename and failure-record write failures preserve source activation and both copies", t => {
+test("backup rename and failure-record write failures stop startup and preserve both copies", t => {
   const options = fixture(t);
   fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
   queueMigration(options);
@@ -401,13 +401,10 @@ test("backup rename and failure-record write failures preserve source activation
     if (target === buildBootstrapPath(options.appDataPath) && JSON.parse(fs.readFileSync(source, "utf8")).pendingMigration === null) throw new Error("locked result");
     originalRename(source, target);
   });
-  const outcome = performPendingMigration(options);
-  assert.equal(outcome.runtimePath, options.sourcePath);
-  assert.equal(outcome.migrationResult.status, "failure");
+  assert.throws(() => performPendingMigration(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
   const persisted = readBootstrapState(options);
   assert.equal(persisted.activeRuntimePath, options.sourcePath);
   assert.equal(readBootstrapState(options).pendingMigration.phase, "backup-planned");
-  assert.ok(outcome.migrationResult.warning);
   assert.equal(fs.readFileSync(path.join(options.sourcePath, "data.txt"), "utf8"), "original");
   assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
 });
@@ -466,12 +463,7 @@ test("compound commit restore and failure-record errors preserve backup and veri
     if (source === backupPath && target === options.sourcePath) throw new Error("private restore error");
     originalRename(source, target);
   });
-  const outcome = performPendingMigration({ ...options, now: "2026-10-13T02:03:04.000Z" });
-  assert.equal(outcome.runtimePath, backupPath);
-  assert.equal(outcome.migrationResult.status, "failure");
-  assert.equal(outcome.migrationResult.backupPath, backupPath);
-  assert.equal(outcome.migrationResult.warning.includes("private"), false);
-  assert.ok(outcome.migrationResult.warning.length <= 300);
+  assert.throws(() => performPendingMigration({ ...options, now: "2026-10-13T02:03:04.000Z" }), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
   assert.equal(readBootstrapState(options).pendingMigration.recoveryPath, backupPath);
   assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "original");
   assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
@@ -609,7 +601,7 @@ test("restart with no original-data location stops before an empty profile can b
   assert.equal(fs.existsSync(options.sourcePath), false);
 });
 
-test("repeated restarts recover original backup while bootstrap writes remain unavailable", t => {
+test("repeated restarts stop without exposing original backup while bootstrap writes remain unavailable", t => {
   const options = fixture(t);
   fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
   queueMigration(options);
@@ -619,11 +611,8 @@ test("repeated restarts recover original backup while bootstrap writes remain un
   const backupPath = path.join(options.root, "source.backup-20261013-020304");
   t.mock.method(fs, "renameSync", () => { throw new Error("unavailable bootstrap"); });
   for (let attempt = 0; attempt < 2; attempt++) {
-    const restarted = performPendingMigration(options);
-    assert.equal(restarted.runtimePath, backupPath);
-    assert.equal(restarted.migrationResult.status, "failure");
-    assert.ok(restarted.migrationResult.warning);
-    assert.equal(fs.readFileSync(path.join(restarted.runtimePath, "data.txt"), "utf8"), "original");
+    assert.throws(() => performPendingMigration(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+    assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "original");
     assert.equal(fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8"), journalContents);
     assert.equal(fs.existsSync(options.sourcePath), false);
   }
@@ -657,4 +646,63 @@ test("older pending records with an unavailable source stop without selecting a 
   assert.throws(() => performPendingMigration(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
   assert.equal(fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8"), originalContents);
   assert.equal(fs.existsSync(options.sourcePath), false);
+});
+
+test("restart with a recreated empty source selects the verified original backup", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  queueMigration(options);
+  const child = interruptAfterBackupRename(options);
+  assert.equal(child.status, 73, child.stderr);
+  fs.mkdirSync(options.sourcePath);
+  const backupPath = path.join(options.root, "source.backup-20261013-020304");
+  const restarted = performPendingMigration(options);
+  assert.equal(restarted.runtimePath, backupPath);
+  assert.equal(readBootstrapState(options).activeRuntimePath, backupPath);
+  assert.equal(readBootstrapState(options).pendingMigration, null);
+  assert.equal(fs.readFileSync(path.join(restarted.runtimePath, "data.txt"), "utf8"), "original");
+  assert.deepEqual(fs.readdirSync(options.sourcePath), []);
+});
+
+test("restart rejects a changed source when no verified original backup exists", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  const { journal } = writePlannedBackupJournal(options);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "unrelated");
+  assert.throws(() => performPendingMigration(options), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
+  assert.deepEqual(JSON.parse(fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8")), journal);
+  assert.equal(fs.readFileSync(path.join(options.sourcePath, "data.txt"), "utf8"), "unrelated");
+});
+
+test("failed recovery persistence returns no writable path and the next startup remains recoverable", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  queueMigration(options);
+  const child = interruptAfterBackupRename(options);
+  assert.equal(child.status, 73, child.stderr);
+  const backupPath = path.join(options.root, "source.backup-20261013-020304");
+  const journalContents = fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8");
+  t.mock.method(fs, "renameSync", () => { throw new Error("private recovery persistence error"); });
+  let returnedPath;
+  let startupError;
+  try {
+    returnedPath = performPendingMigration(options).runtimePath;
+    // Simulate Chromium only when startup actually supplied a writable path.
+    fs.writeFileSync(path.join(returnedPath, "data.txt"), "legitimate profile update");
+  } catch (error) { startupError = error; }
+  assert.equal(returnedPath, undefined);
+  assert.equal(startupError.code, "ERR_RUNTIME_DATA_UNAVAILABLE");
+  assert.equal(startupError.message.includes("private"), false);
+  assert.ok(startupError.message.length <= 300);
+  assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "original");
+  assert.equal(fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8"), journalContents);
+
+  t.mock.restoreAll();
+  const restarted = performPendingMigration(options);
+  assert.equal(restarted.runtimePath, backupPath);
+  assert.equal(readBootstrapState(options).activeRuntimePath, backupPath);
+  assert.equal(readBootstrapState(options).pendingMigration, null);
+  fs.writeFileSync(path.join(restarted.runtimePath, "data.txt"), "legitimate profile update");
+  assert.equal(performPendingMigration(options).runtimePath, backupPath);
+  assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "legitimate profile update");
 });
