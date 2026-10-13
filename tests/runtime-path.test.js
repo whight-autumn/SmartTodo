@@ -7,7 +7,8 @@ const {
   buildManagedUserDataPath,
   buildLegacyUserDataPaths,
   buildTaskAttachmentPath,
-  migrateLegacyUserData
+  migrateLegacyUserData,
+  resolveRuntimeDataPath
 } = require("../main-paths.js");
 
 function createTemporaryAppData(t) {
@@ -21,6 +22,22 @@ test("managed runtime path is inside appData and named 运行数据", () => {
     buildManagedUserDataPath("C:/Users/test/AppData/Roaming"),
     path.join("C:/Users/test/AppData/Roaming", "SmartTodo", "运行数据")
   );
+});
+
+test("runtime resolution delegates bootstrap custom paths without replacing legacy data", t => {
+  const appDataPath = createTemporaryAppData(t);
+  const customPath = path.join(appDataPath, "custom");
+  const previousPath = path.join(appDataPath, "智能任务管家", "运行数据");
+  fs.mkdirSync(customPath);
+  fs.mkdirSync(path.join(previousPath, "Local Storage"), { recursive: true });
+  fs.writeFileSync(path.join(previousPath, "Local Storage", "data"), "legacy");
+  fs.mkdirSync(path.join(appDataPath, "SmartTodo"));
+  fs.writeFileSync(path.join(appDataPath, "SmartTodo", "bootstrap.json"), JSON.stringify({
+    schemaVersion: 1, activeRuntimePath: customPath, pendingMigration: null, migrationResult: null
+  }));
+  assert.deepEqual(resolveRuntimeDataPath({ appDataPath }), { runtimePath: customPath, migrationResult: null });
+  assert.equal(fs.existsSync(path.join(appDataPath, "SmartTodo", "运行数据")), false);
+  assert.equal(fs.readFileSync(path.join(previousPath, "Local Storage", "data"), "utf8"), "legacy");
 });
 
 test("legacy runtime paths retain both previous product identities", () => {

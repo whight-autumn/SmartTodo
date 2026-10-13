@@ -16,6 +16,11 @@ function buildTaskAttachmentPath(managedUserDataPath) {
   return path.join(managedUserDataPath, "task-attachments");
 }
 
+function resolveRuntimeDataPath(options) {
+  const { performPendingMigration } = require("./runtime-data-manager.js");
+  return performPendingMigration(options);
+}
+
 function migrateLegacyUserData({ appDataPath }) {
   const targetPath = buildManagedUserDataPath(appDataPath);
   const targetLocalStoragePath = path.join(targetPath, "Local Storage");
@@ -38,5 +43,6 @@ module.exports = {
   buildManagedUserDataPath,
   buildLegacyUserDataPaths,
   buildTaskAttachmentPath,
-  migrateLegacyUserData
+  migrateLegacyUserData,
+  resolveRuntimeDataPath
 };
