@@ -26,3 +26,10 @@ test("quit path disposes IPC and flushes then destroys the widget", () => {
   assert.match(source, /widgetController\?\.dispose\(\)/);
   assert.doesNotMatch(source, /setAlwaysOnTop/);
 });
+
+test("hidden startup controls only main-window visibility while preserving saved widget creation", () => {
+  assert.match(source, /process\.argv\.includes\("--hidden"\)/);
+  assert.match(source, /show:\s*!startHidden/);
+  assert.match(source, /widgetController\.create\(\)/);
+  assert.match(source, /createTray\(\)/);
+});

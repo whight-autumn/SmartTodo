@@ -2,14 +2,16 @@
    SmartTodo · 桌面版主进程
    ========================================================== */
 
-const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, screen, shell } = require("electron");
+const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, screen, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const {
   buildManagedUserDataPath,
   buildTaskAttachmentPath,
+  resolveRuntimeDataPath,
   migrateLegacyUserData: migrateLegacyUserDataFiles
 } = require("./main-paths");
+const { readBootstrapState } = require("./runtime-data-manager.js");
 const { createTaskAttachmentStore } = require("./task-attachment-store");
 const { registerTaskAttachmentIpc } = require("./task-attachment-ipc");
 const WidgetModel = require("./renderer/widget-model.js");
@@ -21,11 +23,43 @@ const { registerWidgetIpc } = require("./widget-ipc.js");
 // SmartTodo's lightweight UI is more reliable with software composition.
 app.disableHardwareAcceleration();
 
+// Only the primary process may inspect or migrate the runtime profile.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  return;
+}
+
 const appDataPath = app.getPath("appData");
-const managedUserDataPath = buildManagedUserDataPath(appDataPath);
-app.setPath("userData", managedUserDataPath);
+const defaultRuntimePath = buildManagedUserDataPath(appDataPath);
+let runtimePath;
+try {
+  const bootstrapState = readBootstrapState({ appDataPath, defaultRuntimePath });
+  ({ runtimePath } = resolveRuntimeDataPath({
+    appDataPath,
+    defaultRuntimePath,
+    homePath: app.getPath("home"),
+    appPath: app.getAppPath()
+  }));
+  // A pending migration owns startup even when it falls back to the default.
+  if (!bootstrapState.pendingMigration &&
+      path.relative(defaultRuntimePath, bootstrapState.activeRuntimePath) === "" &&
+      path.relative(defaultRuntimePath, runtimePath) === "") {
+    migrateLegacyUserData();
+  }
+} catch (error) {
+  const message = error.code === "ERR_RUNTIME_DATA_UNAVAILABLE"
+    ? "无法安全恢复原运行数据，已停止启动以避免创建空数据。请保留原目录和备份目录后重试。"
+    : "无法安全初始化运行数据，已停止启动。请保留原目录和备份目录后重试。";
+  try {
+    dialog.showErrorBox("SmartTodo 运行数据不可用", message);
+  } finally {
+    app.quit();
+  }
+  return;
+}
+app.setPath("userData", runtimePath);
 const taskAttachmentStore = createTaskAttachmentStore({
-  rootPath: buildTaskAttachmentPath(app.getPath("userData"))
+  rootPath: buildTaskAttachmentPath(runtimePath)
 });
 const { openExternalUrl } = registerTaskAttachmentIpc({
   ipcMain,
@@ -39,10 +73,12 @@ let widgetController = null;
 let widgetIpcRegistration = null;
 let isQuitting = false;
 const APP_VERSION = app.getVersion();
+const startHidden = process.argv.includes("--hidden");
 
 /* ---------- 创建主窗口 ---------- */
 function createMainWindow() {
   mainWindow = new BrowserWindow({
+    show: !startHidden,
     width: 1400,
     height: 900,
     minWidth: 800,
@@ -170,11 +206,10 @@ ipcMain.handle("notify", (event, { title, body }) => {
 });
 
 ipcMain.handle("get-app-version", () => app.getVersion());
-ipcMain.handle("get-data-path", () => managedUserDataPath);
+ipcMain.handle("get-data-path", () => runtimePath);
 
 /* ---------- 应用生命周期 ---------- */
 app.whenReady().then(() => {
-  migrateLegacyUserData();
   widgetController = createWidgetController({
     BrowserWindow,
     screen,
@@ -201,27 +236,19 @@ app.whenReady().then(() => {
     normalizeSnapshot: WidgetModel.normalizeWidgetSnapshot
   });
   createMainWindow();
+  if (!startHidden) showMainWindow();
   widgetController.create();
   createTray();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    } else {
-      showMainWindow();
-    }
+    showMainWindow();
   });
 });
 
 // 防止多实例
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-  app.quit();
-} else {
-  app.on("second-instance", () => {
-    showMainWindow();
-  });
-}
+app.on("second-instance", (_event, commandLine) => {
+  if (!commandLine.includes("--hidden")) showMainWindow();
+});
 
 // 关闭窗口时退出（macOS 除外）
 app.on("window-all-closed", () => {
