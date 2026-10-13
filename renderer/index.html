@@ -36,7 +36,7 @@
         </button>
         <button id="task-widget-toggle" class="icon-btn task-widget-toggle" type="button" title="显示桌面任务笺"
           aria-label="显示桌面任务笺" aria-pressed="false" data-icon="note"></button>
-        <button id="global-settings-btn" class="icon-btn" type="button" title="打开设置" aria-label="打开 AI 设置" data-icon="settings"></button>
+        <button id="global-settings-btn" class="icon-btn" type="button" title="打开设置" aria-label="打开设置" data-icon="settings"></button>
       </div>
     </header>
 
@@ -178,32 +178,112 @@
     </div>
   </dialog>
 
-  <dialog id="settings-modal" class="settings-dialog" aria-labelledby="settings-heading">
+  <dialog id="settings-modal" class="settings-dialog settings-center-dialog" aria-labelledby="settings-heading">
     <div class="modal-card dialog-sheet">
       <header class="modal-head dialog-sheet__head">
-        <h3 id="settings-heading">知行助手设置</h3>
+        <h3 id="settings-heading">设置</h3>
         <button class="icon-btn" type="button" data-close-modal aria-label="关闭设置" data-icon="close"></button>
       </header>
-      <div class="modal-body dialog-sheet__body">
-        <label class="field-label" for="provider-select">AI 服务商</label>
-        <select id="provider-select" class="input">
-          <option value="deepseek">DeepSeek</option>
-          <option value="openai">OpenAI</option>
-          <option value="custom">自定义 OpenAI 兼容服务</option>
-        </select>
-        <label class="field-label" for="base-url-input">API 地址</label>
-        <input id="base-url-input" class="input" type="url" placeholder="https://api.example.com/v1">
-        <label class="field-label" for="model-input">模型名称</label>
-        <input id="model-input" class="input" type="text" placeholder="例如：deepseek-chat">
-        <label class="field-label" for="api-key-input">API Key</label>
-        <input id="api-key-input" class="input" type="password" placeholder="sk-..." autocomplete="off">
-        <p class="hint">配置仅保存在本地运行数据中。请确认 API 地址对应 OpenAI-compatible 的 /chat/completions 接口。</p>
-        <p id="data-path-hint" class="hint data-path-hint"></p>
-        <p class="hint">还没有 Key？<a href="https://platform.deepseek.com" target="_blank" rel="noopener">前往 DeepSeek 开放平台申请</a></p>
+      <div class="settings-center">
+        <nav class="settings-nav" role="tablist" aria-label="设置分类" aria-orientation="vertical">
+          <button id="settings-tab-general" class="settings-tab" type="button" role="tab" data-settings-section="general" aria-controls="settings-panel-general" aria-selected="true" tabindex="0">
+            <span data-icon="general" aria-hidden="true"></span><span>通用</span>
+          </button>
+          <button id="settings-tab-ai" class="settings-tab" type="button" role="tab" data-settings-section="ai" aria-controls="settings-panel-ai" aria-selected="false" tabindex="-1">
+            <span data-icon="analyze" aria-hidden="true"></span><span>AI 服务</span>
+          </button>
+          <button id="settings-tab-storage" class="settings-tab" type="button" role="tab" data-settings-section="storage" aria-controls="settings-panel-storage" aria-selected="false" tabindex="-1">
+            <span data-icon="folder" aria-hidden="true"></span><span>数据存储</span>
+          </button>
+        </nav>
+        <div class="settings-center__content">
+          <section id="settings-panel-general" class="settings-panel" role="tabpanel" data-settings-section="general" aria-labelledby="settings-tab-general" tabindex="0">
+            <header class="settings-panel__head">
+              <h4>通用</h4>
+              <p>让 SmartTodo 按你的习惯启动。</p>
+            </header>
+            <div class="settings-row">
+              <div class="settings-row__copy">
+                <label id="auto-start-label" class="settings-row__label" for="auto-start-input">开机自启动</label>
+                <p id="auto-start-description" class="settings-description">登录 Windows 后在托盘运行，不自动打开主窗口。</p>
+              </div>
+              <label class="settings-switch">
+                <input id="auto-start-input" type="checkbox" role="switch" aria-labelledby="auto-start-label" aria-describedby="auto-start-description auto-start-status">
+                <span class="settings-switch__track" aria-hidden="true"></span>
+              </label>
+            </div>
+            <footer class="settings-panel__actions settings-panel__actions--inline">
+              <p id="auto-start-status" class="settings-status" role="status" aria-live="polite">更改后立即生效。</p>
+            </footer>
+          </section>
+          <section id="settings-panel-ai" class="settings-panel" role="tabpanel" data-settings-section="ai" aria-labelledby="settings-tab-ai" tabindex="0" hidden>
+            <header class="settings-panel__head">
+              <h4>AI 服务</h4>
+              <p>连接你自己的服务，为知行助手配置模型。</p>
+            </header>
+            <div class="settings-fields">
+              <div class="settings-field">
+                <label class="field-label" for="provider-select">AI 服务商</label>
+                <select id="provider-select" class="input">
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="custom">自定义 OpenAI 兼容服务</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label class="field-label" for="base-url-input">API 地址</label>
+                <input id="base-url-input" class="input" type="url" placeholder="https://api.example.com/v1" aria-describedby="ai-endpoint-hint" spellcheck="false">
+                <p id="ai-endpoint-hint" class="settings-description">服务须支持 OpenAI-compatible 的 /chat/completions 接口。</p>
+              </div>
+              <div class="settings-field">
+                <label class="field-label" for="model-input">模型名称</label>
+                <input id="model-input" class="input" type="text" placeholder="例如：deepseek-chat" spellcheck="false">
+              </div>
+              <div class="settings-field">
+                <label class="field-label" for="api-key-input">API Key</label>
+                <div class="settings-password">
+                  <input id="api-key-input" class="input" type="password" placeholder="sk-..." autocomplete="off" aria-describedby="ai-key-hint" spellcheck="false">
+                  <button id="toggle-api-key-btn" class="icon-btn" type="button" aria-label="切换 API Key 可见性" aria-pressed="false" aria-controls="api-key-input" data-icon="eye"></button>
+                </div>
+                <p id="ai-key-hint" class="settings-description">配置仅保存在本地运行数据中。</p>
+              </div>
+            </div>
+            <p id="data-path-hint" class="hint data-path-hint"></p>
+            <p class="settings-description settings-key-link">还没有 Key？<a href="https://platform.deepseek.com" target="_blank" rel="noopener">前往 DeepSeek 开放平台申请</a></p>
+            <footer class="settings-panel__actions">
+              <p id="ai-settings-status" class="settings-status" role="status" aria-live="polite"></p>
+              <button id="save-key-btn" class="btn btn-primary" type="button">保存 AI 配置</button>
+            </footer>
+          </section>
+          <section id="settings-panel-storage" class="settings-panel" role="tabpanel" data-settings-section="storage" aria-labelledby="settings-tab-storage" tabindex="0" hidden>
+            <header class="settings-panel__head">
+              <h4>数据存储</h4>
+              <p>查看本地数据位置，或迁移到新的文件夹。</p>
+            </header>
+            <dl class="settings-storage-ledger">
+              <div class="settings-storage-entry">
+                <dt>当前数据目录</dt>
+                <dd id="data-current-path" class="settings-path" aria-live="polite">正在读取数据目录…</dd>
+              </div>
+              <div class="settings-storage-entry">
+                <dt>新数据目录</dt>
+                <dd id="data-selected-path" class="settings-path" aria-live="polite">未选择新目录</dd>
+                <dd class="settings-storage-entry__action">
+                  <button id="choose-data-directory-btn" class="btn btn-secondary" type="button"><span data-icon="folder"></span><span>选择文件夹</span></button>
+                </dd>
+              </div>
+            </dl>
+            <div id="migration-warning" class="settings-migration-warning">
+              <span data-icon="warning" aria-hidden="true"></span>
+              <p>确认后将重启 SmartTodo，并迁移任务、附件、设置与会话到新目录。旧目录会保留为备份；迁移失败时继续使用原目录。请选择空文件夹。</p>
+            </div>
+            <footer class="settings-panel__actions">
+              <p id="storage-status" class="settings-status" role="status" aria-live="polite">选择新目录后可开始迁移。</p>
+              <button id="migrate-data-btn" class="btn btn-primary" type="button" aria-describedby="migration-warning" disabled>迁移并重启</button>
+            </footer>
+          </section>
+        </div>
       </div>
-      <footer class="modal-foot dialog-sheet__foot">
-        <button id="save-key-btn" class="btn btn-primary" type="button">保存设置</button>
-      </footer>
     </div>
   </dialog>
 

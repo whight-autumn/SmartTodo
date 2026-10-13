@@ -13,6 +13,22 @@
 }
 dialog[open] .dialog-sheet { animation: toast-enter 240ms var(--ease-state) both; }
 
+@keyframes settings-dialog-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes settings-section-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+dialog.settings-center-dialog[open] .dialog-sheet { animation: settings-dialog-enter 220ms var(--ease-state) both; }
+.settings-center-dialog[open] .settings-panel:not([hidden]) { animation: settings-section-enter 160ms var(--ease-state) both; }
+.settings-tab, .settings-switch__track::after { transition: opacity 160ms var(--ease-state), transform 160ms var(--ease-state); }
+.settings-center-dialog .btn, .settings-center-dialog .icon-btn, .settings-center-dialog .input,
+.settings-center-dialog .settings-switch__track { transition: opacity 160ms var(--ease-state), transform 120ms var(--ease-state); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;

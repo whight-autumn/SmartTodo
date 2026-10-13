@@ -10,6 +10,76 @@ const mainSource = fs.readFileSync(path.join(root, "main.js"), "utf8");
 const entryCss = fs.readFileSync(path.join(root, "renderer/style.css"), "utf8");
 const componentsCss = fs.readFileSync(path.join(root, "renderer/styles/components.css"), "utf8");
 const motionCss = fs.readFileSync(path.join(root, "renderer/styles/motion.css"), "utf8");
+const layoutCss = fs.readFileSync(path.join(root, "renderer/styles/layout.css"), "utf8");
+const settingsHtml = html.match(/<dialog id="settings-modal"[\s\S]*?<\/dialog>/)?.[0] || "";
+
+test("settings center exposes one selected module with reciprocal tab-panel labels", () => {
+  assert.match(settingsHtml, /aria-labelledby="settings-heading"/);
+  assert.match(settingsHtml, /<h3 id="settings-heading">设置<\/h3>/);
+  assert.match(settingsHtml, /class="[^"]*settings-center/);
+  assert.equal([...settingsHtml.matchAll(/role="tablist"/g)].length, 1);
+  const tabs = [...settingsHtml.matchAll(/<button\b[^>]*role="tab"[^>]*>/g)].map(match => match[0]);
+  const panels = [...settingsHtml.matchAll(/<section\b[^>]*role="tabpanel"[^>]*>/g)].map(match => match[0]);
+  assert.equal(tabs.length, 3);
+  assert.equal(panels.length, 3);
+  assert.equal(tabs.filter(tab => /aria-selected="true"/.test(tab)).length, 1);
+  assert.equal(panels.filter(panel => !/\bhidden\b/.test(panel)).length, 1);
+  for (const [section, label] of [["general", "通用"], ["ai", "AI 服务"], ["storage", "数据存储"]]) {
+    const tab = tabs.find(value => value.includes(`data-settings-section="${section}"`));
+    const panel = panels.find(value => value.includes(`data-settings-section="${section}"`));
+    assert.ok(tab && panel, section);
+    assert.match(tab, new RegExp(`id="settings-tab-${section}"`));
+    assert.match(tab, new RegExp(`aria-controls="settings-panel-${section}"`));
+    assert.match(panel, new RegExp(`id="settings-panel-${section}"`));
+    assert.match(panel, new RegExp(`aria-labelledby="settings-tab-${section}"`));
+    assert.match(settingsHtml, new RegExp(`>${label}</span>`));
+  }
+  assert.match(tabs[0], /aria-selected="true"[^>]*tabindex="0"/);
+  assert.ok(tabs.slice(1).every(tab => /aria-selected="false"[^>]*tabindex="-1"/.test(tab)));
+  assert.match(settingsHtml, /data-close-modal[^>]*aria-label="关闭设置"/);
+});
+
+test("settings startup switch and API visibility retain stable accessible control hooks", () => {
+  assert.match(settingsHtml, /<input id="auto-start-input"[^>]*type="checkbox"[^>]*aria-labelledby="auto-start-label"/);
+  assert.match(settingsHtml, /id="auto-start-label"[^>]*>开机自启动</);
+  for (const id of ["provider-select", "base-url-input", "model-input", "api-key-input", "save-key-btn", "data-path-hint"]) {
+    assert.match(settingsHtml, new RegExp(`id="${id}"`));
+  }
+  assert.match(settingsHtml, /id="api-key-input"[^>]*type="password"/);
+  assert.match(settingsHtml, /id="toggle-api-key-btn"[^>]*aria-label="切换 API Key 可见性"[^>]*aria-pressed="false"/);
+  assert.match(settingsHtml, /id="toggle-api-key-btn"[^>]*aria-controls="api-key-input"/);
+});
+
+test("storage paths and migration consequences are visible within the owning panel", () => {
+  const panels = [...settingsHtml.matchAll(/<section\b[^>]*role="tabpanel"[\s\S]*?<\/section>/g)].map(match => match[0]);
+  const ai = panels.find(panel => panel.includes('data-settings-section="ai"')) || "";
+  const storage = panels.find(panel => panel.includes('data-settings-section="storage"')) || "";
+  assert.match(ai, /id="save-key-btn"[^>]*>保存 AI 配置</);
+  assert.doesNotMatch(storage, /id="save-key-btn"/);
+  for (const id of ["data-current-path", "data-selected-path", "choose-data-directory-btn", "migrate-data-btn", "storage-status"]) {
+    assert.match(storage, new RegExp(`id="${id}"`));
+  }
+  assert.match(storage, /id="migration-warning"[^>]*>[\s\S]*?重启[\s\S]*?迁移[\s\S]*?备份/);
+  assert.doesNotMatch(storage.match(/<[^>]+id="migration-warning"[^>]*>/)?.[0] || "", /title=|\bhidden\b/);
+  assert.match(storage, /id="migrate-data-btn"[^>]*aria-describedby="migration-warning"[^>]*disabled/);
+  assert.match(storage, /id="storage-status"[^>]*role="status"[^>]*aria-live="polite"/);
+  assert.match(settingsHtml, /未选择新目录/);
+});
+
+test("settings ledger keeps the fixed header, wraps paths and reflows navigation below 640px", () => {
+  assert.match(layoutCss, /\.settings-center\s*\{[^}]*grid-template-columns:\s*172px minmax\(0, 1fr\)/s);
+  assert.match(layoutCss, /\.settings-center__content\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.match(layoutCss, /@media \(max-width: 639px\)[\s\S]*?\.settings-center\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(layoutCss, /@media \(max-width: 639px\)[\s\S]*?\.settings-nav\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(componentsCss, /\.settings-path\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  assert.match(componentsCss, /\.settings-center-dialog\s*\{[^}]*width:\s*min\(820px, calc\(100vw - 32px\)\)/s);
+  assert.match(componentsCss, /\.settings-switch input:focus-visible/);
+  assert.match(componentsCss, /\.settings-center \.btn-primary\s*\{[^}]*color:\s*var\(--surface-raised\)[^}]*background:\s*var\(--accent-strong\)/s);
+  assert.match(motionCss, /@keyframes settings-section-enter/);
+  const motion = motionCss.match(/@keyframes settings-section-enter\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  assert.doesNotMatch(motion, /filter:|height:|width:|padding:|margin:/);
+  assert.match(motionCss, /prefers-reduced-motion: reduce/);
+});
 
 test("V1.2 shell preserves behavioral IDs and adds semantic regions", () => {
   for (const id of [

@@ -6,7 +6,8 @@
   const ICON_NAMES = new Set([
     "theme", "add", "pin", "subtask", "note", "delete", "collapse",
     "undo", "new-session", "clear", "settings", "upload", "analyze",
-    "send", "close", "file", "image", "warning", "check"
+    "send", "close", "file", "image", "warning", "check",
+    "general", "folder", "eye", "eye-off"
   ]);
 
   const escapeAttribute = value => String(value).replace(/[&"<>]/g, char => ({

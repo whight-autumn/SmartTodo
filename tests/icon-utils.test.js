@@ -24,6 +24,19 @@ test("labelled icon markup exposes a safe accessible name", () => {
   assert.match(markup, /aria-label="删除任务"/);
 });
 
+test("settings center control icons resolve to authored decorative SVG symbols", () => {
+  const svg = fs.readFileSync(path.resolve(__dirname, "../renderer/icons.svg"), "utf8");
+  for (const name of ["general", "folder", "eye", "eye-off"]) {
+    assert.equal(ICON_NAMES.has(name), true, name);
+    assert.match(iconMarkup(name), new RegExp(`href="icons.svg#icon-${name}"`));
+    assert.match(iconMarkup(name), /aria-hidden="true"/);
+    const symbol = svg.match(new RegExp(`<symbol id="icon-${name}"[^>]*>[\\s\\S]*?<\\/symbol>`))?.[0] || "";
+    assert.match(symbol, /stroke="currentColor"/);
+    assert.match(symbol, /stroke-width="1\.7"/);
+    assert.match(symbol, /<(path|rect|circle)\b/);
+  }
+});
+
 test("brand assets are generated from the V1.2 master", async () => {
   const root = path.resolve(__dirname, "..");
   const svg = fs.readFileSync(path.join(root, "assets/brand/icon-master.svg"), "utf8");
