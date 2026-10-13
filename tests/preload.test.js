@@ -158,3 +158,41 @@ require("node:test")("preload exposes task reconciliation only through a fixed I
   localAssert.match(source, /ipcRenderer\.invoke\("task-attachment:reconcile"/);
   localAssert.doesNotMatch(source, /reconcileTaskAttachments\s*:\s*\([^)]*channel/);
 });
+
+test("preload settings bridge uses only its five fixed channels", async () => {
+  const { desktop, calls } = loadPreload();
+  const selectionId = "00000000-0000-4000-8000-000000000001";
+  await desktop.getAppSettings();
+  await desktop.setAutoStart(true);
+  await desktop.chooseDataDirectory();
+  await desktop.requestDataMigration({ selectionId });
+  await desktop.consumeMigrationResult();
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    { channel: "settings:get" },
+    { channel: "settings:set-auto-start", payload: { enabled: true } },
+    { channel: "settings:choose-data-directory" },
+    { channel: "settings:request-data-migration", payload: { selectionId } },
+    { channel: "settings:consume-migration-result" }
+  ]);
+});
+
+test("preload rejects nonboolean auto-start and renderer-owned migration paths before IPC", async () => {
+  const { desktop, calls } = loadPreload();
+  for (const value of [1, 0, "true", null, undefined, { enabled: true }]) {
+    await assert.rejects(desktop.setAutoStart(value));
+  }
+  for (const value of ["C:\\data", null, {}, [], { selectionId: "" }, { selectionId: 1 },
+    { selectionId: "fabricated" }, { path: "C:\\data" },
+    { selectionId: "00000000-0000-4000-8000-000000000001", path: "C:\\data" }]) {
+    await assert.rejects(desktop.requestDataMigration(value));
+  }
+  assert.deepEqual(calls, []);
+});
+
+test("preload settings API exposes no generic Electron, filesystem, chooser or path extraction capabilities", () => {
+  const { desktop } = loadPreload();
+  for (const name of ["ipcRenderer", "invoke", "send", "electron", "fs", "filesystem", "dialog", "showOpenDialog",
+    "getPathForFile", "webUtils", "readFile", "writeFile", "subscribe"]) {
+    assert.equal(desktop[name], undefined, name);
+  }
+});

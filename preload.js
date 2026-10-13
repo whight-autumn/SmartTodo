@@ -50,6 +50,20 @@ function clonePayload(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
+async function setAutoStart(enabled) {
+  if (typeof enabled !== "boolean") throw new Error("开机自启参数无效");
+  return ipcRenderer.invoke("settings:set-auto-start", { enabled });
+}
+
+async function requestDataMigration(value) {
+  const payload = validateExactPayload(value, ["selectionId"], "迁移运行数据");
+  if (typeof payload.selectionId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(payload.selectionId)) {
+    throw new Error("目录选择已失效，请重新选择目录");
+  }
+  return ipcRenderer.invoke("settings:request-data-migration", { selectionId: payload.selectionId });
+}
+
 function subscribe(channel, callback) {
   const listener = (_event, payload) => callback(clonePayload(payload));
   ipcRenderer.on(channel, listener);
@@ -61,6 +75,11 @@ contextBridge.exposeInMainWorld("desktop", {
   notify: (title, body) => ipcRenderer.invoke("notify", { title, body }),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
   getDataPath: () => ipcRenderer.invoke("get-data-path"),
+  getAppSettings: () => ipcRenderer.invoke("settings:get"),
+  setAutoStart,
+  chooseDataDirectory: () => ipcRenderer.invoke("settings:choose-data-directory"),
+  requestDataMigration,
+  consumeMigrationResult: () => ipcRenderer.invoke("settings:consume-migration-result"),
   prepareTaskAttachmentChanges,
   commitTaskAttachmentChanges: payload => ipcRenderer.invoke("task-attachment:commit-changes", payload),
   rollbackTaskAttachmentChanges: payload => ipcRenderer.invoke("task-attachment:rollback-changes", payload),

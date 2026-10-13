@@ -55,7 +55,11 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   };
   const electron = {
     app, BrowserWindow, screen: {}, shell: {}, Notification: {},
-    ipcMain: { handle(name, handler) { handlers.set(name, handler); } },
+    ipcMain: { handle(name, handler) { handlers.set(name, handler); }, removeHandler(name) { handlers.delete(name); } },
+    session: { defaultSession: {
+      flushStorageData() { calls.push(["flushStorage"]); },
+      async flushCache() { calls.push(["flushCache"]); }
+    } },
     dialog: { showErrorBox(title, message) { calls.push(["error", title, message]); } },
     nativeImage: { createFromPath() { return { isEmpty: () => false }; } },
     Menu: { buildFromTemplate: template => template },
@@ -80,11 +84,17 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
         calls.push(["widgetController", options.userDataPath]);
         return {
           getWindow() {}, setVisible() {}, isVisible: () => true,
-          create() { calls.push(["widgetCreate"]); }, flush() {}, dispose() {}
+          create() { calls.push(["widgetCreate"]); }, flush() { calls.push(["widgetFlush"]); }, dispose() {}
         };
       }
     },
     "./widget-ipc.js": { registerWidgetIpc: () => ({ dispose() {} }) }
+  };
+  overrides["./app-settings-ipc.js"] = {
+    registerAppSettingsIpc(options) {
+      calls.push(["settingsRegistration", options]);
+      return { dispose() { calls.push(["settingsDispose"]); } };
+    }
   };
   const entry = vm.runInNewContext(`(function(require, module, exports, __dirname, process) {\n${source}\n})`, { console });
   entry(name => overrides[name] || require(name), { exports: {} }, {}, path.dirname(mainPath), {
@@ -159,4 +169,26 @@ test("a second hidden launch preserves focus while a manual second launch opens 
   assert.equal(calls.some(call => call[0] === "focus"), false);
   appHandlers.get("second-instance")({}, ["SmartTodo.exe"]);
   assert.ok(calls.some(call => call[0] === "focus"));
+});
+
+test("main registers settings with resolved paths and flushes Chromium plus widget preferences before relaunch", async () => {
+  const { calls, runtimePath, appDataPath } = runMain({ custom: true });
+  const registration = calls.find(call => call[0] === "settingsRegistration");
+  assert.ok(registration, "settings IPC must be registered");
+  const options = registration[1];
+  assert.equal(options.appDataPath, appDataPath);
+  assert.equal(options.getRuntimePath(), runtimePath);
+  assert.equal(options.homePath, "C:\\Users\\test");
+  assert.equal(options.appPath, "C:\\SmartTodoApp");
+  assert.ok(options.getMainWindow());
+  await options.flushBeforeRelaunch();
+  assert.ok(calls.some(call => call[0] === "flushStorage"));
+  assert.ok(calls.some(call => call[0] === "flushCache"));
+  assert.ok(calls.some(call => call[0] === "widgetFlush"));
+});
+
+test("settings handlers are disposed alongside widgets on application quit", () => {
+  const { calls, appHandlers } = runMain();
+  appHandlers.get("before-quit")();
+  assert.ok(calls.some(call => call[0] === "settingsDispose"));
 });

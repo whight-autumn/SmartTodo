@@ -2,7 +2,7 @@
    SmartTodo · 桌面版主进程
    ========================================================== */
 
-const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, screen, shell, dialog } = require("electron");
+const { app, BrowserWindow, Notification, Tray, Menu, ipcMain, nativeImage, screen, shell, dialog, session } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const {
@@ -17,6 +17,7 @@ const { registerTaskAttachmentIpc } = require("./task-attachment-ipc");
 const WidgetModel = require("./renderer/widget-model.js");
 const { createWidgetController } = require("./widget-controller.js");
 const { registerWidgetIpc } = require("./widget-ipc.js");
+const { registerAppSettingsIpc } = require("./app-settings-ipc.js");
 
 // Chromium's accelerated native date/time editor can leave some Windows GPU
 // combinations on a black compositor frame after segment text is selected.
@@ -71,6 +72,7 @@ let mainWindow = null;
 let tray = null;
 let widgetController = null;
 let widgetIpcRegistration = null;
+let settingsIpcRegistration = null;
 let isQuitting = false;
 const APP_VERSION = app.getVersion();
 const startHidden = process.argv.includes("--hidden");
@@ -235,6 +237,21 @@ app.whenReady().then(() => {
     showMainWindow,
     normalizeSnapshot: WidgetModel.normalizeWidgetSnapshot
   });
+  settingsIpcRegistration = registerAppSettingsIpc({
+    ipcMain,
+    dialog,
+    app,
+    getMainWindow: () => mainWindow,
+    getRuntimePath: () => runtimePath,
+    appDataPath,
+    homePath: app.getPath("home"),
+    appPath: app.getAppPath(),
+    async flushBeforeRelaunch() {
+      session.defaultSession.flushStorageData();
+      await session.defaultSession.flushCache();
+      widgetController.flush();
+    }
+  });
   createMainWindow();
   if (!startHidden) showMainWindow();
   widgetController.create();
@@ -259,6 +276,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  settingsIpcRegistration?.dispose();
   widgetIpcRegistration?.dispose();
   widgetController?.flush();
   widgetController?.dispose();
