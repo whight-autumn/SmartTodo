@@ -1,6 +1,6 @@
 {
   "name": "smarttodo",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "SmartTodo · 本地优先任务与 AI 助手",
   "main": "main.js",
   "author": "萤火",
@@ -18,6 +18,10 @@
     "files": [
       "main.js",
       "main-paths.js",
+      "app-launch-spec.js",
+      "runtime-data-manager.js",
+      "login-startup.js",
+      "app-settings-ipc.js",
       "task-attachment-store.js",
       "task-attachment-ipc.js",
       "preload.js",

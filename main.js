@@ -193,12 +193,14 @@ function showMainWindow() {
 ipcMain.handle("notify", (event, { title, body }) => {
   try {
     if (Notification.isSupported()) {
-      new Notification({
+      const notification = new Notification({
         title: title || "SmartTodo",
         body: body || "",
         icon: path.join(__dirname, "assets/icon.png"),
         silent: false
-      }).show();
+      });
+      notification.on("click", showMainWindow);
+      notification.show();
       return true;
     }
   } catch (e) {

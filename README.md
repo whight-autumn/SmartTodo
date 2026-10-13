@@ -7,7 +7,7 @@
 <p align="center"><b>本地优先、低调简洁的 Windows 桌面任务管理器</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.0-315e50" alt="Version 1.4.0">
+  <img src="https://img.shields.io/badge/version-1.4.1-315e50" alt="Version 1.4.1">
   <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
   <img src="https://img.shields.io/badge/node:test-source%20review-9c473b" alt="node:test source review">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-315e50" alt="Windows x64">
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/whight-autumn/SmartTodo/releases/latest"><b>查看历史 Windows 便携版</b></a>
+  <a href="https://github.com/whight-autumn/SmartTodo/releases/latest"><b>下载 Windows 便携版</b></a>
   ·
   <a href="release/版本迭代说明.md">查看版本迭代</a>
 </p>
@@ -24,15 +24,15 @@
 
 SmartTodo 把主任务、子任务、提醒、附件和可选 AI 助手放在同一个本地工作台中。任务、会话、设置与 API Key 均保存在本机；不配置 AI、甚至断网时，任务管理仍可完整使用。
 
-当前源码版本：V1.4.0（2026-10-13），处于打包前源码审阅阶段。用户审阅通过后，才可打包或执行 GitHub 操作。此版本尚无已验证的 EXE、大小、发布校验值、签名或 GitHub Release；具体待办见 [`release/V1.4.0/版本说明.txt`](release/V1.4.0/版本说明.txt)。主工作台、响应式与任务笺截图为既有界面参考；设置中心截图为本次已验证的 V1.4.0 源码审阅捕获，均不代表 V1.4.0 发布包截图。
+当前版本：V1.4.1（2026-10-13）。本版发布 V1.4 设置中心、Windows 开机自启动和完整运行数据目录迁移，并新增点击系统任务提醒后自动恢复并聚焦主窗口。发布包信息见 [`release/V1.4.1/版本说明.txt`](release/V1.4.1/版本说明.txt)。
 
 ## 三分钟上手
 
-### 1. 启动与审阅
+### 1. 启动
 
-1. 当前 V1.4.0 请按下方“从源码运行”进行审阅；[GitHub Releases](https://github.com/whight-autumn/SmartTodo/releases/latest) 仅作为历史发布入口。
+1. 从 [GitHub Releases](https://github.com/whight-autumn/SmartTodo/releases/latest) 下载 `SmartTodo-1.4.1.exe`，双击即可运行，无需安装。
 2. 如果旧版本仍在运行，请先从系统托盘完全退出。
-3. 源码审阅使用 `npm start`；历史便携版双击即可使用，无需安装。历史未签名构建首次运行时可能出现 Windows SmartScreen 提示，请确认下载来源后继续。
+3. 本项目未进行商业代码签名，首次运行时 Windows SmartScreen 可能提示“未知发布者”；请核对发布页 SHA-256 后继续。
 
 从旧版本升级时，沿用 V1.3.1 引入的历史运行目录兼容逻辑；自定义目录启动时不会迁移到未使用的默认目录。
 
@@ -80,14 +80,14 @@ AI 页保留 DeepSeek、OpenAI 和自定义 OpenAI-compatible 服务，填写 AP
 
 ## 界面导览
 
-### V1.4.0 设置中心 · 源码审阅
+### V1.4 设置中心
 
-“通用”“AI 服务”“数据存储”共享一个设置中心，各模块提供自己的操作。下方是生产渲染器在隔离测试配置中验证的 1440×900 亮色 AI 与深色存储界面：API Key 使用虚构值并保持遮蔽，路径为演示数据，未操作真实 Windows 自启动或用户数据。长路径可换行，内容独立滚动，操作可通过滚动到达。当前仍处于打包前审阅阶段。
+“通用”“AI 服务”“数据存储”共享一个设置中心，各模块提供自己的操作。下方是生产渲染器在隔离测试配置中验证的 1440×900 亮色 AI 与深色存储界面：API Key 使用虚构值并保持遮蔽，路径为演示数据。长路径可换行，内容独立滚动，操作可通过滚动到达。
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/smarttodo-settings-light.png" alt="V1.4.0 源码审阅：亮色 AI 服务设置，API Key 已遮蔽"></td>
-    <td width="50%"><img src="docs/images/smarttodo-settings-dark.png" alt="V1.4.0 源码审阅：深色数据存储设置，显示演示路径与迁移提示"></td>
+    <td width="50%"><img src="docs/images/smarttodo-settings-light.png" alt="V1.4.1 亮色 AI 服务设置，API Key 已遮蔽"></td>
+    <td width="50%"><img src="docs/images/smarttodo-settings-dark.png" alt="V1.4.1 深色数据存储设置，显示演示路径与迁移提示"></td>
   </tr>
   <tr>
     <td align="center">AI 服务 · 亮色</td>
@@ -134,6 +134,7 @@ AI 页保留 DeepSeek、OpenAI 和自定义 OpenAI-compatible 服务，填写 AP
 - “需关注／进行中／已完成”筛选；完成任务保留 15 天后自动清理。
 - DeepSeek、OpenAI 与自定义 OpenAI-compatible 服务；支持流式对话、会话管理和任务分析。
 - 深浅主题、75%–125% 亮度、系统通知、托盘常驻、单实例运行和减少动态效果模式。
+- 点击系统任务提醒会恢复并聚焦主窗口，便于立即处理到期任务。
 - 桌面任务笺支持五任务排序、完成同步、位置记忆、显示器变化回收和持久化失败回滚。
 - 统一三模块设置、Windows 隐藏启动及完整运行数据目录的安全迁移。
 
@@ -148,6 +149,7 @@ AI 页保留 DeepSeek、OpenAI 和自定义 OpenAI-compatible 服务，填写 AP
 | V1.3.0 | 2026-09-22 | 新增周期任务、04:00 刷新、提醒锚点和未完成任务承接。 |
 | V1.3.1 | 2026-09-22 | 统一 SmartTodo 品牌、Windows 包名与运行数据目录，兼容迁移历史数据。 |
 | V1.4.0 | 2026-10-13 | 打包前源码审阅：统一设置中心、Windows 开机自启动、运行数据目录迁移。 |
+| V1.4.1 | 2026-10-13 | 正式发布 V1.4 功能；点击系统任务提醒可恢复并聚焦主窗口。 |
 
 完整演进背景、兼容策略和各版本详细改动见 [`release/版本迭代说明.md`](release/版本迭代说明.md)；面向开发者的变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
@@ -165,7 +167,7 @@ AI 页保留 DeepSeek、OpenAI 和自定义 OpenAI-compatible 服务，填写 AP
 %APPDATA%\SmartTodo\运行数据\task-attachments\<任务ID>\
 ```
 
-V1.4.0 保留既有任务、草稿、主题、AI 配置、会话、localStorage 键名和受管附件结构。默认目录的历史兼容规则由 V1.3.1 引入：优先从 `%APPDATA%\智能任务管家\运行数据` 迁移，若不存在则兼容更早的 `%APPDATA%\smart-assistant`；默认目录已有 Chromium Local Storage 时不覆盖。升级前建议备份整个“运行数据”目录，请勿分发其中的 API Key。
+V1.4.1 保留既有任务、草稿、主题、AI 配置、会话、localStorage 键名和受管附件结构。默认目录的历史兼容规则由 V1.3.1 引入：优先从 `%APPDATA%\智能任务管家\运行数据` 迁移，若不存在则兼容更早的 `%APPDATA%\smart-assistant`；默认目录已有 Chromium Local Storage 时不覆盖。升级前建议备份整个“运行数据”目录，请勿分发其中的 API Key。
 
 存储页的“数据目录”是完整 Electron 运行配置目录，包含 Chromium Local Storage 中的任务、草稿、AI 配置、会话和界面设置，以及 `task-attachments`、`widget-preferences.json` 等运行文件；不是附件目录或 EXE 所在目录。迁移不会移动可执行文件，也不提供云同步或自动清理旧备份。
 
@@ -177,7 +179,7 @@ V1.4.0 保留既有任务、草稿、主题、AI 配置、会话、localStorage 
 
 引导文件缺失或损坏时，只能回退到通过安全校验的默认目录；默认目录为 junction、符号链接或普通文件等不安全路径时，会在打开配置或创建存储前停止启动。安全的自定义活动目录不受未使用的默认目录影响。存储页保留迁移结果详情：成功显示当前目录与旧备份目录，失败显示有限类别的恢复指引，备份恢复明确显示当前恢复路径，保留暂存／回滚副本时显示安全提示；消费结果写入失败仍可在下次启动重试。
 
-提醒和周期刷新由本地应用进程执行。SmartTodo 完全退出后不会在后台发送通知；重新启动时会补做周期刷新，并为当前未提醒的到期周期补发一次提醒。
+提醒和周期刷新由本地应用进程执行。点击系统任务提醒会恢复并聚焦主窗口；SmartTodo 完全退出后不会在后台发送通知，重新启动时会补做周期刷新，并为当前未提醒的到期周期补发一次提醒。
 
 ## 从源码运行
 
@@ -198,19 +200,19 @@ npm test
 npm run test:ui
 ```
 
-本次 V1.4.0 源码审阅的 `npm test`：301 项，299 项通过、0 项失败、2 项跳过。覆盖运行目录校验、复制／SHA-256 清单、备份失败与中断恢复、OS 启动状态、便携／开发启动参数、真实 Windows junction 的安全回退、设置 IPC／一次性凭证、迁移结果详情与控制器、既有任务与附件，以及设置图标语义色、SVG 亮度图标与版本显示回归；跳过的是两项既有附件文件符号链接用例，当前 Windows 主机不支持创建这些链接。
+V1.4.1 的 `npm test` 共 303 项：301 项通过、0 项失败、2 项因当前 Windows 主机无法创建测试用文件符号链接而明确跳过。覆盖运行目录校验、复制／SHA-256 清单、备份失败与中断恢复、OS 启动状态、提醒点击唤起、设置 IPC／一次性凭证、既有任务与附件。
 
 Task 6 的真实 Electron 测试已通过：设置中心在 11 组尺寸／缩放、双主题下共 22 组场景（1366×768 至 2560×1440、480／639／640px 窄窗、125%／150% 缩放），验证长路径换行、零横向溢出、固定标题、可滚动内容与可达操作；并验证双入口、方向键／Home／End、ARIA 选中状态、焦点还原、Esc、Key 遮蔽和失败恢复。原工作台 8 组布局及任务笺三档缩放也通过。跨进程重启测试使用真实临时文件与生产迁移代码，但 Electron／OS 边界使用测试替身；未测试真实 Windows 自启动、用户数据或打包二进制。已记录既有开发 CSP 警告及任务笺测试中缺少部分 fixture IPC handler 的问题，没有将这些日志称为无警告通过。
 
-### 审阅后的构建
+### 构建
 
-用户审阅通过后，才可打包或执行 GitHub 操作。以下是后续构建命令，本次未执行；打包前还需把新增运行目录／登录启动／设置 IPC 模块纳入显式清单并验证产物。
+V1.4 新增的启动路径、运行目录、登录启动和设置 IPC 模块均已纳入显式打包清单：
 
 ```powershell
 npm run dist
 ```
 
-可执行文件名、大小、SHA-256、签名、GitHub 地址、推送和 Release 发布均待用户批准及打包后确认。`release/V1.4.0/` 目前只保存源码审阅说明；EXE 由 `.gitignore` 排除。
+构建生成 `dist/SmartTodo-1.4.1.exe`。发布文件大小与 SHA-256 记录在 [`release/V1.4.1/版本说明.txt`](release/V1.4.1/版本说明.txt)；EXE 由 `.gitignore` 排除，通过 GitHub Release 分发。
 
 ### 项目结构
 

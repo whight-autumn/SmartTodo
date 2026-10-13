@@ -11,7 +11,7 @@ const source = fs.readFileSync(mainPath, "utf8");
 // Electron's profile and window side effects are external; run the actual main
 // entrypoint with boundary doubles so startup ordering is observable in Node.
 function runMain({ custom = false, pending = false, failure = false, hidden = false, lock = true,
-  settingsPaths = null, widgetFlushError = null, productionPaths = null } = {}) {
+  settingsPaths = null, widgetFlushError = null, productionPaths = null, minimized = false } = {}) {
   const appDataPath = productionPaths?.appDataPath || "C:\\Users\\test\\AppData\\Roaming";
   const defaultRuntimePath = buildManagedUserDataPath(appDataPath);
   const runtimePath = custom ? "D:\\SmartTodoData" : defaultRuntimePath;
@@ -19,6 +19,7 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   const sessionAccesses = [];
   const handlers = new Map();
   const appHandlers = new Map();
+  const notifications = [];
   let userDataPath = "C:\\ElectronDefault";
   const app = {
     disableHardwareAcceleration() {},
@@ -26,7 +27,7 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
       return { appData: appDataPath, userData: userDataPath, home: productionPaths?.homePath || "C:\\Users\\test" }[name];
     },
     getAppPath: () => productionPaths?.appPath || "C:\\SmartTodoApp",
-    getVersion: () => "1.4.0",
+    getVersion: () => "1.4.1",
     getLoginItemSettings: () => ({ openAtLogin: false }),
     setPath(name, value) { calls.push(["setPath", name, value]); userDataPath = value; },
     requestSingleInstanceLock: () => lock,
@@ -43,7 +44,8 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
     loadFile() {}
     on() {}
     isDestroyed() { return false; }
-    isMinimized() { return false; }
+    isMinimized() { return minimized; }
+    restore() { calls.push(["restore"]); }
     show() { calls.push(["show"]); }
     focus() { calls.push(["focus"]); }
     static getAllWindows() { return []; }
@@ -59,8 +61,19 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
     if (failure) throw Object.assign(new Error("unbounded ".repeat(1000)), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
     return { runtimePath, migrationResult: null };
   };
+  class Notification {
+    constructor(options) {
+      this.options = options;
+      this.handlers = new Map();
+      notifications.push(this);
+    }
+    static isSupported() { return true; }
+    on(event, handler) { this.handlers.set(event, handler); }
+    show() { calls.push(["notification", this.options]); }
+    click() { this.handlers.get("click")?.(); }
+  }
   const electron = {
-    app, BrowserWindow, screen: {}, shell: {}, Notification: {},
+    app, BrowserWindow, screen: {}, shell: {}, Notification,
     ipcMain: { handle(name, handler) { handlers.set(name, handler); }, removeHandler(name) { handlers.delete(name); } },
     session: { defaultSession: new Proxy({
       // Electron 31's DOMStorage persistence API is synchronous and returns void.
@@ -119,7 +132,7 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   entry(name => overrides[name] || require(name), { exports: {} }, {}, path.dirname(mainPath), {
     argv: hidden ? ["SmartTodo.exe", "--hidden"] : ["SmartTodo.exe"], platform: "win32", execPath: "C:\\SmartTodoApp\\SmartTodo.exe"
   });
-  return { calls, handlers, appHandlers, runtimePath, defaultRuntimePath, appDataPath, sessionAccesses };
+  return { calls, handlers, appHandlers, notifications, runtimePath, defaultRuntimePath, appDataPath, sessionAccesses };
 }
 
 test("runtime migration finishes before the only profile setter and attachment initialization", () => {
@@ -262,6 +275,18 @@ test("manual launch shows and focuses the main window", () => {
   const { calls } = runMain();
   assert.equal(calls.find(call => call[0] === "window")[1].show, true);
   for (const effect of ["show", "focus", "webFocus"]) assert.ok(calls.some(call => call[0] === effect));
+});
+
+test("clicking a task reminder restores and focuses the main window", () => {
+  const { calls, handlers, notifications } = runMain({ hidden: true, minimized: true });
+  assert.equal(handlers.get("notify")({}, { title: "任务提醒", body: "测试任务 时间到了！" }), true);
+  assert.equal(notifications.length, 1);
+
+  notifications[0].click();
+
+  for (const effect of ["restore", "show", "focus", "webFocus"]) {
+    assert.ok(calls.some(call => call[0] === effect), `notification click must trigger ${effect}`);
+  }
 });
 
 test("a second process without the lock quits before touching runtime data", () => {
