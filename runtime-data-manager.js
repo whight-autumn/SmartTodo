@@ -114,7 +114,7 @@ function normalizeResult(value) {
 }
 
 function defaultState(defaultRuntimePath) {
-  return { schemaVersion: SCHEMA_VERSION, activeRuntimePath: safeRuntimePath(defaultRuntimePath), pendingMigration: null, migrationResult: null };
+  return { schemaVersion: SCHEMA_VERSION, activeRuntimePath: safeRuntimePath(defaultRuntimePath, os.homedir(), false), pendingMigration: null, migrationResult: null };
 }
 
 function readBootstrapState({ appDataPath, defaultRuntimePath = buildManagedUserDataPath(appDataPath) }) {
@@ -122,7 +122,10 @@ function readBootstrapState({ appDataPath, defaultRuntimePath = buildManagedUser
   const bootstrapPath = buildBootstrapPath(appDataPath);
   try {
     assertDirectoryPathWithoutLinks(path.dirname(bootstrapPath));
-    if (!fs.existsSync(bootstrapPath)) return fallback;
+    if (!fs.existsSync(bootstrapPath)) {
+      safeRuntimePath(fallback.activeRuntimePath);
+      return fallback;
+    }
     const stat = fs.lstatSync(bootstrapPath);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 64 * 1024) throw new Error("Invalid bootstrap file.");
     const value = JSON.parse(fs.readFileSync(bootstrapPath, "utf8"));
@@ -272,6 +275,8 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
   let stagingPath;
   let ownedStat;
   let parentPath;
+  let backupPath;
+  let backupCreated = false;
   let phase = "validation";
   const date = new Date(typeof now === "function" ? now() : now);
   const completedAt = Number.isFinite(date.getTime()) ? date.toISOString() : new Date().toISOString();
@@ -306,23 +311,23 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
     fs.renameSync(stagingPath, targetPath);
     ownedStat = undefined;
 
-    phase = "bootstrap";
+    phase = "backup";
     const stamp = completedAt.slice(0, 10).replace(/-/g, "") + "-" + completedAt.slice(11, 19).replace(/:/g, "");
-    const backupPath = path.join(path.dirname(sourcePath), `${path.basename(sourcePath)}.backup-${stamp}`);
-    const migrationResult = { status: "success", ...baseResult };
+    backupPath = path.join(path.dirname(sourcePath), `${path.basename(sourcePath)}.backup-${stamp}`);
+    assertDirectoryPathWithoutLinks(sourcePath);
+    // lstat also recognizes a dangling link; no existing backup entry may be replaced.
+    let backupExists = false;
+    try { fs.lstatSync(backupPath); backupExists = true; } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (backupExists) throw new Error("The backup name is already in use.");
+    fs.renameSync(sourcePath, backupPath);
+    backupCreated = true;
+
+    phase = "bootstrap";
+    const migrationResult = { status: "success", ...baseResult, backupPath };
     const nextState = { ...state, activeRuntimePath: targetPath, pendingMigration: null, migrationResult };
     writeBootstrapState(appDataPath, nextState, pending.requestId);
-    try {
-      assertDirectoryPathWithoutLinks(sourcePath);
-      if (fs.existsSync(backupPath)) throw new Error("The backup name is already in use.");
-      fs.renameSync(sourcePath, backupPath);
-      migrationResult.backupPath = backupPath;
-    } catch {
-      migrationResult.warning = "The new directory is active. The original directory was retained because its backup could not be renamed.";
-    }
-    try { writeBootstrapState(appDataPath, nextState, pending.requestId); } catch {
-      migrationResult.warning = "The new directory is active. The backup outcome could not be saved; the original data was retained.";
-    }
     return { runtimePath: targetPath, migrationResult };
   } catch {
     const summaries = {
@@ -330,16 +335,36 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
       copy: "Runtime data could not be copied safely. The original directory is still active.",
       verification: "Runtime data verification failed. The original directory is still active.",
       promotion: "The target directory could not be activated. The original directory is still active.",
+      backup: "The timestamped backup could not be created. The original directory is still active; the verified target was retained.",
       bootstrap: "The new runtime path could not be saved. The original directory is still active; the verified target was retained."
     };
     const migrationResult = { status: "failure", ...baseResult, error: summaries[phase] };
+    let runtimePath = state.activeRuntimePath;
+    if (backupCreated) {
+      try {
+        assertDirectoryPathWithoutLinks(path.dirname(pending.sourcePath));
+        assertDirectoryPathWithoutLinks(backupPath);
+        let sourceExists = false;
+        try { fs.lstatSync(pending.sourcePath); sourceExists = true; } catch (error) {
+          if (error.code !== "ENOENT") throw error;
+        }
+        if (sourceExists) throw new Error("The original source path is occupied.");
+        fs.renameSync(backupPath, pending.sourcePath);
+      } catch {
+        // The backup still holds the original data. Never activate the target or
+        // replace an unrelated entry to force a rollback into the old pathname.
+        runtimePath = backupPath;
+        migrationResult.backupPath = backupPath;
+        migrationResult.warning = "The original data remains in its timestamped backup because the source directory could not be restored.";
+      }
+    }
     try { cleanupOwnedStaging(stagingPath, parentPath, ownedStat); } catch {
       migrationResult.warning = "The request staging directory could not be safely removed and was retained.";
     }
-    try { writeBootstrapState(appDataPath, { ...state, pendingMigration: null, migrationResult }, pending.requestId); } catch {
-      migrationResult.warning = "The migration result could not be saved. The original directory is still active.";
+    try { writeBootstrapState(appDataPath, { ...state, activeRuntimePath: runtimePath, pendingMigration: null, migrationResult }, pending.requestId); } catch {
+      migrationResult.warning = `${migrationResult.warning || ""} The migration result could not be saved. Original data was retained.`.trim();
     }
-    return { runtimePath: state.activeRuntimePath, migrationResult };
+    return { runtimePath, migrationResult };
   }
 }
 

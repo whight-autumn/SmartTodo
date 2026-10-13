@@ -48,6 +48,24 @@ test("bootstrap defaults to the managed runtime path", t => {
   assert.equal(fs.existsSync(buildBootstrapPath(options.appDataPath)), false);
 });
 
+test("a valid custom bootstrap loads when the unused default path is a file", t => {
+  const options = fixture(t);
+  const state = { schemaVersion: 1, activeRuntimePath: options.sourcePath, pendingMigration: null, migrationResult: null };
+  writeBootstrap(options, state);
+  fs.writeFileSync(path.join(options.appDataPath, "SmartTodo", "运行数据"), "unrelated file");
+  assert.deepEqual(readBootstrapState(options), state);
+  assert.deepEqual(performPendingMigration(options), { runtimePath: options.sourcePath, migrationResult: null });
+});
+
+test("a valid custom bootstrap loads when the unused default path is a junction", t => {
+  const options = fixture(t);
+  const state = { schemaVersion: 1, activeRuntimePath: options.sourcePath, pendingMigration: null, migrationResult: null };
+  writeBootstrap(options, state);
+  fs.symlinkSync(options.sourcePath, path.join(options.appDataPath, "SmartTodo", "运行数据"), "junction");
+  assert.deepEqual(readBootstrapState(options), state);
+  assert.deepEqual(performPendingMigration(options), { runtimePath: options.sourcePath, migrationResult: null });
+});
+
 test("bootstrap rejects malformed and relative custom paths", t => {
   const options = fixture(t);
   const fallback = path.join(options.appDataPath, "SmartTodo", "运行数据");
@@ -328,21 +346,26 @@ test("bootstrap commit failure retains both source and verified target", t => {
   assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
 });
 
-test("backup rename failure keeps the verified target active and retains the original", t => {
+test("backup rename failure records failure and keeps the original source active", t => {
   const options = fixture(t);
   fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
   queueMigration(options);
   const originalRename = fs.renameSync;
+  let activatedTarget = false;
   t.mock.method(fs, "renameSync", (source, target) => {
     if (source === options.sourcePath) throw new Error("locked source");
+    if (target === buildBootstrapPath(options.appDataPath) && JSON.parse(fs.readFileSync(source, "utf8")).activeRuntimePath === options.targetPath) {
+      activatedTarget = true;
+    }
     originalRename(source, target);
   });
   const outcome = performPendingMigration(options);
-  assert.equal(outcome.runtimePath, options.targetPath);
-  assert.equal(outcome.migrationResult.status, "success");
+  assert.equal(outcome.runtimePath, options.sourcePath);
+  assert.equal(outcome.migrationResult.status, "failure");
   assert.equal(outcome.migrationResult.backupPath, undefined);
-  assert.ok(outcome.migrationResult.warning);
-  assert.equal(readBootstrapState(options).activeRuntimePath, options.targetPath);
+  assert.ok(outcome.migrationResult.error);
+  assert.equal(activatedTarget, false);
+  assert.equal(readBootstrapState(options).activeRuntimePath, options.sourcePath);
   assert.deepEqual(consumeMigrationResult(options), outcome.migrationResult);
   assert.equal(fs.readFileSync(path.join(options.sourcePath, "data.txt"), "utf8"), "original");
   assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
@@ -367,28 +390,117 @@ test("source changes while the staged copy is hashed are detected", t => {
   assert.equal(fs.existsSync(options.targetPath), false);
 });
 
-test("unsaved backup warning never persists a nonexistent backup path", t => {
+test("backup rename and failure-record write failures preserve source activation and both copies", t => {
   const options = fixture(t);
   fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
   queueMigration(options);
+  const queuedContents = fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8");
   const originalRename = fs.renameSync;
-  let committed = false;
   t.mock.method(fs, "renameSync", (source, target) => {
     if (source === options.sourcePath) throw new Error("locked source");
-    if (target === buildBootstrapPath(options.appDataPath)) {
-      if (committed) throw new Error("locked result");
-      committed = true;
-    }
+    if (target === buildBootstrapPath(options.appDataPath)) throw new Error("locked result");
     originalRename(source, target);
   });
   const outcome = performPendingMigration(options);
-  assert.equal(outcome.runtimePath, options.targetPath);
-  assert.equal(outcome.migrationResult.status, "success");
+  assert.equal(outcome.runtimePath, options.sourcePath);
+  assert.equal(outcome.migrationResult.status, "failure");
   const persisted = readBootstrapState(options);
-  assert.equal(persisted.activeRuntimePath, options.targetPath);
-  assert.equal(persisted.migrationResult.backupPath, undefined);
+  assert.equal(persisted.activeRuntimePath, options.sourcePath);
+  assert.equal(fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8"), queuedContents);
   assert.ok(outcome.migrationResult.warning);
-  assert.equal(fs.existsSync(options.sourcePath), true);
+  assert.equal(fs.readFileSync(path.join(options.sourcePath, "data.txt"), "utf8"), "original");
+  assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
+});
+
+test("a timestamped backup collision fails without activating target or altering existing backup", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  queueMigration(options);
+  const backupPath = path.join(options.root, "source.backup-20261013-020304");
+  fs.mkdirSync(backupPath);
+  fs.writeFileSync(path.join(backupPath, "keep.txt"), "older backup");
+  const outcome = performPendingMigration({ ...options, now: "2026-10-13T02:03:04.000Z" });
+  assert.equal(outcome.runtimePath, options.sourcePath);
+  assert.equal(outcome.migrationResult.status, "failure");
+  assert.equal(readBootstrapState(options).activeRuntimePath, options.sourcePath);
+  assert.equal(readBootstrapState(options).pendingMigration, null);
+  assert.equal(fs.readFileSync(path.join(backupPath, "keep.txt"), "utf8"), "older backup");
+  assert.equal(fs.readFileSync(path.join(options.sourcePath, "data.txt"), "utf8"), "original");
+  assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
+});
+
+test("bootstrap commit and source-restore failures retain original data in backup without activating target", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  queueMigration(options);
+  const backupPath = path.join(options.root, "source.backup-20261013-020304");
+  const originalRename = fs.renameSync;
+  let commitFailed = false;
+  t.mock.method(fs, "renameSync", (source, target) => {
+    if (target === buildBootstrapPath(options.appDataPath) && !commitFailed) {
+      commitFailed = true;
+      throw new Error("locked bootstrap");
+    }
+    if (source === backupPath && target === options.sourcePath) throw new Error("locked restore");
+    originalRename(source, target);
+  });
+  const outcome = performPendingMigration({ ...options, now: "2026-10-13T02:03:04.000Z" });
+  assert.equal(outcome.runtimePath, backupPath);
+  assert.equal(outcome.migrationResult.status, "failure");
+  assert.equal(outcome.migrationResult.backupPath, backupPath);
+  assert.ok(outcome.migrationResult.warning);
+  assert.equal(readBootstrapState(options).activeRuntimePath, backupPath);
+  assert.equal(readBootstrapState(options).pendingMigration, null);
+  assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "original");
+  assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
+});
+
+test("compound commit restore and failure-record errors preserve backup and verified target", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  queueMigration(options);
+  const queuedContents = fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8");
+  const backupPath = path.join(options.root, "source.backup-20261013-020304");
+  const originalRename = fs.renameSync;
+  t.mock.method(fs, "renameSync", (source, target) => {
+    if (target === buildBootstrapPath(options.appDataPath)) throw new Error("private bootstrap error");
+    if (source === backupPath && target === options.sourcePath) throw new Error("private restore error");
+    originalRename(source, target);
+  });
+  const outcome = performPendingMigration({ ...options, now: "2026-10-13T02:03:04.000Z" });
+  assert.equal(outcome.runtimePath, backupPath);
+  assert.equal(outcome.migrationResult.status, "failure");
+  assert.equal(outcome.migrationResult.backupPath, backupPath);
+  assert.equal(outcome.migrationResult.warning.includes("private"), false);
+  assert.ok(outcome.migrationResult.warning.length <= 300);
+  assert.equal(fs.readFileSync(buildBootstrapPath(options.appDataPath), "utf8"), queuedContents);
+  assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "original");
+  assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
+});
+
+test("source restoration never overwrites a directory created at the old source path", t => {
+  const options = fixture(t);
+  fs.writeFileSync(path.join(options.sourcePath, "data.txt"), "original");
+  queueMigration(options);
+  const backupPath = path.join(options.root, "source.backup-20261013-020304");
+  const originalRename = fs.renameSync;
+  let failedOnce = false;
+  t.mock.method(fs, "renameSync", (source, target) => {
+    if (target === buildBootstrapPath(options.appDataPath) && !failedOnce) {
+      failedOnce = true;
+      fs.mkdirSync(options.sourcePath);
+      fs.writeFileSync(path.join(options.sourcePath, "keep.txt"), "new unrelated data");
+      throw new Error("locked bootstrap");
+    }
+    originalRename(source, target);
+  });
+  const outcome = performPendingMigration({ ...options, now: "2026-10-13T02:03:04.000Z" });
+  assert.equal(outcome.runtimePath, backupPath);
+  assert.equal(outcome.migrationResult.status, "failure");
+  assert.equal(readBootstrapState(options).activeRuntimePath, backupPath);
+  assert.equal(fs.readFileSync(path.join(options.sourcePath, "keep.txt"), "utf8"), "new unrelated data");
+  assert.equal(fs.readFileSync(path.join(backupPath, "data.txt"), "utf8"), "original");
+  assert.equal(fs.readFileSync(path.join(options.targetPath, "data.txt"), "utf8"), "original");
 });
 
 test("an unwritable destination parent is rejected before queue state changes", t => {
