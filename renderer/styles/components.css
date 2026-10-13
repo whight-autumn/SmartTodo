@@ -378,7 +378,7 @@ dialog::backdrop { background: rgba(17, 24, 21, .48); }
 .field-label { color: var(--text-secondary); font-size: .76rem; font-weight: 650; }
 .hint { margin: 2px 0 0; color: var(--text-muted); font-size: .72rem; }
 
-.settings-center-dialog { width: min(820px, calc(100vw - 32px)); }
+.settings-center-dialog { width: min(820px, calc(100vw - 32px)); height: min(660px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px); overflow: hidden; }
 .settings-center-dialog .dialog-sheet { width: min(820px, calc(100vw - 32px)); }
 .settings-center-dialog .dialog-sheet__head { flex-shrink: 0; }
 .settings-center { caret-color: var(--accent-strong); }

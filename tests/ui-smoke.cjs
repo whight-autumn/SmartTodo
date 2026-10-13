@@ -10,6 +10,46 @@ const testDataPath = path.join(os.tmpdir(), `smart-task-ui-smoke-${process.pid}`
 const lightScreenshot = path.join(os.tmpdir(), "smart-task-ui-light.png");
 const darkScreenshot = path.join(os.tmpdir(), "smart-task-ui-dark.png");
 
+// Install before app.js captures the bridge. Only the five fixed settings
+// capabilities are provided; no host IPC, paths, profile or login APIs exist.
+const settingsBridgeScript = `(() => {
+  // Keep the existing September timestamp expectations deterministic without
+  // letting the application's 15-day retention prune the completed fixture.
+  const NativeDate = Date, startedAt = NativeDate.now();
+  const fixtureNow = new NativeDate(2026, 8, 14, 12, 0).getTime();
+  window.Date = class FixtureDate extends NativeDate {
+    constructor(...args) { super(...(args.length ? args : [FixtureDate.now()])); }
+    static now() { return fixtureNow + NativeDate.now() - startedAt; }
+  };
+  const state = window.__settingsMock = {
+    autoStart: { available: true, enabled: false }, startupCalls: [],
+    startupMode: "success", startupResult: null, selection: { canceled: true, selectionId: null, path: null },
+    migrationCalls: [], migrationMode: "pending", pendingMigration: null, consumes: 0
+  };
+  window.desktop = {
+    getAppSettings: async () => ({ autoStart: { ...state.autoStart },
+      storage: { currentPath: "C:/fixture/current-data", isDefault: false }, migrationResult: null }),
+    setAutoStart: async enabled => {
+      state.startupCalls.push(enabled);
+      if (state.startupMode === "failure") throw new Error("RAW_SETTINGS_SECRET");
+      state.autoStart = state.startupResult || { available: true, enabled };
+      return { ...state.autoStart };
+    },
+    chooseDataDirectory: async () => structuredClone(state.selection),
+    requestDataMigration: payload => {
+      state.migrationCalls.push(structuredClone(payload));
+      if (state.migrationMode === "failure") return Promise.reject(new Error("RAW_SETTINGS_SECRET"));
+      return new Promise(resolve => { state.pendingMigration = () => resolve({ queued: true }); });
+    },
+    consumeMigrationResult: async () => {
+      if (++state.consumes > 1) return null;
+      return { status: localStorage.getItem("smoke_migration_result") || "success",
+        requestId: "RAW_SETTINGS_SECRET", sourcePath: "RAW_SETTINGS_SECRET", targetPath: "RAW_SETTINGS_SECRET",
+        completedAt: "2026-10-13T00:00:00.000Z", error: "RAW_SETTINGS_SECRET" };
+    }
+  };
+})();`;
+
 function contrastRatio(foreground, background) {
   const rgb = value => (value.match(/\d+/g) || []).slice(0, 3).map(Number);
   const luminance = value => {
@@ -51,9 +91,18 @@ app.whenReady().then(async () => {
       backgroundThrottling: false
     }
   });
+  const rendererErrors = [];
+  const securityWarnings = [];
+  window.webContents.on("console-message", (_event, level, message) => {
+    if (level >= 3) rendererErrors.push(message);
+    if (/Electron Security Warning/i.test(message)) securityWarnings.push(message);
+  });
 
   try {
     await window.loadFile(path.join(projectRoot, "renderer", "index.html"));
+    window.webContents.debugger.attach("1.3");
+    await window.webContents.debugger.sendCommand("Page.enable");
+    await window.webContents.debugger.sendCommand("Page.addScriptToEvaluateOnNewDocument", { source: settingsBridgeScript });
     const reloaded = once(window.webContents, "did-finish-load");
     await window.webContents.executeJavaScript(`
       localStorage.clear();
@@ -244,6 +293,13 @@ app.whenReady().then(async () => {
     `);
     await reloaded;
     await new Promise(resolve => setTimeout(resolve, 500));
+    const initialMigrationSuccess = await window.webContents.executeJavaScript(`({
+      type: document.getElementById("storage-status").dataset.type,
+      notifications: [...document.querySelectorAll("#toast-container > *")].filter(node => node.textContent.includes("数据迁移成功")).length,
+      consumes: window.__settingsMock.consumes,
+      rawLeak: document.body.textContent.includes("RAW_SETTINGS_SECRET")
+    })`);
+    assert.deepEqual(initialMigrationSuccess, { type: "success", notifications: 1, consumes: 1, rawLeak: false });
 
     const hierarchy = await window.webContents.executeJavaScript(`({
       parent: document.querySelector('[data-id="context-parent"]')?.dataset.depth,
@@ -418,6 +474,7 @@ app.whenReady().then(async () => {
 
         window.__desktopMock = state;
         window.__desktopApi = {
+          ...window.desktop,
           prepareTaskAttachmentChanges(payload) {
             state.prepares.push({
               taskId: payload.taskId,
@@ -1258,6 +1315,134 @@ app.whenReady().then(async () => {
     );
     fs.writeFileSync(darkScreenshot, (await window.webContents.capturePage()).toPNG());
 
+    const settingsResult = await window.webContents.executeJavaScript(`(async () => {
+      const byId = id => document.getElementById(id);
+      const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const state = window.__settingsMock;
+      const modal = byId("settings-modal");
+      const selected = () => modal.querySelector('[role="tab"][aria-selected="true"]').id;
+      const check = (condition, message) => { if (!condition) throw new Error(message); };
+      const keyboard = key => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      check(state.consumes === 1, "migration result must be consumed once at startup");
+      check(byId("storage-status").dataset.type === "success", "startup migration success status");
+      const successToasts = [...document.querySelectorAll("#toast-container > *")].filter(node => node.textContent.includes("数据迁移成功"));
+      // Earlier smoke interactions may have expired the initial toast; the live
+      // storage status remains the durable observable result.
+      check(successToasts.length <= 1, "success migration must not notify repeatedly");
+      byId("global-settings-btn").focus(); byId("global-settings-btn").click(); await frames();
+      check(modal.open && selected() === "settings-tab-general", "global settings opens general");
+      byId("settings-tab-storage").click();
+      check(selected() === "settings-tab-storage" && !byId("settings-panel-storage").hidden, "tab click selects storage");
+      keyboard("Home"); check(selected() === "settings-tab-general", "Home selects first tab");
+      keyboard("ArrowDown"); check(selected() === "settings-tab-ai", "ArrowDown selects AI");
+      keyboard("ArrowRight"); check(selected() === "settings-tab-storage", "ArrowRight selects storage");
+      keyboard("ArrowRight"); check(selected() === "settings-tab-general", "ArrowRight wraps");
+      keyboard("ArrowLeft"); check(selected() === "settings-tab-storage", "ArrowLeft wraps");
+      keyboard("ArrowUp"); check(selected() === "settings-tab-ai", "ArrowUp selects AI");
+      keyboard("End"); check(selected() === "settings-tab-storage", "End selects last tab");
+      check(document.activeElement.id === selected(), "keyboard selection owns focus");
+      check([...modal.querySelectorAll('[role="tab"]')].filter(tab => tab.tabIndex === 0).length === 1, "roving tab index");
+      modal.querySelector("[data-close-modal]").click(); await frames();
+      check(!modal.open && document.activeElement.id === "global-settings-btn", "close restores global trigger focus");
+
+      byId("global-settings-btn").click(); await frames();
+      const startup = byId("auto-start-input");
+      state.startupResult = { available: true, enabled: false };
+      startup.click(); await frames();
+      check(!startup.checked && !startup.disabled && state.startupCalls.at(-1) === true, "OS result is authoritative, even when different from request");
+      state.startupResult = null; startup.click(); await frames();
+      check(startup.checked && !startup.disabled, "successful startup write");
+      state.startupMode = "failure"; startup.click(); await frames();
+      check(startup.checked && !startup.disabled && byId("auto-start-status").dataset.type === "error", "startup failure rolls back");
+      modal.querySelector("[data-close-modal]").click(); await frames();
+
+      byId("ai-settings-btn").focus(); byId("ai-settings-btn").click(); await frames();
+      check(selected() === "settings-tab-ai", "assistant settings opens AI");
+      const key = byId("api-key-input");
+      check(key.type === "password", "API key initially masked");
+      byId("toggle-api-key-btn").click(); check(key.type === "text", "API key reveal");
+      byId("toggle-api-key-btn").click(); check(key.type === "password", "API key remask");
+      byId("provider-select").value = "custom";
+      byId("provider-select").dispatchEvent(new Event("change", { bubbles: true }));
+      byId("base-url-input").value = " https://fixture.invalid/v1 ";
+      byId("model-input").value = " fixture-compatible-model "; key.value = " fixture-key ";
+      byId("save-key-btn").click(); await frames();
+      const config = JSON.parse(localStorage.getItem("ai_provider_config"));
+      check(config.provider === "custom" && config.baseUrl === "https://fixture.invalid/v1" && config.model === "fixture-compatible-model" && config.apiKey === "fixture-key", "compatible provider persists normalized config");
+      check(localStorage.getItem("deepseek_api_key") === "fixture-key", "legacy API key storage remains compatible");
+      check(byId("ai-settings-status").dataset.type === "success", "AI save feedback");
+      byId("toggle-api-key-btn").click();
+      return { success: true, consumes: state.consumes };
+    })()`);
+    // Use native Chromium key delivery to exercise actual dialog Escape/cancel.
+    window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
+    window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Escape" });
+    await new Promise(resolve => setTimeout(resolve, 80));
+    assert.deepEqual(await window.webContents.executeJavaScript(`({ open: document.getElementById("settings-modal").open,
+      focus: document.activeElement.id, keyType: document.getElementById("api-key-input").type })`),
+    { open: false, focus: "ai-settings-btn", keyType: "password" });
+
+    settingsResult.storage = await window.webContents.executeJavaScript(`(async () => {
+      const byId = id => document.getElementById(id);
+      const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const check = (condition, message) => { if (!condition) throw new Error(message); };
+      const state = window.__settingsMock;
+      byId("global-settings-btn").click(); await frames(); byId("settings-tab-storage").click();
+      const choose = byId("choose-data-directory-btn"), migrate = byId("migrate-data-btn");
+      choose.click(); await frames();
+      check(byId("data-selected-path").textContent === "未选择新目录" && migrate.disabled, "initial cancellation preserves empty selection");
+      const selectionId = "00000000-0000-4000-8000-000000000006";
+      const displayPath = "D:/迁移目标/仅供显示";
+      state.selection = { canceled: false, selectionId, path: displayPath };
+      choose.click(); await frames(); check(byId("data-selected-path").textContent === displayPath && !migrate.disabled, "chosen display path and token enable action");
+      state.selection = { canceled: true, selectionId: null, path: null };
+      choose.click(); await frames(); check(byId("data-selected-path").textContent === displayPath && !migrate.disabled, "cancellation retains prior selection");
+      state.migrationMode = "failure"; migrate.click();
+      check(migrate.disabled && choose.disabled && byId("settings-panel-storage").getAttribute("aria-busy") === "true", "migration locks synchronously");
+      migrate.dispatchEvent(new MouseEvent("click", { bubbles: true })); await frames();
+      check(state.migrationCalls.length === 1, "failure click burst submits exactly once");
+      check(!choose.disabled && migrate.disabled && byId("storage-status").dataset.type === "error", "failed request permits reselection but consumes token");
+      state.selection = { canceled: false, selectionId, path: displayPath }; choose.click(); await frames();
+      state.migrationMode = "pending"; migrate.click(); migrate.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      check(state.migrationCalls.length === 2 && choose.disabled && migrate.disabled, "pending request submits once and holds lock");
+      for (const payload of state.migrationCalls) check(Object.keys(payload).length === 1 && payload.selectionId === selectionId, "migration sends opaque selection ID only");
+      state.pendingMigration(); await frames();
+      check(choose.disabled && migrate.disabled && byId("settings-panel-storage").getAttribute("aria-busy") === "true", "queued request stays locked until restart");
+      byId("settings-modal").querySelector("[data-close-modal]").click(); await frames();
+      byId("global-settings-btn").click(); await frames();
+      check(state.consumes === 1, "reopening settings cannot repeat startup consumption");
+      check([...document.querySelectorAll("#toast-container > *")].filter(node => node.textContent.includes("数据迁移成功")).length <= 1, "reopening settings cannot repeat success notifications");
+      check(!byId("settings-modal").textContent.includes("RAW_SETTINGS_SECRET") && !byId("toast-container").textContent.includes("RAW_SETTINGS_SECRET"), "raw bridge payload never appears in UI");
+      byId("settings-modal").querySelector("[data-close-modal]").click(); await frames();
+      localStorage.setItem("smoke_migration_result", "failure");
+      return { requests: state.migrationCalls, busyUntilRestart: true };
+    })()`);
+    const failureReloaded = once(window.webContents, "did-finish-load");
+    window.webContents.reload(); await failureReloaded;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    settingsResult.failureResult = await window.webContents.executeJavaScript(`(async () => {
+      const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const status = document.getElementById("storage-status");
+      const initial = { text: status.textContent, type: status.dataset.type,
+        notifications: [...document.querySelectorAll("#toast-container > *")].filter(node => node.textContent.includes("数据迁移失败")).length };
+      for (let index = 0; index < 2; index++) {
+        document.getElementById("global-settings-btn").click(); await frames();
+        document.querySelector("#settings-modal [data-close-modal]").click(); await frames();
+      }
+      return { ...initial, notifications: [...document.querySelectorAll("#toast-container > *")].filter(node => node.textContent.includes("数据迁移失败")).length,
+        consumes: window.__settingsMock.consumes,
+        rawLeak: document.body.textContent.includes("RAW_SETTINGS_SECRET") };
+    })()`);
+    assert.equal(settingsResult.failureResult.type, "error");
+    assert.match(settingsResult.failureResult.text, /数据迁移失败/);
+    assert.equal(settingsResult.failureResult.notifications, 1);
+    assert.equal(settingsResult.failureResult.consumes, 1);
+    assert.equal(settingsResult.failureResult.rawLeak, false);
+    assert.deepEqual(rendererErrors, [], "no unhandled renderer errors");
+    // The existing page has no CSP. Preserve and report that development warning
+    // while failing any new security warning category; never suppress Electron's warnings.
+    assert.ok(securityWarnings.every(message => /Insecure Content-Security-Policy/.test(message)), "unexpected Electron security warning");
+
     process.stdout.write(JSON.stringify({
       ...result,
       noteResult,
@@ -1266,6 +1451,10 @@ app.whenReady().then(async () => {
       interactionResult,
       filterResult,
       darkTheme,
+      settingsResult,
+      initialMigrationSuccess,
+      rendererErrors,
+      securityWarnings: { count: securityWarnings.length, messages: [...new Set(securityWarnings)] },
       lightScreenshot,
       darkScreenshot
     }, null, 2) + "\n");

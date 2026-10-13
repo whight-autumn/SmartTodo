@@ -23,6 +23,116 @@ const viewports = [
   { width: 1200, height: 800, zoom: 1.25 },
   { width: 1200, height: 800, zoom: 1.5 }
 ];
+const narrowSettingsViewports = [
+  { width: 640, height: 700, zoom: 1 },
+  { width: 639, height: 700, zoom: 1 },
+  { width: 480, height: 700, zoom: 1 }
+];
+const settingsBridgeScript = `(() => {
+  const longPath = "D:/任务管理器资料/" + "长期项目与附件归档目录/".repeat(24) + "迁移目标";
+  window.desktop = {
+    getAppSettings: async () => ({ autoStart: { available: true, enabled: false },
+      storage: { currentPath: longPath, isDefault: false }, migrationResult: null }),
+    setAutoStart: async enabled => ({ available: true, enabled }),
+    chooseDataDirectory: async () => ({ canceled: false, path: longPath,
+      selectionId: "00000000-0000-4000-8000-000000000006" }),
+    requestDataMigration: async () => ({ queued: true }),
+    consumeMigrationResult: async () => null
+  };
+})();`;
+const matchesFocusedViewport = viewport => !process.env.SMARTTODO_UI_VIEWPORT ||
+  process.env.SMARTTODO_UI_VIEWPORT === `${viewport.width}x${viewport.height}@${viewport.zoom}`;
+
+async function verifySettingsLayout(window, viewport, theme) {
+  const result = await window.webContents.executeJavaScript(`(async () => {
+    const byId = id => document.getElementById(id);
+    const settle = async () => {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      await document.fonts.ready;
+      await Promise.all(byId("settings-modal").getAnimations({ subtree: true })
+        .filter(animation => animation.playState === "running").map(animation => animation.finished));
+      await new Promise(resolve => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), 240));
+    };
+    if (document.documentElement.dataset.theme !== ${JSON.stringify(theme)}) byId("theme-toggle").click();
+    byId("global-settings-btn").click(); await settle();
+    const modal = byId("settings-modal"), nav = modal.querySelector('[role="tablist"]');
+    const body = modal.querySelector(".settings-center__content");
+    const rect = node => {
+      const r = node.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+    };
+    const intersects = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > .5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > .5;
+    const inside = (a, b) => a.width > 0 && a.height > 0 && a.left >= b.left - 1 && a.right <= b.right + 1 && a.top >= b.top - 1 && a.bottom <= b.bottom + 1;
+    const initialHeader = rect(modal.querySelector(".dialog-sheet__head"));
+    const tabs = [...nav.querySelectorAll('[role="tab"]')];
+    const tabRects = tabs.map(rect);
+    const viewportRect = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+    const modules = [];
+    for (const tab of tabs) {
+      tab.click(); body.scrollTop = 0; await settle();
+      const panel = byId(tab.getAttribute("aria-controls"));
+      if (tab.dataset.settingsSection === "storage") { byId("choose-data-directory-btn").click(); await settle(); }
+      const controls = [...panel.querySelectorAll('button,input,select')];
+      const reached = [];
+      let overlap = false;
+      for (const control of controls) {
+        control.scrollIntoView({ block: "center" }); await settle();
+        reached.push({ id: control.id, reachable: inside(rect(control), rect(body)) && inside(rect(control), viewportRect) });
+        const visible = controls.map(rect).filter(r => inside(r, rect(body)));
+        const compared = [...tabRects, rect(modal.querySelector('[data-close-modal]')), ...visible];
+        overlap ||= compared.some((r, index) => compared.slice(index + 1).some(other => intersects(r, other)));
+      }
+      let warningReachable = null, actionReachable = null;
+      if (tab.dataset.settingsSection === "storage") {
+        byId("migration-warning").scrollIntoView({ block: "center" }); await settle();
+        warningReachable = inside(rect(byId("migration-warning")), rect(body));
+        byId("migrate-data-btn").scrollIntoView({ block: "center" }); await settle();
+        actionReachable = inside(rect(byId("migrate-data-btn")), rect(body)) && !byId("migrate-data-btn").disabled;
+      }
+      modules.push({ section: tab.dataset.settingsSection, selected: tab.getAttribute("aria-selected"),
+        panelHidden: panel.hidden, focused: document.activeElement.id, reached, overlap,
+        bodyOverflow: body.scrollWidth - body.clientWidth,
+        documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        warningReachable, actionReachable, scrollTop: body.scrollTop,
+        headerMoved: Math.abs(rect(modal.querySelector(".dialog-sheet__head")).top - initialHeader.top) > 1,
+        headerTop: rect(modal.querySelector(".dialog-sheet__head")).top, initialHeaderTop: initialHeader.top,
+        outerScrollTop: modal.scrollTop, outerHeight: modal.clientHeight, outerScrollHeight: modal.scrollHeight,
+        outerMaxHeight: getComputedStyle(modal).maxHeight });
+    }
+    const snapshot = { viewport: innerWidth, theme: document.documentElement.dataset.theme,
+      navWidth: parseFloat(getComputedStyle(nav).width), orientation: nav.getAttribute("aria-orientation"),
+      tabsReachable: tabRects.every(r => inside(r, rect(nav)) && inside(r, viewportRect)),
+      tabsOverlap: tabRects.some((r, index) => tabRects.slice(index + 1).some(other => intersects(r, other))),
+      longPathPresent: byId("data-selected-path").textContent.includes("长期项目与附件归档目录/".repeat(24)), modules };
+    modal.querySelector('[data-close-modal]').click(); await settle();
+    return snapshot;
+  })()`);
+  const label = `${viewport.width}x${viewport.height}@${viewport.zoom} ${theme}`;
+  if (result.modules.some(module => module.headerMoved)) process.stdout.write(JSON.stringify({ label, modules: result.modules }) + "\n");
+  assert.equal(result.theme, theme, label);
+  assert.equal(result.tabsReachable, true, `${label} all three tabs remain reachable`);
+  assert.equal(result.tabsOverlap, false, `${label} tabs overlap`);
+  assert.equal(result.longPathPresent, true, `${label} long Chinese destination fixture`);
+  assert.equal(result.orientation, result.viewport <= 639 ? "horizontal" : "vertical", `${label} navigation orientation`);
+  if (result.viewport >= 640) assert.equal(result.navWidth, 172, `${label} desktop navigation width`);
+  for (const module of result.modules) {
+    assert.equal(module.selected, "true", `${label} ${module.section} tab selects panel`);
+    assert.equal(module.panelHidden, false, `${label} ${module.section} panel visible`);
+    assert.equal(module.overlap, false, `${label} ${module.section} controls/tabs overlap`);
+    assert.ok(module.bodyOverflow <= 1, `${label} ${module.section} settings body overflow ${module.bodyOverflow}`);
+    assert.ok(module.documentOverflow <= 1, `${label} ${module.section} document overflow ${module.documentOverflow}`);
+    assert.equal(module.headerMoved, false, `${label} fixed settings header`);
+    assert.equal(module.outerScrollTop, 0, `${label} only the settings body scrolls`);
+    assert.ok(module.outerScrollHeight - module.outerHeight <= 1, `${label} outer dialog must fit the sheet`);
+    for (const control of module.reached) assert.equal(control.reachable, true, `${label} ${control.id} reachable after body scrolling`);
+    if (module.section === "storage") {
+      assert.equal(module.warningReachable, true, `${label} migration warning reachable after body scrolling`);
+      assert.equal(module.actionReachable, true, `${label} migration action reachable after body scrolling`);
+      assert.ok(module.scrollTop > 0, `${label} long path requires settings body scrolling`);
+    }
+  }
+  return { ...viewport, ...result };
+}
 
 function writeCapture(filePath, image) {
   fs.writeFileSync(filePath, image.toPNG());
@@ -57,9 +167,17 @@ app.whenReady().then(async () => {
       backgroundThrottling: false
     }
   });
+  const rendererErrors = [], securityWarnings = [];
+  window.webContents.on("console-message", (_event, level, message) => {
+    if (level >= 3) rendererErrors.push(message);
+    if (/Electron Security Warning/i.test(message)) securityWarnings.push(message);
+  });
 
   try {
     await window.loadFile(path.join(projectRoot, "renderer", "index.html"));
+    window.webContents.debugger.attach("1.3");
+    await window.webContents.debugger.sendCommand("Page.enable");
+    await window.webContents.debugger.sendCommand("Page.addScriptToEvaluateOnNewDocument", { source: settingsBridgeScript });
     const reloaded = once(window.webContents, "did-finish-load");
     await window.webContents.executeJavaScript(`
       localStorage.clear();
@@ -128,7 +246,8 @@ app.whenReady().then(async () => {
     await reloaded;
 
     const results = [];
-    for (const viewport of viewports) {
+    const settingsResults = [];
+    for (const viewport of viewports.filter(matchesFocusedViewport)) {
       window.setSize(viewport.width, viewport.height);
       window.webContents.setZoomFactor(viewport.zoom);
       await new Promise(resolve => setTimeout(resolve, 80));
@@ -202,9 +321,22 @@ app.whenReady().then(async () => {
         await settleVisualState(window, { clearToasts: true });
         writeCapture(captures.narrowLight, await window.webContents.capturePage());
       }
+      for (const theme of ["light", "dark"]) settingsResults.push(await verifySettingsLayout(window, viewport, theme));
+      await window.webContents.executeJavaScript('if (document.documentElement.dataset.theme !== "light") document.getElementById("theme-toggle").click()');
     }
 
-    process.stdout.write(JSON.stringify({ results, captures }, null, 2) + "\n");
+    for (const viewport of narrowSettingsViewports.filter(matchesFocusedViewport)) {
+      window.setSize(viewport.width, viewport.height);
+      window.webContents.setZoomFactor(viewport.zoom);
+      await new Promise(resolve => setTimeout(resolve, 80));
+      for (const theme of ["light", "dark"]) settingsResults.push(await verifySettingsLayout(window, viewport, theme));
+    }
+    assert.deepEqual(rendererErrors, [], "no unhandled renderer errors");
+    // Existing development CSP warning is retained in the report, not suppressed.
+    assert.ok(securityWarnings.every(message => /Insecure Content-Security-Policy/.test(message)), "unexpected Electron security warning");
+
+    process.stdout.write(JSON.stringify({ results, settingsResults, captures, rendererErrors,
+      securityWarnings: { count: securityWarnings.length, messages: [...new Set(securityWarnings)] } }, null, 2) + "\n");
   } finally {
     window.destroy();
     try {

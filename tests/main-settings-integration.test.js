@@ -11,8 +11,8 @@ const source = fs.readFileSync(mainPath, "utf8");
 // Electron's profile and window side effects are external; run the actual main
 // entrypoint with boundary doubles so startup ordering is observable in Node.
 function runMain({ custom = false, pending = false, failure = false, hidden = false, lock = true,
-  settingsPaths = null, widgetFlushError = null } = {}) {
-  const appDataPath = "C:\\Users\\test\\AppData\\Roaming";
+  settingsPaths = null, widgetFlushError = null, productionPaths = null } = {}) {
+  const appDataPath = productionPaths?.appDataPath || "C:\\Users\\test\\AppData\\Roaming";
   const defaultRuntimePath = buildManagedUserDataPath(appDataPath);
   const runtimePath = custom ? "D:\\SmartTodoData" : defaultRuntimePath;
   const calls = [];
@@ -23,10 +23,11 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   const app = {
     disableHardwareAcceleration() {},
     getPath(name) {
-      return { appData: appDataPath, userData: userDataPath, home: "C:\\Users\\test" }[name];
+      return { appData: appDataPath, userData: userDataPath, home: productionPaths?.homePath || "C:\\Users\\test" }[name];
     },
-    getAppPath: () => "C:\\SmartTodoApp",
+    getAppPath: () => productionPaths?.appPath || "C:\\SmartTodoApp",
     getVersion: () => "1.4.0",
+    getLoginItemSettings: () => ({ openAtLogin: false }),
     setPath(name, value) { calls.push(["setPath", name, value]); userDataPath = value; },
     requestSingleInstanceLock: () => lock,
     quit() { calls.push(["quit"]); },
@@ -47,12 +48,14 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
     focus() { calls.push(["focus"]); }
     static getAllWindows() { return []; }
   }
-  const readBootstrapState = () => {
+  const readBootstrapState = options => {
     calls.push(["bootstrap"]);
+    if (productionPaths) return require("../runtime-data-manager.js").readBootstrapState(options);
     return { activeRuntimePath: runtimePath, pendingMigration: pending ? { requestId: "queued" } : null };
   };
   const performPendingMigration = options => {
     calls.push(["migration", options]);
+    if (productionPaths) return require("../main-paths.js").resolveRuntimeDataPath(options);
     if (failure) throw Object.assign(new Error("unbounded ".repeat(1000)), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
     return { runtimePath, migrationResult: null };
   };
@@ -106,7 +109,7 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   overrides["./app-settings-ipc.js"] = {
     registerAppSettingsIpc(options) {
       calls.push(["settingsRegistration", options]);
-      if (settingsPaths) {
+      if (settingsPaths || productionPaths) {
         return require("../app-settings-ipc.js").registerAppSettingsIpc({ ...options, ...settingsPaths });
       }
       return { dispose() { calls.push(["settingsDispose"]); } };
@@ -133,6 +136,78 @@ test("runtime migration finishes before the only profile setter and attachment i
   assert.equal(result.handlers.get("get-data-path")(), "D:\\SmartTodoData");
   assert.equal(result.calls.find(call => call[0] === "migration")[1].defaultRuntimePath, result.defaultRuntimePath);
 });
+
+for (const interrupted of [false, true]) {
+  test(`a separate queue process exits before production startup ${interrupted ? "rejects an occupied destination" : "migrates the complete profile"}`, async t => {
+    const root = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "smarttodo-restart-boundary-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const productionPaths = {
+      appDataPath: path.join(root, "app-data"), homePath: path.join(root, "home"), appPath: path.join(root, "application")
+    };
+    const sourcePath = buildManagedUserDataPath(productionPaths.appDataPath);
+    const targetPath = path.join(root, "新运行数据");
+    const fixtures = {
+      "smart_tasks.json": Buffer.from('[{"id":"restart-task","title":"重启迁移"}]'),
+      "Local Storage/leveldb/000003.log": Buffer.from([0, 255, 16, 13, 10, 128]),
+      "Local Storage/leveldb/CURRENT": Buffer.from("MANIFEST-000001\n"),
+      "task-attachments/restart-task/nested/附件.bin": Buffer.from([255, 0, 1, 2, 3, 127]),
+      "widget-preferences.json": Buffer.from('{"visible":false,"bounds":{"x":71,"y":89,"width":320,"height":440}}')
+    };
+    for (const [relative, bytes] of Object.entries(fixtures)) {
+      const file = path.join(sourcePath, relative);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, bytes);
+    }
+    // Process A uses the production bootstrap writer. execFileSync returns only
+    // after it has exited, so no source handles or in-memory state survive.
+    const request = { ...productionPaths, sourcePath, targetPath, requestId: "restart-boundary-fixture" };
+    require("node:child_process").execFileSync(process.execPath, ["-e",
+      'require(process.argv[1]).queueMigration(JSON.parse(process.argv[2]));',
+      require.resolve("../runtime-data-manager.js"), JSON.stringify(request)]);
+    const manager = require("../runtime-data-manager.js");
+    assert.equal(manager.readBootstrapState(productionPaths).pendingMigration.targetPath, targetPath);
+    assert.equal(fs.existsSync(targetPath), false, "queueing cannot activate or copy the destination");
+    if (interrupted) {
+      fs.mkdirSync(targetPath);
+      fs.writeFileSync(path.join(targetPath, "unrelated.txt"), "preserve destination");
+    }
+
+    // Process B executes the real main entrypoint with production migration and
+    // bootstrap functions; only Electron/OS/window boundaries are doubled.
+    const { calls, handlers, appHandlers } = runMain({ productionPaths });
+    const activePath = interrupted ? sourcePath : targetPath;
+    const names = calls.map(call => call[0]);
+    assert.ok(names.indexOf("migration") < names.indexOf("setPath"));
+    assert.ok(names.indexOf("setPath") < names.indexOf("attachments"));
+    assert.ok(names.indexOf("migration") < names.indexOf("ready"));
+    assert.deepEqual(calls.filter(call => call[0] === "setPath"), [["setPath", "userData", activePath]]);
+    assert.equal(calls.find(call => call[0] === "attachments")[1].rootPath, path.join(activePath, "task-attachments"));
+    assert.equal(calls.find(call => call[0] === "widgetController")[1], activePath);
+    assert.equal(handlers.get("get-data-path")(), activePath);
+    const state = manager.readBootstrapState(productionPaths);
+    assert.equal(state.activeRuntimePath, activePath);
+    assert.equal(state.pendingMigration, null);
+    assert.equal(state.migrationResult.status, interrupted ? "failure" : "success");
+    for (const [relative, bytes] of Object.entries(fixtures)) {
+      assert.deepEqual(fs.readFileSync(path.join(activePath, relative)), bytes, relative);
+      if (!interrupted) assert.deepEqual(fs.readFileSync(path.join(state.migrationResult.backupPath, relative)), bytes, `backup ${relative}`);
+    }
+    if (interrupted) assert.equal(fs.readFileSync(path.join(targetPath, "unrelated.txt"), "utf8"), "preserve destination");
+    else {
+      assert.equal(fs.existsSync(sourcePath), false, "old source is now the preserved backup");
+      assert.notEqual(state.migrationResult.backupPath, activePath);
+      assert.match(path.basename(state.migrationResult.backupPath), /^运行数据\.backup-\d{8}-\d{6}$/);
+    }
+    const event = { sender: calls.find(call => call[0] === "settingsRegistration")[1].getMainWindow().webContents };
+    const snapshot = await handlers.get("settings:get")(event);
+    assert.equal(snapshot.storage.currentPath, activePath);
+    assert.equal(snapshot.migrationResult.status, interrupted ? "failure" : "success");
+    const consumed = await handlers.get("settings:consume-migration-result")(event);
+    assert.equal(consumed.status, interrupted ? "failure" : "success");
+    assert.equal(await handlers.get("settings:consume-migration-result")(event), null);
+    appHandlers.get("before-quit")();
+  });
+}
 
 for (const options of [{ custom: true }, { pending: true }, { custom: true, pending: true }]) {
   test(`bootstrap ownership skips historic migration: ${JSON.stringify(options)}`, () => {
