@@ -1,5 +1,5 @@
 SmartTodo V1.4.2 版本说明
-本地构建日期：2026-10-13（GitHub Release 尚未发布）
+发布日期：2026-10-13
 
 一、主要修复
 1. 修复 Windows 已启用开机自启动时，设置页开关可能错误显示为关闭的问题。
@@ -28,4 +28,4 @@ SmartTodo V1.4.2 版本说明
 文件大小：74,063,888 字节（70.63 MiB）
 SHA-256：ED1D0A52E373CE8BC454C6A0A9EC8BF787193C596BD82A2779F6C28855C09A6B
 代码签名：未进行商业代码签名
-GitHub URL：源码已推送；V1.4.2 Release 尚未发布
+GitHub URL：https://github.com/whight-autumn/SmartTodo/releases/tag/v1.4.2
