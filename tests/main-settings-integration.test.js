@@ -10,7 +10,8 @@ const source = fs.readFileSync(mainPath, "utf8");
 
 // Electron's profile and window side effects are external; run the actual main
 // entrypoint with boundary doubles so startup ordering is observable in Node.
-function runMain({ custom = false, pending = false, failure = false, hidden = false, lock = true } = {}) {
+function runMain({ custom = false, pending = false, failure = false, hidden = false, lock = true,
+  settingsPaths = null, widgetFlushError = null } = {}) {
   const appDataPath = "C:\\Users\\test\\AppData\\Roaming";
   const defaultRuntimePath = buildManagedUserDataPath(appDataPath);
   const runtimePath = custom ? "D:\\SmartTodoData" : defaultRuntimePath;
@@ -28,13 +29,14 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
     setPath(name, value) { calls.push(["setPath", name, value]); userDataPath = value; },
     requestSingleInstanceLock: () => lock,
     quit() { calls.push(["quit"]); },
+    relaunch() { calls.push(["relaunch"]); },
     on(event, handler) { appHandlers.set(event, handler); },
     whenReady() { return { then(callback) { calls.push(["ready"]); callback(); } }; }
   };
   class BrowserWindow {
     constructor(options) {
       calls.push(["window", options]);
-      this.webContents = { setWindowOpenHandler() {}, send() {}, focus() { calls.push(["webFocus"]); } };
+      this.webContents = { id: 31, setWindowOpenHandler() {}, send() {}, focus() { calls.push(["webFocus"]); } };
     }
     loadFile() {}
     on() {}
@@ -60,7 +62,10 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
       flushStorageData() { calls.push(["flushStorage"]); },
       async flushCache() { calls.push(["flushCache"]); }
     } },
-    dialog: { showErrorBox(title, message) { calls.push(["error", title, message]); } },
+    dialog: {
+      showErrorBox(title, message) { calls.push(["error", title, message]); },
+      async showOpenDialog() { return { canceled: false, filePaths: [settingsPaths?.targetPath] }; }
+    },
     nativeImage: { createFromPath() { return { isEmpty: () => false }; } },
     Menu: { buildFromTemplate: template => template },
     Tray: class { constructor() { calls.push(["tray"]); } setToolTip() {} setContextMenu() {} on() {} }
@@ -84,7 +89,8 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
         calls.push(["widgetController", options.userDataPath]);
         return {
           getWindow() {}, setVisible() {}, isVisible: () => true,
-          create() { calls.push(["widgetCreate"]); }, flush() { calls.push(["widgetFlush"]); }, dispose() {}
+          create() { calls.push(["widgetCreate"]); }, flush() { calls.push(["widgetFlush"]); }, dispose() {},
+          flushOrThrow() { calls.push(["widgetStrictFlush"]); if (widgetFlushError) throw widgetFlushError; }
         };
       }
     },
@@ -93,6 +99,9 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   overrides["./app-settings-ipc.js"] = {
     registerAppSettingsIpc(options) {
       calls.push(["settingsRegistration", options]);
+      if (settingsPaths) {
+        return require("../app-settings-ipc.js").registerAppSettingsIpc({ ...options, ...settingsPaths });
+      }
       return { dispose() { calls.push(["settingsDispose"]); } };
     }
   };
@@ -184,11 +193,31 @@ test("main registers settings with resolved paths and flushes Chromium plus widg
   await options.flushBeforeRelaunch();
   assert.ok(calls.some(call => call[0] === "flushStorage"));
   assert.ok(calls.some(call => call[0] === "flushCache"));
-  assert.ok(calls.some(call => call[0] === "widgetFlush"));
+  assert.ok(calls.some(call => call[0] === "widgetStrictFlush"));
 });
 
 test("settings handlers are disposed alongside widgets on application quit", () => {
   const { calls, appHandlers } = runMain();
   appHandlers.get("before-quit")();
   assert.ok(calls.some(call => call[0] === "settingsDispose"));
+});
+
+test("strict widget persistence failure in main preparation prevents queue, relaunch and quit", async t => {
+  const root = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "smarttodo-main-flush-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sourcePath = path.join(root, "source");
+  fs.mkdirSync(sourcePath);
+  const settingsPaths = {
+    appDataPath: path.join(root, "app-data"), getRuntimePath: () => sourcePath,
+    targetPath: path.join(root, "target"), homePath: path.join(root, "home"), appPath: path.join(root, "app")
+  };
+  const { calls, handlers } = runMain({ settingsPaths, widgetFlushError: new Error("preference write failed") });
+  const event = { sender: calls.find(call => call[0] === "settingsRegistration")[1].getMainWindow().webContents };
+  const selection = await handlers.get("settings:choose-data-directory")(event);
+  const response = await handlers.get("settings:request-data-migration")(event, { selectionId: selection.selectionId });
+  assert.equal(response.ok, false);
+  assert.equal(response.error.code, "MIGRATION_FAILED");
+  assert.ok(calls.some(call => call[0] === "widgetStrictFlush"));
+  assert.equal(fs.existsSync(require("../runtime-data-manager.js").buildBootstrapPath(settingsPaths.appDataPath)), false);
+  assert.equal(calls.some(call => ["relaunch", "quit"].includes(call[0])), false);
 });

@@ -105,7 +105,7 @@ function createControllerHarness({ saved = null } = {}) {
     clearTimeoutFn() { timer = null; }
   });
   return {
-    controller, windows, writes, renames, visibility,
+    controller, windows, writes, renames, visibility, fs,
     runTimer() { const callback = timer; timer = null; callback?.(); },
     setQuitting(value) { quitting = value; }
   };
@@ -204,3 +204,35 @@ test("controller removes listeners and destroys only while the app quits", () =>
   quitHarness.controller.dispose();
   assert.equal(quittingWindow.isDestroyed(), true);
 });
+
+test("strict widget flush writes the latest preferences atomically and cancels the pending debounce", () => {
+  const harness = createControllerHarness();
+  const window = harness.controller.create();
+  window.bounds = { x: 1400, y: 80, width: 320, height: 440 };
+  window.emit("move");
+  harness.controller.flushOrThrow();
+  assert.deepEqual(harness.writes[0].value, {
+    visible: true, displayId: 1, bounds: { x: 1400, y: 80, width: 320, height: 440 }
+  });
+  assert.deepEqual(harness.renames, [{
+    from: "C:\\profile\\widget-preferences.json.tmp", to: "C:\\profile\\widget-preferences.json"
+  }]);
+  harness.runTimer();
+  assert.equal(harness.writes.length, 1);
+});
+
+for (const operation of ["mkdirSync", "writeFileSync", "renameSync"]) {
+  test(`strict widget flush propagates ${operation} failure while ordinary flush remains best effort`, t => {
+    const harness = createControllerHarness();
+    const window = harness.controller.create();
+    window.emit("move");
+    const failure = new Error(`failed ${operation}`);
+    harness.fs[operation] = () => { throw failure; };
+    t.mock.method(console, "warn", () => {});
+    assert.throws(() => harness.controller.flushOrThrow(), error => error === failure);
+    const writesBeforeTimer = harness.writes.length;
+    harness.runTimer();
+    assert.equal(harness.writes.length, writesBeforeTimer);
+    assert.doesNotThrow(() => harness.controller.flush());
+  });
+}

@@ -51,14 +51,18 @@ function createWidgetController({
     });
   }
 
-  function writePreferences() {
-    if (disposed && !isQuitting()) return;
+  function writePreferences(throwOnError = false) {
+    if (disposed && !isQuitting()) {
+      if (throwOnError) throw new Error("桌面任务笺已关闭，无法保存位置偏好");
+      return;
+    }
     preferences = snapshotPreferences();
     try {
       fs.mkdirSync(userDataPath, { recursive: true });
       fs.writeFileSync(temporaryPath, JSON.stringify(preferences, null, 2), "utf8");
       fs.renameSync(temporaryPath, preferencesPath);
     } catch (error) {
+      if (throwOnError) throw error;
       console.warn("桌面任务笺位置保存失败：", error?.message || error);
     }
   }
@@ -159,12 +163,16 @@ function createWidgetController({
     return setVisible(!isVisible());
   }
 
-  function flush() {
+  function flush(throwOnError = false) {
     if (writeTimer !== null) {
       clearTimeoutFn(writeTimer);
       writeTimer = null;
     }
-    writePreferences();
+    writePreferences(throwOnError);
+  }
+
+  function flushOrThrow() {
+    flush(true);
   }
 
   function removeWindowListeners(window) {
@@ -197,6 +205,7 @@ function createWidgetController({
     isVisible,
     getWindow: () => widgetWindow,
     flush,
+    flushOrThrow,
     dispose
   };
 }

@@ -249,7 +249,7 @@ app.whenReady().then(() => {
     async flushBeforeRelaunch() {
       session.defaultSession.flushStorageData();
       await session.defaultSession.flushCache();
-      widgetController.flush();
+      widgetController.flushOrThrow();
     }
   });
   createMainWindow();
