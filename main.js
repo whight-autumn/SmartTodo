@@ -248,7 +248,6 @@ app.whenReady().then(() => {
     appPath: app.getAppPath(),
     async flushBeforeRelaunch() {
       session.defaultSession.flushStorageData();
-      await session.defaultSession.flushCache();
       widgetController.flushOrThrow();
     }
   });

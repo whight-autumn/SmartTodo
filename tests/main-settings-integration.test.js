@@ -16,6 +16,7 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   const defaultRuntimePath = buildManagedUserDataPath(appDataPath);
   const runtimePath = custom ? "D:\\SmartTodoData" : defaultRuntimePath;
   const calls = [];
+  const sessionAccesses = [];
   const handlers = new Map();
   const appHandlers = new Map();
   let userDataPath = "C:\\ElectronDefault";
@@ -58,10 +59,16 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   const electron = {
     app, BrowserWindow, screen: {}, shell: {}, Notification: {},
     ipcMain: { handle(name, handler) { handlers.set(name, handler); }, removeHandler(name) { handlers.delete(name); } },
-    session: { defaultSession: {
-      flushStorageData() { calls.push(["flushStorage"]); },
-      async flushCache() { calls.push(["flushCache"]); }
-    } },
+    session: { defaultSession: new Proxy({
+      // Electron 31's DOMStorage persistence API is synchronous and returns void.
+      flushStorageData() { calls.push(["flushStorage"]); }
+    }, {
+      get(target, name) {
+        sessionAccesses.push(name);
+        if (!Object.hasOwn(target, name)) throw new Error(`Unsupported session operation: ${String(name)}`);
+        return target[name];
+      }
+    }) },
     dialog: {
       showErrorBox(title, message) { calls.push(["error", title, message]); },
       async showOpenDialog() { return { canceled: false, filePaths: [settingsPaths?.targetPath] }; }
@@ -109,7 +116,7 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   entry(name => overrides[name] || require(name), { exports: {} }, {}, path.dirname(mainPath), {
     argv: hidden ? ["SmartTodo.exe", "--hidden"] : ["SmartTodo.exe"], platform: "win32", execPath: "C:\\SmartTodoApp\\SmartTodo.exe"
   });
-  return { calls, handlers, appHandlers, runtimePath, defaultRuntimePath, appDataPath };
+  return { calls, handlers, appHandlers, runtimePath, defaultRuntimePath, appDataPath, sessionAccesses };
 }
 
 test("runtime migration finishes before the only profile setter and attachment initialization", () => {
@@ -181,7 +188,7 @@ test("a second hidden launch preserves focus while a manual second launch opens 
 });
 
 test("main registers settings with resolved paths and flushes Chromium plus widget preferences before relaunch", async () => {
-  const { calls, runtimePath, appDataPath } = runMain({ custom: true });
+  const { calls, runtimePath, appDataPath, sessionAccesses } = runMain({ custom: true });
   const registration = calls.find(call => call[0] === "settingsRegistration");
   assert.ok(registration, "settings IPC must be registered");
   const options = registration[1];
@@ -191,9 +198,9 @@ test("main registers settings with resolved paths and flushes Chromium plus widg
   assert.equal(options.appPath, "C:\\SmartTodoApp");
   assert.ok(options.getMainWindow());
   await options.flushBeforeRelaunch();
-  assert.ok(calls.some(call => call[0] === "flushStorage"));
-  assert.ok(calls.some(call => call[0] === "flushCache"));
-  assert.ok(calls.some(call => call[0] === "widgetStrictFlush"));
+  assert.deepEqual(sessionAccesses, ["flushStorageData"]);
+  assert.deepEqual(calls.filter(call => ["flushStorage", "widgetStrictFlush"].includes(call[0])),
+    [["flushStorage"], ["widgetStrictFlush"]]);
 });
 
 test("settings handlers are disposed alongside widgets on application quit", () => {
@@ -220,4 +227,33 @@ test("strict widget persistence failure in main preparation prevents queue, rela
   assert.ok(calls.some(call => call[0] === "widgetStrictFlush"));
   assert.equal(fs.existsSync(require("../runtime-data-manager.js").buildBootstrapPath(settingsPaths.appDataPath)), false);
   assert.equal(calls.some(call => ["relaunch", "quit"].includes(call[0])), false);
+});
+
+test("migration uses only supported Electron 31 storage persistence before widget flush, queue, relaunch and quit", async t => {
+  const root = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "smarttodo-main-persistence-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sourcePath = path.join(root, "source");
+  fs.mkdirSync(sourcePath);
+  const settingsPaths = {
+    appDataPath: path.join(root, "app-data"), getRuntimePath: () => sourcePath,
+    targetPath: path.join(root, "target"), homePath: path.join(root, "home"), appPath: path.join(root, "app")
+  };
+  const { calls, handlers, sessionAccesses } = runMain({ settingsPaths });
+  const { buildBootstrapPath, readBootstrapState } = require("../runtime-data-manager.js");
+  const bootstrapPath = buildBootstrapPath(settingsPaths.appDataPath);
+  const rename = fs.renameSync;
+  t.mock.method(fs, "renameSync", (from, to) => {
+    rename(from, to);
+    if (to === bootstrapPath) calls.push(["queue"]);
+  });
+  const event = { sender: calls.find(call => call[0] === "settingsRegistration")[1].getMainWindow().webContents };
+  const selection = await handlers.get("settings:choose-data-directory")(event);
+  assert.deepEqual(await handlers.get("settings:request-data-migration")(event,
+    { selectionId: selection.selectionId }), { queued: true });
+  assert.deepEqual(sessionAccesses, ["flushStorageData"]);
+  assert.deepEqual(calls.filter(call => ["flushStorage", "widgetStrictFlush", "queue", "relaunch", "quit"].includes(call[0])),
+    [["flushStorage"], ["widgetStrictFlush"], ["queue"], ["relaunch"], ["quit"]]);
+  const queued = readBootstrapState({ appDataPath: settingsPaths.appDataPath }).pendingMigration;
+  assert.equal(queued.sourcePath, sourcePath);
+  assert.equal(queued.targetPath, settingsPaths.targetPath);
 });
