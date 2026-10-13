@@ -7,15 +7,15 @@
 <p align="center"><b>本地优先、低调简洁的 Windows 桌面任务管理器</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.3.1-315e50" alt="Version 1.3.1">
+  <img src="https://img.shields.io/badge/version-1.4.0-315e50" alt="Version 1.4.0">
   <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
-  <img src="https://img.shields.io/badge/node:test-153%20tests-9c473b" alt="node:test 153 tests">
+  <img src="https://img.shields.io/badge/node:test-source%20review-9c473b" alt="node:test source review">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-315e50" alt="Windows x64">
   <img src="https://img.shields.io/badge/License-MIT-69736e" alt="MIT">
 </p>
 
 <p align="center">
-  <a href="https://github.com/whight-autumn/SmartTodo/releases/latest"><b>下载 Windows 便携版</b></a>
+  <a href="https://github.com/whight-autumn/SmartTodo/releases/latest"><b>查看历史 Windows 便携版</b></a>
   ·
   <a href="release/版本迭代说明.md">查看版本迭代</a>
 </p>
@@ -24,15 +24,17 @@
 
 SmartTodo 把主任务、子任务、提醒、附件和可选 AI 助手放在同一个本地工作台中。任务、会话、设置与 API Key 均保存在本机；不配置 AI、甚至断网时，任务管理仍可完整使用。
 
+当前源码版本：V1.4.0（2026-10-13），处于打包前源码审阅阶段。用户审阅通过后，才可打包或执行 GitHub 操作。此版本尚无已验证的 EXE、大小、发布校验值、签名或 GitHub Release；具体待办见 [`release/V1.4.0/版本说明.txt`](release/V1.4.0/版本说明.txt)。下方截图是既有界面参考，不代表 V1.4.0 发布包截图。
+
 ## 三分钟上手
 
-### 1. 下载并启动
+### 1. 启动与审阅
 
-1. 前往 [GitHub Releases](https://github.com/whight-autumn/SmartTodo/releases/latest) 下载 `SmartTodo-1.3.1.exe`。
+1. 当前 V1.4.0 请按下方“从源码运行”进行审阅；[GitHub Releases](https://github.com/whight-autumn/SmartTodo/releases/latest) 仅作为历史发布入口。
 2. 如果旧版本仍在运行，请先从系统托盘完全退出。
-3. 双击便携程序即可使用，无需安装。未签名构建首次运行时可能出现 Windows SmartScreen 提示，请确认下载来源后继续。
+3. 源码审阅使用 `npm start`；历史便携版双击即可使用，无需安装。历史未签名构建首次运行时可能出现 Windows SmartScreen 提示，请确认下载来源后继续。
 
-从旧版本升级时，V1.3.1 会自动尝试迁移历史运行数据；新目录已有数据时不会覆盖。
+从旧版本升级时，沿用 V1.3.1 引入的历史运行目录兼容逻辑；自定义目录启动时不会迁移到未使用的默认目录。
 
 ### 2. 创建一次性任务
 
@@ -68,7 +70,11 @@ SmartTodo 把主任务、子任务、提醒、附件和可选 AI 助手放在同
 
 ### 5. 使用知行助手（可选）
 
-打开“知行助手”的设置，选择 DeepSeek、OpenAI 或自定义 OpenAI-compatible 服务，再填写 API 地址、模型和 API Key。可以直接对话，也可以让助手分析当前任务。API Key 仅保存在本机运行数据中，不写入仓库或日志。
+点击全局齿轮进入设置中心的“常规”页；点击“知行助手”的设置进入同一个中心的“AI”页。中心统一提供常规、AI、存储三个模块，各模块分别操作，没有全局保存按钮。
+
+AI 页保留 DeepSeek、OpenAI 和自定义 OpenAI-compatible 服务，填写 API 地址、模型与 API Key 后点击保存即可用于对话与任务分析。地址支持 HTTP/HTTPS，尾部斜杠和字段空白会规范化；保存只验证本地字段格式，不联网验证 API Key。Key 默认遮蔽，可切换显示，关闭设置后重新遮蔽。配置以 `ai_provider_config` 和兼容的 `deepseek_api_key` 键保存在当前运行目录的 Chromium localStorage 中；遮蔽不等于加密，请勿分享运行数据。
+
+常规页的 Windows 开机自启动立即写入系统并读取实际状态，Windows 禁用的启动项不会显示成已启用。开机启动使用 `--hidden`，主窗口隐藏且不抢焦点，应用驻留托盘；手动启动正常显示主窗口，任务笺仍遵循已有可见性偏好。其他平台显示不可用。该行为已在 Electron API 边界测试，未改写测试主机的真实启动项。
 
 ## 界面导览
 
@@ -112,6 +118,7 @@ SmartTodo 把主任务、子任务、提醒、附件和可选 AI 助手放在同
 - DeepSeek、OpenAI 与自定义 OpenAI-compatible 服务；支持流式对话、会话管理和任务分析。
 - 深浅主题、75%–125% 亮度、系统通知、托盘常驻、单实例运行和减少动态效果模式。
 - 桌面任务笺支持五任务排序、完成同步、位置记忆、显示器变化回收和持久化失败回滚。
+- 统一三模块设置、Windows 隐藏启动及完整运行数据目录的安全迁移。
 
 ## 版本迭代
 
@@ -123,12 +130,13 @@ SmartTodo 把主任务、子任务、提醒、附件和可选 AI 助手放在同
 | V1.2.2 | 2026-09-22 | 修复时间输入黑屏与亮度悬停断层，增强操作反馈和可访问性。 |
 | V1.3.0 | 2026-09-22 | 新增周期任务、04:00 刷新、提醒锚点和未完成任务承接。 |
 | V1.3.1 | 2026-09-22 | 统一 SmartTodo 品牌、Windows 包名与运行数据目录，兼容迁移历史数据。 |
+| V1.4.0 | 2026-10-13 | 打包前源码审阅：统一设置中心、Windows 开机自启动、运行数据目录迁移。 |
 
 完整演进背景、兼容策略和各版本详细改动见 [`release/版本迭代说明.md`](release/版本迭代说明.md)；面向开发者的变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## 数据与升级兼容
 
-当前运行数据目录：
+默认运行数据目录（存储页显示实际当前路径和默认／自定义状态）：
 
 ```text
 %APPDATA%\SmartTodo\运行数据
@@ -140,7 +148,15 @@ SmartTodo 把主任务、子任务、提醒、附件和可选 AI 助手放在同
 %APPDATA%\SmartTodo\运行数据\task-attachments\<任务ID>\
 ```
 
-V1.3.1 兼容 V1.0.7 至 V1.3.0 的任务、草稿、主题、AI 配置、会话和受管附件。首次启动会优先从 `%APPDATA%\智能任务管家\运行数据` 迁移，若不存在则兼容更早的 `%APPDATA%\smart-assistant`；SmartTodo 新目录已有数据时不会覆盖。升级前建议备份整个“运行数据”目录，请勿分发其中的 API Key。
+V1.4.0 保留既有任务、草稿、主题、AI 配置、会话、localStorage 键名和受管附件结构。默认目录的历史兼容规则由 V1.3.1 引入：优先从 `%APPDATA%\智能任务管家\运行数据` 迁移，若不存在则兼容更早的 `%APPDATA%\smart-assistant`；默认目录已有 Chromium Local Storage 时不覆盖。升级前建议备份整个“运行数据”目录，请勿分发其中的 API Key。
+
+存储页的“数据目录”是完整 Electron 运行配置目录，包含 Chromium Local Storage 中的任务、草稿、AI 配置、会话和界面设置，以及 `task-attachments`、`widget-preferences.json` 等运行文件；不是附件目录或 EXE 所在目录。迁移不会移动可执行文件，也不提供云同步或自动清理旧备份。
+
+通过系统原生目录选择器选定空目录后，点击迁移会先刷新 Chromium 存储及任务笺偏好，保存请求并重启。渲染器只提交一次性目录选择凭证，不能直接提交路径。主进程在请求和下次启动时校验：拒绝根目录、用户主目录、与源重合或相互包含、会包围应用目录或引导配置的目录、非空目标及符号链接／junction；同时检查访问权限。
+
+重启后、Chromium 打开配置前，程序将整个目录复制到临时位置，比较源目录与副本的逐文件相对路径、大小和 SHA-256 清单。校验通过后提升副本，先记录恢复日志并把原目录保留为同级 `原目录名.backup-YYYYMMDD-HHMMSS`，再原子保存新路径为活动目录。引导文件 `%APPDATA%\SmartTodo\bootstrap.json` 留在运行目录之外。
+
+复制、校验或备份失败时不激活目标，继续使用原数据；若恢复原路径失败，可使用校验一致的原数据备份。中断恢复必须验证原数据清单并先持久化恢复路径；找不到可靠原数据或无法保存恢复状态时，启动会停止以免创建空配置。已提升但未激活的副本可能保留，不会覆盖无关目录。迁移结果在下次启动只提示一次。失败后请检查目标是否为空及路径权限，必要时恢复引导目录写权限，再重新选择目录；请保留原目录或时间戳备份。
 
 提醒和周期刷新由本地应用进程执行。SmartTodo 完全退出后不会在后台发送通知；重新启动时会补做周期刷新，并为当前未提醒的到期周期补发一次提醒。
 
@@ -163,26 +179,34 @@ npm test
 npm run test:ui
 ```
 
-V1.3.1 当前共有 153 项单元测试：151 项通过，2 项因当前 Windows 环境不支持创建符号链接而明确跳过，0 项失败。真实 Electron UI 流水线覆盖主窗口、周期刷新与提醒去重、8 组尺寸／缩放组合，以及任务笺在 100%／125%／150% 缩放下的关键行为。
+本次 V1.4.0 源码审阅的 `npm test`：277 项，275 项通过、0 项失败、2 项跳过。覆盖运行目录校验、复制／SHA-256 清单、备份失败与中断恢复、OS 启动状态、设置 IPC／一次性凭证、控制器、既有任务与附件；跳过的是两项既有附件文件符号链接用例，当前 Windows 主机不支持创建这些链接。
 
-### 构建
+Task 6 的真实 Electron 测试已通过：设置中心在 11 组尺寸／缩放、双主题下共 22 组场景（1366×768 至 2560×1440、480／639／640px 窄窗、125%／150% 缩放），验证长路径换行、零横向溢出、固定标题、可滚动内容与可达操作；并验证双入口、方向键／Home／End、ARIA 选中状态、焦点还原、Esc、Key 遮蔽和失败恢复。原工作台 8 组布局及任务笺三档缩放也通过。跨进程重启测试使用真实临时文件与生产迁移代码，但 Electron／OS 边界使用测试替身；未测试真实 Windows 自启动、用户数据或打包二进制。已记录既有开发 CSP 警告及任务笺测试中缺少部分 fixture IPC handler 的问题，没有将这些日志称为无警告通过。
+
+### 审阅后的构建
+
+用户审阅通过后，才可打包或执行 GitHub 操作。以下是后续构建命令，本次未执行；打包前还需把新增运行目录／登录启动／设置 IPC 模块纳入显式清单并验证产物。
 
 ```powershell
 npm run dist
 ```
 
-该命令生成 `dist/SmartTodo-1.3.1.exe`。发布副本位于 `release/V1.3.1/`；EXE 由 `.gitignore` 排除，应通过 GitHub Releases 分发。
+可执行文件名、大小、SHA-256、签名、GitHub 地址、推送和 Release 发布均待用户批准及打包后确认。`release/V1.4.0/` 目前只保存源码审阅说明；EXE 由 `.gitignore` 排除。
 
 ### 项目结构
 
 ```text
 SmartTodo/
 ├── main.js                         # 主窗口、任务笺、托盘、通知与生命周期
+├── runtime-data-manager.js         # 引导配置、目录事务与校验恢复
+├── login-startup.js                # Windows 启动项写入和 OS 状态读取
+├── app-settings-ipc.js             # 固定设置 IPC、原生选择和迁移凭证
 ├── preload.js / widget-preload.js  # 两个最小化隔离桥接
 ├── widget-controller.js            # 任务笺窗口、位置与可见性
 ├── task-attachment-store.js        # 受管附件事务
 ├── renderer/
 │   ├── index.html / app.js         # 主界面与业务逻辑
+│   ├── settings-controller.js      # 三模块设置、焦点、状态与安全凭证
 │   ├── widget.html / widget.js     # 桌面任务笺
 │   ├── recurrence-model.js         # 04:00 周期、日历投影与提醒指纹
 │   ├── task-model.js               # 任务规范化、周期刷新与筛选
@@ -199,6 +223,7 @@ SmartTodo/
 
 - 主窗口与任务笺均启用 `contextIsolation: true`、关闭 `nodeIntegration`。
 - preload 不暴露 `ipcRenderer`、文件系统、任意通道或任意绝对路径导入能力。
+- 设置 IPC 只接受当前主窗口、严格 payload 与短时一次性选择凭证；任务笺不能更改设置或迁移目录。
 - 任务笺只接收允许展示的任务字段，只能请求完成、隐藏自身或打开主界面。
 - 附件使用固定 IPC、随机磁盘名、规范路径校验和单调准备／持久化／提交事务。
 - 备注先按纯文本转义，仅允许用户主动通过系统浏览器打开 HTTP/HTTPS 链接。
