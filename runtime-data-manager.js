@@ -82,12 +82,25 @@ function normalizeRequest(value) {
       typeof value.createdAt !== "string" || !Number.isFinite(Date.parse(value.createdAt))) {
     throw new Error("The migration request is invalid.");
   }
-  return {
+  const request = {
     requestId: value.requestId,
     sourcePath: safeRuntimePath(value.sourcePath, os.homedir(), false),
     targetPath: safeRuntimePath(value.targetPath, os.homedir(), false),
     createdAt: value.createdAt
   };
+  if (value.phase !== undefined || value.recoveryPath !== undefined || value.recoveryManifestSha256 !== undefined) {
+    const recoveryPath = normalizeAbsolutePath(value.recoveryPath);
+    const prefix = `${path.basename(request.sourcePath)}.backup-`;
+    if (value.phase !== "backup-planned" || recoveryPath.length > 4096 ||
+        path.dirname(recoveryPath) !== path.dirname(request.sourcePath) ||
+        !path.basename(recoveryPath).startsWith(prefix) ||
+        !/^\d{8}-\d{6}$/.test(path.basename(recoveryPath).slice(prefix.length)) ||
+        typeof value.recoveryManifestSha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.recoveryManifestSha256)) {
+      throw new Error("The migration recovery journal is invalid.");
+    }
+    Object.assign(request, { phase: "backup-planned", recoveryPath, recoveryManifestSha256: value.recoveryManifestSha256 });
+  }
+  return request;
 }
 
 function normalizeResult(value) {
@@ -130,8 +143,8 @@ function readBootstrapState({ appDataPath, defaultRuntimePath = buildManagedUser
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 64 * 1024) throw new Error("Invalid bootstrap file.");
     const value = JSON.parse(fs.readFileSync(bootstrapPath, "utf8"));
     if (!isPlainObject(value) || value.schemaVersion !== SCHEMA_VERSION) throw new Error("Invalid bootstrap state.");
-    const activeRuntimePath = safeRuntimePath(value.activeRuntimePath);
     const pendingMigration = value.pendingMigration == null ? null : normalizeRequest(value.pendingMigration);
+    const activeRuntimePath = safeRuntimePath(value.activeRuntimePath, os.homedir(), !pendingMigration?.phase);
     if (pendingMigration && path.relative(activeRuntimePath, pendingMigration.sourcePath) !== "") throw new Error("Invalid migration source.");
     return { schemaVersion: SCHEMA_VERSION, activeRuntimePath, pendingMigration, migrationResult: normalizeResult(value.migrationResult) };
   } catch {
@@ -267,6 +280,49 @@ function cleanupOwnedStaging(stagingPath, parentPath, ownedStat) {
   fs.rmSync(normalized, { recursive: true, force: false });
 }
 
+function hashManifest(manifest) {
+  return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
+}
+
+function unavailableRuntimeError() {
+  const error = new Error("Original runtime data is unavailable. Startup was stopped to prevent an empty profile.");
+  error.code = "ERR_RUNTIME_DATA_UNAVAILABLE";
+  return error;
+}
+
+function isUsableRuntime(directoryPath, { homePath, appPath } = {}) {
+  try {
+    const normalized = safeRuntimePath(directoryPath, homePath);
+    if (appPath && containsPath(normalized, normalizeAbsolutePath(appPath))) return false;
+    return fs.lstatSync(normalized).isDirectory();
+  } catch { return false; }
+}
+
+function recoverJournaledMigration({ appDataPath, state, homePath, appPath, completedAt }) {
+  const pending = state.pendingMigration;
+  let runtimePath = pending.sourcePath;
+  if (!isUsableRuntime(runtimePath, { homePath, appPath })) {
+    runtimePath = pending.recoveryPath;
+    if (!isUsableRuntime(runtimePath, { homePath, appPath })) throw unavailableRuntimeError();
+    try {
+      if (hashManifest(buildFileManifest(runtimePath)) !== pending.recoveryManifestSha256) throw unavailableRuntimeError();
+    } catch { throw unavailableRuntimeError(); }
+  }
+  assertBootstrapOutsideRuntime(appDataPath, { sourcePath: runtimePath, targetPath: pending.targetPath });
+  const migrationResult = {
+    status: "failure", requestId: pending.requestId, sourcePath: pending.sourcePath,
+    targetPath: pending.targetPath, completedAt,
+    error: "The migration was interrupted. Existing original runtime data was recovered; the copied target was not activated."
+  };
+  if (runtimePath === pending.recoveryPath) migrationResult.backupPath = runtimePath;
+  try {
+    writeBootstrapState(appDataPath, { ...state, activeRuntimePath: runtimePath, pendingMigration: null, migrationResult }, pending.requestId);
+  } catch {
+    migrationResult.warning = "The recovery result could not be saved. The existing journal was retained for the next startup.";
+  }
+  return { runtimePath, migrationResult };
+}
+
 function performPendingMigration({ appDataPath, defaultRuntimePath = buildManagedUserDataPath(appDataPath), homePath, appPath, now = new Date() }) {
   const state = readBootstrapState({ appDataPath, defaultRuntimePath });
   const pending = state.pendingMigration;
@@ -280,6 +336,7 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
   let phase = "validation";
   const date = new Date(typeof now === "function" ? now() : now);
   const completedAt = Number.isFinite(date.getTime()) ? date.toISOString() : new Date().toISOString();
+  if (pending.phase === "backup-planned") return recoverJournaledMigration({ appDataPath, state, homePath, appPath, completedAt });
   const baseResult = {
     requestId: pending.requestId, sourcePath: pending.sourcePath,
     targetPath: pending.targetPath, completedAt
@@ -321,6 +378,13 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
       if (error.code !== "ENOENT") throw error;
     }
     if (backupExists) throw new Error("The backup name is already in use.");
+    phase = "journal";
+    const journaledPending = normalizeRequest({
+      ...pending, phase: "backup-planned", recoveryPath: backupPath,
+      recoveryManifestSha256: hashManifest(sourceManifest)
+    });
+    writeBootstrapState(appDataPath, { ...state, pendingMigration: journaledPending }, pending.requestId);
+    phase = "backup";
     fs.renameSync(sourcePath, backupPath);
     backupCreated = true;
 
@@ -336,6 +400,7 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
       verification: "Runtime data verification failed. The original directory is still active.",
       promotion: "The target directory could not be activated. The original directory is still active.",
       backup: "The timestamped backup could not be created. The original directory is still active; the verified target was retained.",
+      journal: "The recovery journal could not be saved. The original directory was not moved; the verified target was retained.",
       bootstrap: "The new runtime path could not be saved. The original directory is still active; the verified target was retained."
     };
     const migrationResult = { status: "failure", ...baseResult, error: summaries[phase] };
@@ -361,6 +426,7 @@ function performPendingMigration({ appDataPath, defaultRuntimePath = buildManage
     try { cleanupOwnedStaging(stagingPath, parentPath, ownedStat); } catch {
       migrationResult.warning = "The request staging directory could not be safely removed and was retained.";
     }
+    if (!isUsableRuntime(runtimePath, { homePath, appPath })) throw unavailableRuntimeError();
     try { writeBootstrapState(appDataPath, { ...state, activeRuntimePath: runtimePath, pendingMigration: null, migrationResult }, pending.requestId); } catch {
       migrationResult.warning = `${migrationResult.warning || ""} The migration result could not be saved. Original data was retained.`.trim();
     }
