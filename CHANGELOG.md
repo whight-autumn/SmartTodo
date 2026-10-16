@@ -14,6 +14,12 @@
 - 将 V1.2 设计系统、使用者批准的桌面/任务笺稿、六张最终截图以及最终评审裁定归档到 `docs/99_archive/ui-evidence/v1.2/`。
 - 删除 `.impeccable/` 中可再生的构建网格、scaffold、差异切图/报告、未采用方案和失效状态缓存；运行代码与当前 README 截图未改动。
 
+### T3 主进程模块归位
+
+- 保留根入口 `main.js`，将 10 个主进程支持模块迁入 `src/main/` 的 paths、runtime、startup、settings、attachments、widget 职责目录。
+- 将主窗口与任务笺 preload 迁入 `src/preload/`，同步生产入口、正式测试及 electron-builder 文件清单；导出、IPC 通道、preload API 和数据契约不变。
+- 路径迁移后的预期 RED 为旧测试入口无法找到根模块；同步引用后，首次定向回归发现 `tests/preload.test.js` 仍有一个无扩展名旧入口。根因是初始引用检索未覆盖 `require.resolve("../preload")` 形式；修正该唯一遗漏后定向测试与完整回归通过。
+
 ### 决策留痕
 
 | # | 决策 | 决定人 | 依据 | 影响 |
@@ -31,6 +37,8 @@
 
 - `git diff --check`：PASS。
 - `rg -n "version: 1.4.0|\\[EC v1.4.0 loaded\\]" ENGINEERING_CHARTER.md AGENTS.md`：PASS。
+- `node --test tests/preload.test.js`：10 项通过，0 失败。
+- `npm test`：312 项；310 通过、0 失败、2 项因 Windows 符号链接能力跳过。
 
 ### 回滚方式
 

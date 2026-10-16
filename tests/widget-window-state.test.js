@@ -5,9 +5,9 @@ const {
   sanitizeWidgetPreferences,
   getDefaultWidgetBounds,
   clampWidgetBounds
-} = require("../widget-window-state.js");
+} = require("../src/main/widget/widget-window-state.js");
 const { EventEmitter } = require("node:events");
-const { createWidgetController } = require("../widget-controller.js");
+const { createWidgetController } = require("../src/main/widget/widget-controller.js");
 
 const primary = { id: 1, workArea: { x: 0, y: 0, width: 1920, height: 1040 } };
 

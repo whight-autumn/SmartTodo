@@ -5,7 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 function loadWidgetPreload() {
-  const source = fs.readFileSync(path.join(__dirname, "..", "widget-preload.js"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "preload", "widget-preload.js"), "utf8");
   const invokes = [];
   const listeners = new Map();
   const removals = [];

@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
-const { registerWidgetIpc } = require("../widget-ipc.js");
+const { registerWidgetIpc } = require("../src/main/widget/widget-ipc.js");
 
 const HANDLED = [
   "widget:publish-snapshot",

@@ -9,7 +9,7 @@ test("main process wires the widget through fixed controller and IPC seams", () 
   assert.match(source, /createWidgetController/);
   assert.match(source, /registerWidgetIpc/);
   assert.match(source, /WidgetModel\.normalizeWidgetSnapshot/);
-  assert.match(source, /preloadPath:\s*path\.join\(__dirname,\s*"widget-preload\.js"\)/);
+  assert.match(source, /preloadPath:\s*path\.join\(__dirname,\s*"src",\s*"preload",\s*"widget-preload\.js"\)/);
   assert.match(source, /htmlPath:\s*path\.join\(__dirname,\s*"renderer",\s*"widget\.html"\)/);
 });
 

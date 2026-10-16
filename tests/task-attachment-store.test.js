@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
-const { createTaskAttachmentStore } = require("../task-attachment-store");
+const { createTaskAttachmentStore } = require("../src/main/attachments/task-attachment-store.js");
 
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 

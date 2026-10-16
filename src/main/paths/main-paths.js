@@ -17,7 +17,7 @@ function buildTaskAttachmentPath(managedUserDataPath) {
 }
 
 function resolveRuntimeDataPath(options) {
-  const { performPendingMigration } = require("./runtime-data-manager.js");
+  const { performPendingMigration } = require("../runtime/runtime-data-manager.js");
   return performPendingMigration(options);
 }
 

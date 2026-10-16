@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const { buildManagedUserDataPath, buildTaskAttachmentPath } = require("../main-paths.js");
+const { buildManagedUserDataPath, buildTaskAttachmentPath } = require("../src/main/paths/main-paths.js");
 
 const mainPath = path.join(__dirname, "..", "main.js");
 const source = fs.readFileSync(mainPath, "utf8");
@@ -53,12 +53,12 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   }
   const readBootstrapState = options => {
     calls.push(["bootstrap"]);
-    if (productionPaths) return require("../runtime-data-manager.js").readBootstrapState(options);
+    if (productionPaths) return require("../src/main/runtime/runtime-data-manager.js").readBootstrapState(options);
     return { activeRuntimePath: runtimePath, pendingMigration: pending ? { requestId: "queued" } : null };
   };
   const performPendingMigration = options => {
     calls.push(["migration", options]);
-    if (productionPaths) return require("../main-paths.js").resolveRuntimeDataPath(options);
+    if (productionPaths) return require("../src/main/paths/main-paths.js").resolveRuntimeDataPath(options);
     if (failure) throw Object.assign(new Error("unbounded ".repeat(1000)), { code: "ERR_RUNTIME_DATA_UNAVAILABLE" });
     return { runtimePath, migrationResult: null };
   };
@@ -96,19 +96,18 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
   };
   const overrides = {
     electron,
-    "./main-paths": {
+    "./src/main/paths/main-paths.js": {
       buildManagedUserDataPath, buildTaskAttachmentPath,
       resolveRuntimeDataPath: performPendingMigration,
       migrateLegacyUserData() { calls.push(["legacy"]); }
     },
-    "./runtime-data-manager.js": { readBootstrapState, performPendingMigration },
-    "./runtime-data-manager": { readBootstrapState, performPendingMigration },
-    "./task-attachment-store": {
+    "./src/main/runtime/runtime-data-manager.js": { readBootstrapState, performPendingMigration },
+    "./src/main/attachments/task-attachment-store.js": {
       createTaskAttachmentStore(options) { calls.push(["attachments", options]); return {}; }
     },
-    "./task-attachment-ipc": { registerTaskAttachmentIpc: () => ({ openExternalUrl: async () => {} }) },
+    "./src/main/attachments/task-attachment-ipc.js": { registerTaskAttachmentIpc: () => ({ openExternalUrl: async () => {} }) },
     "./renderer/widget-model.js": { normalizeWidgetSnapshot() {} },
-    "./widget-controller.js": {
+    "./src/main/widget/widget-controller.js": {
       createWidgetController(options) {
         calls.push(["widgetController", options.userDataPath]);
         return {
@@ -118,13 +117,13 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
         };
       }
     },
-    "./widget-ipc.js": { registerWidgetIpc: () => ({ dispose() {} }) }
+    "./src/main/widget/widget-ipc.js": { registerWidgetIpc: () => ({ dispose() {} }) }
   };
-  overrides["./app-settings-ipc.js"] = {
+  overrides["./src/main/settings/app-settings-ipc.js"] = {
     registerAppSettingsIpc(options) {
       calls.push(["settingsRegistration", options]);
       if (settingsPaths || productionPaths) {
-        return require("../app-settings-ipc.js").registerAppSettingsIpc({ ...options, ...settingsPaths });
+        return require("../src/main/settings/app-settings-ipc.js").registerAppSettingsIpc({ ...options, ...settingsPaths });
       }
       return { dispose() { calls.push(["settingsDispose"]); } };
     }
@@ -191,8 +190,8 @@ for (const interrupted of [false, true]) {
     const request = { ...productionPaths, sourcePath, targetPath, requestId: "restart-boundary-fixture" };
     require("node:child_process").execFileSync(process.execPath, ["-e",
       'require(process.argv[1]).queueMigration(JSON.parse(process.argv[2]));',
-      require.resolve("../runtime-data-manager.js"), JSON.stringify(request)]);
-    const manager = require("../runtime-data-manager.js");
+      require.resolve("../src/main/runtime/runtime-data-manager.js"), JSON.stringify(request)]);
+    const manager = require("../src/main/runtime/runtime-data-manager.js");
     assert.equal(manager.readBootstrapState(productionPaths).pendingMigration.targetPath, targetPath);
     assert.equal(fs.existsSync(targetPath), false, "queueing cannot activate or copy the destination");
     if (interrupted) {
@@ -367,7 +366,7 @@ test("strict widget persistence failure in main preparation prevents queue, rela
   assert.equal(response.ok, false);
   assert.equal(response.error.code, "MIGRATION_FAILED");
   assert.ok(calls.some(call => call[0] === "widgetStrictFlush"));
-  assert.equal(fs.existsSync(require("../runtime-data-manager.js").buildBootstrapPath(settingsPaths.appDataPath)), false);
+  assert.equal(fs.existsSync(require("../src/main/runtime/runtime-data-manager.js").buildBootstrapPath(settingsPaths.appDataPath)), false);
   assert.equal(calls.some(call => ["relaunch", "quit"].includes(call[0])), false);
 });
 
@@ -381,7 +380,7 @@ test("migration uses only supported Electron 31 storage persistence before widge
     targetPath: path.join(root, "target"), homePath: path.join(root, "home"), appPath: path.join(root, "app")
   };
   const { calls, handlers, sessionAccesses } = runMain({ settingsPaths });
-  const { buildBootstrapPath, readBootstrapState } = require("../runtime-data-manager.js");
+  const { buildBootstrapPath, readBootstrapState } = require("../src/main/runtime/runtime-data-manager.js");
   const bootstrapPath = buildBootstrapPath(settingsPaths.appDataPath);
   const rename = fs.renameSync;
   t.mock.method(fs, "renameSync", (from, to) => {

@@ -1,9 +1,9 @@
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
-const { buildManagedUserDataPath } = require("./main-paths.js");
-const { readBootstrapState, queueMigration, consumeMigrationResult } = require("./runtime-data-manager.js");
-const { readAutoStartState, writeAutoStartState } = require("./login-startup.js");
-const { resolveAppLaunchSpec } = require("./app-launch-spec.js");
+const { buildManagedUserDataPath } = require("../paths/main-paths.js");
+const { readBootstrapState, queueMigration, consumeMigrationResult } = require("../runtime/runtime-data-manager.js");
+const { readAutoStartState, writeAutoStartState } = require("../startup/login-startup.js");
+const { resolveAppLaunchSpec } = require("../startup/app-launch-spec.js");
 
 const SELECTION_LIFETIME_MS = 5 * 60 * 1000;
 const SELECTION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

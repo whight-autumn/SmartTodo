@@ -5,7 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 function loadPreload() {
-  const source = fs.readFileSync(path.join(__dirname, "..", "preload.js"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "preload", "main-preload.js"), "utf8");
   const calls = [];
   let desktop;
 
@@ -77,7 +77,7 @@ test("preload exposes no renderer-controlled path import API", () => {
 });
 
 test("preload widget bridge uses fixed channels and exact listener cleanup", async () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "preload.js"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "preload", "main-preload.js"), "utf8");
   assert.match(source, /ipcRenderer\.invoke\("widget:publish-snapshot"/);
   assert.match(source, /ipcRenderer\.invoke\("widget:task-action-result"/);
   assert.match(source, /ipcRenderer\.invoke\("widget:get-visible"/);
@@ -169,7 +169,7 @@ test("preload uses fixed transaction completion channels", async () => {
 });
 require("node:test")("preload exposes task reconciliation only through a fixed IPC channel", () => {
   const localAssert = require("node:assert/strict");
-  const source = require("node:fs").readFileSync(require.resolve("../preload"), "utf8");
+  const source = require("node:fs").readFileSync(require.resolve("../src/preload/main-preload.js"), "utf8");
 
   localAssert.match(source, /reconcileTaskAttachments/);
   localAssert.match(source, /ipcRenderer\.invoke\("task-attachment:reconcile"/);

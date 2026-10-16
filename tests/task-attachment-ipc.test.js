@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 
-const { registerTaskAttachmentIpc } = require("../task-attachment-ipc");
+const { registerTaskAttachmentIpc } = require("../src/main/attachments/task-attachment-ipc.js");
 
 const ATTACHMENT_PAYLOAD = {
   taskId: "task_1",
@@ -281,7 +281,7 @@ test("delegates cleanup for every validated task ID", async () => {
 });
 require("node:test")("reconciliation uses a fixed validated IPC channel", () => {
   const localAssert = require("node:assert/strict");
-  const source = require("node:fs").readFileSync(require.resolve("../task-attachment-ipc"), "utf8");
+  const source = require("node:fs").readFileSync(require.resolve("../src/main/attachments/task-attachment-ipc.js"), "utf8");
 
   localAssert.match(source, /task-attachment:reconcile/);
   localAssert.match(source, /validateReconciliationReferences/);

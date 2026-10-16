@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { registerAppSettingsIpc } = require("../app-settings-ipc.js");
-const { readBootstrapState, buildBootstrapPath, performPendingMigration } = require("../runtime-data-manager.js");
+const { registerAppSettingsIpc } = require("../src/main/settings/app-settings-ipc.js");
+const { readBootstrapState, buildBootstrapPath, performPendingMigration } = require("../src/main/runtime/runtime-data-manager.js");
 
 const CHANNELS = ["settings:get", "settings:set-auto-start", "settings:choose-data-directory",
   "settings:request-data-migration", "settings:consume-migration-result"];

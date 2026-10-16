@@ -13,7 +13,7 @@ const {
   buildFileManifest,
   performPendingMigration,
   consumeMigrationResult
-} = require("../runtime-data-manager.js");
+} = require("../src/main/runtime/runtime-data-manager.js");
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "smarttodo-runtime-"));
@@ -638,7 +638,7 @@ function interruptAfterBackupRename(options) {
     };
     manager.performPendingMigration({ ...options, now: "2026-10-13T02:03:04.000Z" });
   `;
-  return spawnSync(process.execPath, ["-e", script, JSON.stringify(options), path.resolve(__dirname, "../runtime-data-manager.js")], { encoding: "utf8" });
+  return spawnSync(process.execPath, ["-e", script, JSON.stringify(options), path.resolve(__dirname, "../src/main/runtime/runtime-data-manager.js")], { encoding: "utf8" });
 }
 
 test("restart after interruption between source rename and active-path commit selects original backup", t => {

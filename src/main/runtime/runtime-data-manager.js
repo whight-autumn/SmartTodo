@@ -2,7 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
 const { randomUUID, createHash } = require("node:crypto");
-const { buildManagedUserDataPath } = require("./main-paths.js");
+const { buildManagedUserDataPath } = require("../paths/main-paths.js");
 
 const SCHEMA_VERSION = 1;
 const REQUEST_ID = /^[A-Za-z0-9_-]{1,128}$/;

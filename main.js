@@ -10,14 +10,14 @@ const {
   buildTaskAttachmentPath,
   resolveRuntimeDataPath,
   migrateLegacyUserData: migrateLegacyUserDataFiles
-} = require("./main-paths");
-const { readBootstrapState } = require("./runtime-data-manager.js");
-const { createTaskAttachmentStore } = require("./task-attachment-store");
-const { registerTaskAttachmentIpc } = require("./task-attachment-ipc");
+} = require("./src/main/paths/main-paths.js");
+const { readBootstrapState } = require("./src/main/runtime/runtime-data-manager.js");
+const { createTaskAttachmentStore } = require("./src/main/attachments/task-attachment-store.js");
+const { registerTaskAttachmentIpc } = require("./src/main/attachments/task-attachment-ipc.js");
 const WidgetModel = require("./renderer/widget-model.js");
-const { createWidgetController } = require("./widget-controller.js");
-const { registerWidgetIpc } = require("./widget-ipc.js");
-const { registerAppSettingsIpc } = require("./app-settings-ipc.js");
+const { createWidgetController } = require("./src/main/widget/widget-controller.js");
+const { registerWidgetIpc } = require("./src/main/widget/widget-ipc.js");
+const { registerAppSettingsIpc } = require("./src/main/settings/app-settings-ipc.js");
 
 // Chromium's accelerated native date/time editor can leave some Windows GPU
 // combinations on a black compositor frame after segment text is selected.
@@ -101,7 +101,7 @@ function createMainWindow() {
     icon: path.join(__dirname, "assets/icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "src", "preload", "main-preload.js"),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -243,7 +243,7 @@ app.whenReady().then(() => {
     fs,
     path,
     userDataPath: app.getPath("userData"),
-    preloadPath: path.join(__dirname, "widget-preload.js"),
+    preloadPath: path.join(__dirname, "src", "preload", "widget-preload.js"),
     htmlPath: path.join(__dirname, "renderer", "widget.html"),
     onVisibilityChanged(visible) {
       if (mainWindow && !mainWindow.isDestroyed()) {

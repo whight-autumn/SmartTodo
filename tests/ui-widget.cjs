@@ -5,9 +5,9 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const WidgetModel = require("../renderer/widget-model.js");
-const { registerWidgetIpc } = require("../widget-ipc.js");
-const { createWidgetController } = require("../widget-controller.js");
-const { clampWidgetBounds } = require("../widget-window-state.js");
+const { registerWidgetIpc } = require("../src/main/widget/widget-ipc.js");
+const { createWidgetController } = require("../src/main/widget/widget-controller.js");
+const { clampWidgetBounds } = require("../src/main/widget/widget-window-state.js");
 
 const projectRoot = path.resolve(__dirname, "..");
 const testDataPath = path.join(os.tmpdir(), `smarttodo-widget-${process.pid}`);
@@ -77,7 +77,7 @@ app.whenReady().then(async () => {
       width: 1000,
       height: 720,
       webPreferences: {
-        preload: path.join(projectRoot, "preload.js"),
+        preload: path.join(projectRoot, "src", "preload", "main-preload.js"),
         contextIsolation: true,
         nodeIntegration: false,
         backgroundThrottling: false
@@ -100,7 +100,7 @@ app.whenReady().then(async () => {
       fs,
       path,
       userDataPath: testDataPath,
-      preloadPath: path.join(projectRoot, "widget-preload.js"),
+      preloadPath: path.join(projectRoot, "src", "preload", "widget-preload.js"),
       htmlPath: path.join(projectRoot, "renderer", "widget.html"),
       onVisibilityChanged(visible) {
         if (mainWindow && !mainWindow.isDestroyed()) {

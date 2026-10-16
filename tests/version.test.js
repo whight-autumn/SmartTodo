@@ -29,7 +29,7 @@ test("visible version and invalid-version fallback agree with V1.5.0", () => {
   assert.match(read("renderer/index.html"), /id="app-version"[^>]*>V1\.5\.0<\/span>/);
   assert.match(read("renderer/widget.html"), /<span class="widget-version">V1\.5\.0<\/span>/);
   assert.match(read("renderer/app.js"), /window\.desktop\?\.version \|\| "1\.5\.0"/);
-  assert.match(read("preload.js"), /npm_package_version \|\| "1\.5\.0"/);
+  assert.match(read("src/preload/main-preload.js"), /npm_package_version \|\| "1\.5\.0"/);
 });
 
 test("README identifies the current V1.5.0 release", () => {
@@ -61,13 +61,19 @@ test("Windows portable package uses SmartTodo identity and filename", () => {
 });
 
 test("Windows portable package includes every main-process settings module", () => {
-  for (const file of ["app-launch-spec.js", "runtime-data-manager.js", "login-startup.js", "app-settings-ipc.js"]) {
-    assert.ok(pkg.build.files.includes(file), `${file} must be packaged`);
+  assert.ok(pkg.build.files.includes("src/**/*"), "src tree must be packaged");
+  for (const file of [
+    "src/main/startup/app-launch-spec.js",
+    "src/main/runtime/runtime-data-manager.js",
+    "src/main/startup/login-startup.js",
+    "src/main/settings/app-settings-ipc.js"
+  ]) {
+    assert.ok(fs.existsSync(path.join(root, file)), `${file} must exist in the packaged src tree`);
   }
 });
 
 test("runtime fallbacks no longer reference V1.0.7", () => {
-  for (const file of ["preload.js", "renderer/index.html", "renderer/app.js"]) {
+  for (const file of ["src/preload/main-preload.js", "renderer/index.html", "renderer/app.js"]) {
     assert.doesNotMatch(fs.readFileSync(path.join(root, file), "utf8"), /1\.0\.7/);
   }
 });

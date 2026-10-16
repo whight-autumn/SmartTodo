@@ -9,7 +9,7 @@ const {
   buildTaskAttachmentPath,
   migrateLegacyUserData,
   resolveRuntimeDataPath
-} = require("../main-paths.js");
+} = require("../src/main/paths/main-paths.js");
 
 function createTemporaryAppData(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "smarttodo-migration-"));

@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const modulePath = path.join(__dirname, "..", "login-startup.js");
+const modulePath = path.join(__dirname, "..", "src", "main", "startup", "login-startup.js");
 const adapters = fs.existsSync(modulePath) ? require(modulePath) : {};
 const execPath = "C:\\SmartTodo\\SmartTodo.exe";
 
