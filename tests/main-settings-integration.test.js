@@ -45,6 +45,7 @@ function runMain({ custom = false, pending = false, failure = false, hidden = fa
     on() {}
     isDestroyed() { return false; }
     isMinimized() { return minimized; }
+    setTitleBarOverlay(options) { calls.push(["titleBarOverlay", options]); }
     restore() { calls.push(["restore"]); }
     show() { calls.push(["show"]); }
     focus() { calls.push(["focus"]); }
@@ -275,6 +276,33 @@ test("manual launch shows and focuses the main window", () => {
   const { calls } = runMain();
   assert.equal(calls.find(call => call[0] === "window")[1].show, true);
   for (const effect of ["show", "focus", "webFocus"]) assert.ok(calls.some(call => call[0] === effect));
+});
+
+test("main window replaces the Windows title bar with a transparent native overlay", () => {
+  const { calls } = runMain();
+  const options = calls.find(call => call[0] === "window")[1];
+  assert.equal(options.titleBarStyle, "hidden");
+  assert.equal(options.titleBarOverlay.color, "#00000000");
+  assert.equal(options.titleBarOverlay.symbolColor, "#ebe6dc");
+  assert.equal(options.titleBarOverlay.height, 36);
+});
+
+test("window chrome theme accepts only the live main renderer and exact light or dark values", async () => {
+  const { calls, handlers } = runMain();
+  const handler = handlers.get("window:set-theme");
+  assert.equal(typeof handler, "function");
+  const sender = calls.find(call => call[0] === "settingsRegistration")[1].getMainWindow().webContents;
+
+  assert.equal(await handler({ sender }, { theme: "light" }), true);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.findLast(call => call[0] === "titleBarOverlay")[1])), {
+    color: "#00000000",
+    symbolColor: "#17211e",
+    height: 36
+  });
+  assert.throws(() => handler({ sender: { id: 99 } }, { theme: "light" }));
+  for (const payload of [null, {}, { theme: "system" }, { theme: "light", extra: true }]) {
+    assert.throws(() => handler({ sender }, payload));
+  }
 });
 
 test("clicking a task reminder restores and focuses the main window", () => {

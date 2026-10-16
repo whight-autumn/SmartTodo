@@ -1,3 +1,15 @@
 {
-  "buildPath": "comp"
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "georgia",
+        "createdAt": "2026-10-16T02:20:37.390Z",
+        "reason": "Existing SmartTodo English wordmark exception documented in DESIGN.md; user confirmed preserving the established brand while optimizing layout."
+      }
+    ]
+  }
 }

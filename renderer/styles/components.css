@@ -15,12 +15,8 @@
 }
 .brand-version { color: var(--accent); font: 600 .94rem/1 var(--font-body); letter-spacing: .06em; }
 .brand-owner { margin-top: 5px; color: var(--text-muted); font-size: .72rem; }
-.brand-principle { display: inline-flex; order: 3; align-items: center; min-height: 36px; color: var(--accent); font-size: .84rem; letter-spacing: .01em; white-space: nowrap; }
+.brand-principle { display: inline-flex; align-items: center; min-height: 36px; color: var(--accent); font-size: .84rem; letter-spacing: .01em; white-space: nowrap; }
 
-.brand-tools #task-widget-toggle { order: 1; }
-.brand-tools #theme-toggle { order: 2; }
-.brand-tools .brightness-control { order: 4; }
-.brand-tools #global-settings-btn { order: 5; }
 .brightness-control {
   position: relative;
   justify-content: center;
@@ -470,3 +466,10 @@ dialog::backdrop { background: rgba(17, 24, 21, .48); }
   .msg { max-width: 96%; }
   .dialog-sheet__head, .dialog-sheet__body, .dialog-sheet__foot { padding-inline: 16px; }
 }
+.app-shell button,
+.app-shell input,
+.app-shell select,
+.app-shell textarea,
+.app-shell label,
+.app-shell a,
+.app-shell [role="button"] { -webkit-app-region: no-drag; }

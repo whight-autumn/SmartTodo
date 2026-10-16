@@ -109,6 +109,28 @@ test("V1.2 shell preserves behavioral IDs and adds semantic regions", () => {
   assert.match(html, /class="[^"]*ai-sidecar/);
 });
 
+test("desktop titlebar centers the brand and tools across one balanced 114px header", () => {
+  assert.match(html, /class="window-drag-region"[^>]*aria-hidden="true"/);
+  assert.match(layoutCss, /\.window-drag-region\s*\{[^}]*-webkit-app-region:\s*drag/s);
+  assert.match(layoutCss, /\.window-drag-region\s*\{[^}]*height:\s*36px[^}]*background:\s*transparent/s);
+  assert.match(layoutCss, /\.app-shell\s*\{[^}]*padding:\s*0 20px 10px/s);
+  assert.match(layoutCss, /\.brand-bar\s*\{[^}]*min-height:\s*114px/s);
+  assert.match(layoutCss, /@media \(max-width:\s*720px\)[\s\S]*?\.app-shell\s*\{[^}]*padding-top:\s*36px/s);
+  assert.match(layoutCss, /@media \(max-width:\s*720px\)[\s\S]*?\.brand-bar\s*\{[^}]*min-height:\s*78px/s);
+  assert.match(componentsCss, /button,[^}]*-webkit-app-region:\s*no-drag/s);
+});
+
+test("header controls follow the same DOM and visual order for keyboard navigation", () => {
+  const widget = html.indexOf('id="task-widget-toggle"');
+  const theme = html.indexOf('id="theme-toggle"');
+  const principle = html.indexOf('class="brand-principle"');
+  const brightness = html.indexOf('class="brightness-control"');
+  const settings = html.indexOf('id="global-settings-btn"');
+  assert.ok(widget < theme && theme < principle && principle < brightness && brightness < settings);
+  assert.doesNotMatch(componentsCss, /brand-tools[^\n]*order:|brand-tools #[^\n]*\{\s*order:/);
+  assert.doesNotMatch(componentsCss, /\.brand-principle\s*\{[^}]*order:/s);
+});
+
 test("runtime scripts and styles are local", () => {
   assert.doesNotMatch(html, /<(script|link)[^>]+(src|href)=["']https?:\/\//i);
   assert.ok(html.indexOf("icon-utils.js") < html.indexOf("app.js"));

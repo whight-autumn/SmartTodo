@@ -76,6 +76,15 @@ let settingsIpcRegistration = null;
 let isQuitting = false;
 const APP_VERSION = app.getVersion();
 const startHidden = process.argv.includes("--hidden");
+const WINDOW_TITLE_BAR_HEIGHT = 36;
+
+function buildTitleBarOverlay(theme = "dark") {
+  return {
+    color: "#00000000",
+    symbolColor: theme === "light" ? "#17211e" : "#ebe6dc",
+    height: WINDOW_TITLE_BAR_HEIGHT
+  };
+}
 
 /* ---------- 创建主窗口 ---------- */
 function createMainWindow() {
@@ -87,6 +96,8 @@ function createMainWindow() {
     minHeight: 620,
     title: `SmartTodo V${APP_VERSION} · by 萤火`,
     backgroundColor: "#111815",
+    titleBarStyle: "hidden",
+    titleBarOverlay: buildTitleBarOverlay(),
     icon: path.join(__dirname, "assets/icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
@@ -211,6 +222,18 @@ ipcMain.handle("notify", (event, { title, body }) => {
 
 ipcMain.handle("get-app-version", () => app.getVersion());
 ipcMain.handle("get-data-path", () => runtimePath);
+ipcMain.handle("window:set-theme", (event, payload) => {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) {
+    throw new Error("窗口主题请求来源无效");
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
+      Object.keys(payload).length !== 1 || !Object.hasOwn(payload, "theme") ||
+      !["light", "dark"].includes(payload.theme)) {
+    throw new Error("窗口主题参数无效");
+  }
+  mainWindow.setTitleBarOverlay(buildTitleBarOverlay(payload.theme));
+  return true;
+});
 
 /* ---------- 应用生命周期 ---------- */
 app.whenReady().then(() => {

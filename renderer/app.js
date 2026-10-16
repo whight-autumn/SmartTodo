@@ -239,6 +239,7 @@ const els = {
 function initTheme() {
   const saved = localStorage.getItem(STORAGE_KEYS.theme) || "dark";
   document.documentElement.setAttribute("data-theme", saved);
+  void window.desktop?.setWindowTheme?.(saved).catch(() => false);
   els.themeBtn.dataset.theme = saved;
   els.themeBtn.setAttribute("aria-label", saved === "dark" ? "切换为浅色主题" : "切换为深色主题");
 }
@@ -248,6 +249,7 @@ function toggleTheme() {
   const next = current === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
   localStorage.setItem(STORAGE_KEYS.theme, next);
+  void window.desktop?.setWindowTheme?.(next).catch(() => false);
   void publishTaskWidgetSnapshot();
   els.themeBtn.dataset.theme = next;
   els.themeBtn.setAttribute("aria-label", next === "dark" ? "切换为浅色主题" : "切换为深色主题");
@@ -2178,7 +2180,7 @@ if (window.desktop?.onTaskWidgetAction) {
 }
 
 function renderInitialVersion() {
-  const fallback = window.desktop?.version || "1.4.2";
+  const fallback = window.desktop?.version || "1.5.0";
   const current = uiAppearance.formatDisplayVersion(fallback);
   if (els.version) els.version.textContent = `V${current}`;
 

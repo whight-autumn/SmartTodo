@@ -10,46 +10,46 @@ const root = path.resolve(__dirname, "..");
 
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("package and lock root identify the V1.4.2 release", () => {
-  assert.equal(pkg.version, "1.4.2");
-  assert.equal(lock.version, "1.4.2");
-  assert.equal(lock.packages[""].version, "1.4.2");
+test("package and lock root identify the V1.5.0 release", () => {
+  assert.equal(pkg.version, "1.5.0");
+  assert.equal(lock.version, "1.5.0");
+  assert.equal(lock.packages[""].version, "1.5.0");
 });
 
-test("visible version and invalid-version fallback agree with V1.4.2", () => {
-  assert.equal(formatDisplayVersion(pkg.version), "1.4.2");
+test("visible version and invalid-version fallback agree with V1.5.0", () => {
+  assert.equal(formatDisplayVersion(pkg.version), "1.5.0");
   assert.equal(formatDisplayVersion("v1.3.8"), "1.3.8");
-  assert.equal(formatDisplayVersion("invalid"), "1.4.2");
+  assert.equal(formatDisplayVersion("invalid"), "1.5.0");
 
   for (const file of ["renderer/index.html", "renderer/widget.html"]) {
-    assert.match(read(file), /V1\.4\.2/);
+    assert.match(read(file), /V1\.5\.0/);
     assert.doesNotMatch(read(file), /1\.3\.1/);
   }
-  assert.match(read("renderer/index.html"), /<title>SmartTodo V1\.4\.2/);
-  assert.match(read("renderer/index.html"), /id="app-version"[^>]*>V1\.4\.2<\/span>/);
-  assert.match(read("renderer/widget.html"), /<span class="widget-version">V1\.4\.2<\/span>/);
-  assert.match(read("renderer/app.js"), /window\.desktop\?\.version \|\| "1\.4\.2"/);
-  assert.match(read("preload.js"), /npm_package_version \|\| "1\.4\.2"/);
+  assert.match(read("renderer/index.html"), /<title>SmartTodo V1\.5\.0/);
+  assert.match(read("renderer/index.html"), /id="app-version"[^>]*>V1\.5\.0<\/span>/);
+  assert.match(read("renderer/widget.html"), /<span class="widget-version">V1\.5\.0<\/span>/);
+  assert.match(read("renderer/app.js"), /window\.desktop\?\.version \|\| "1\.5\.0"/);
+  assert.match(read("preload.js"), /npm_package_version \|\| "1\.5\.0"/);
 });
 
-test("README identifies the current V1.4.2 release", () => {
+test("README identifies the current V1.5.0 release", () => {
   const contents = read("README.md");
-  assert.match(contents, /version-1\.4\.2/);
-  assert.match(contents, /当前版本：V1\.4\.2/);
-  assert.match(contents, /修复.*开机自启动/);
+  assert.match(contents, /version-1\.5\.0/);
+  assert.match(contents, /当前源码版本：V1\.5\.0/);
+  assert.match(contents, /标题栏/);
 });
 
-test("changelog and iteration notes include the V1.4.2 release", () => {
-  assert.match(read("CHANGELOG.md"), /## \[1\.4\.2\]/);
-  assert.match(read("release/版本迭代说明.md"), /## V1\.4\.2/);
+test("changelog and iteration notes include the V1.5.0 release", () => {
+  assert.match(read("CHANGELOG.md"), /## \[1\.5\.0\]/);
+  assert.match(read("release/版本迭代说明.md"), /## V1\.5\.0/);
 });
 
-test("V1.4.2 release note documents the auto-start readback fix", () => {
-  const notePath = path.join(root, "release/V1.4.2/版本说明.txt");
-  assert.ok(fs.existsSync(notePath), "V1.4.2 release note must exist");
-  const contents = read("release/V1.4.2/版本说明.txt");
-  assert.match(contents, /开机自启动/);
-  assert.match(contents, /SmartTodo-1\.4\.2\.exe/);
+test("V1.5.0 release note documents the integrated title bar", () => {
+  const notePath = path.join(root, "release/V1.5.0/版本说明.txt");
+  assert.ok(fs.existsSync(notePath), "V1.5.0 release note must exist");
+  const contents = read("release/V1.5.0/版本说明.txt");
+  assert.match(contents, /标题栏/);
+  assert.match(contents, /SmartTodo-1\.5\.0\.exe/);
 });
 
 test("Windows portable package uses SmartTodo identity and filename", () => {

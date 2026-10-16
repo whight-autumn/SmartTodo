@@ -88,6 +88,23 @@ test("preload widget bridge uses fixed channels and exact listener cleanup", asy
   assert.doesNotMatch(source, /publishTaskWidgetSnapshot\s*:\s*\([^)]*channel/);
 });
 
+test("preload exposes a fixed validated window theme bridge", async () => {
+  const { desktop, calls } = loadPreload();
+  assert.equal(typeof desktop.setWindowTheme, "function");
+
+  await desktop.setWindowTheme("light");
+  await desktop.setWindowTheme("dark");
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    { channel: "window:set-theme", payload: { theme: "light" } },
+    { channel: "window:set-theme", payload: { theme: "dark" } }
+  ]);
+
+  for (const value of [null, "system", 1, {}, ["light"]]) {
+    await assert.rejects(desktop.setWindowTheme(value));
+  }
+  assert.equal(calls.length, 2);
+});
+
 test("preload derives paths only from actual selected File objects", async () => {
   const { desktop, calls, SelectedFile } = loadPreload();
   const selected = new SelectedFile("selected.txt", "C:\\selected\\selected.txt");

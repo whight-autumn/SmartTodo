@@ -35,7 +35,7 @@ function assertStaticSurface() {
     "widget-heading", "widget-date", "widget-count", "widget-list", "widget-open-main"
   ]) assert.match(html, new RegExp(`id="${id}"`), id);
   assert.doesNotMatch(`${html}\n${js}`, /widget-header-open|headerOpen/);
-  assert.match(html, /<span class="widget-version">V1\.4\.2<\/span>/);
+  assert.match(html, /<span class="widget-version">V1\.5\.0<\/span>/);
   assert.match(html, /<h1 id="widget-heading">今日要务<\/h1>/);
   assert.match(html, /<footer class="widget-footer">[\s\S]*id="widget-open-main"[\s\S]*<\/footer>/);
   assert.doesNotMatch(html, /id="widget-hide"/);
@@ -66,6 +66,7 @@ app.whenReady().then(async () => {
   let mainWindow;
   let controller;
   let registration;
+  const windowThemeCalls = [];
   let failure = null;
   try {
     assertStaticSurface();
@@ -84,6 +85,13 @@ app.whenReady().then(async () => {
     });
     mainWindow.webContents.on("console-message", (_event, level, message, line, source) => {
       if (level >= 2) console.error("main renderer:", message, line, source);
+    });
+    ipcMain.handle("window:set-theme", (event, payload) => {
+      assert.equal(event.sender, mainWindow.webContents);
+      assert.deepEqual(Object.keys(payload), ["theme"]);
+      assert.match(payload.theme, /^(?:light|dark)$/);
+      windowThemeCalls.push(payload.theme);
+      return true;
     });
 
     controller = createWidgetController({
@@ -178,6 +186,7 @@ app.whenReady().then(async () => {
     assert.equal(initial.carryover, "上期未完成");
     assert.ok(initial.titleHeight <= initial.lineHeight * 2 + 2);
     assert.equal(initial.theme, "light");
+    assert.equal(windowThemeCalls.at(-1), "light");
     fs.writeFileSync(widgetCapturePath, (await widgetWindow.webContents.capturePage()).toPNG());
     assert.ok(fs.statSync(widgetCapturePath).size > 8 * 1024);
 
@@ -188,6 +197,8 @@ app.whenReady().then(async () => {
       slider.dispatchEvent(new Event("change", { bubbles: true }));
     })()`);
     await waitFor(widgetWindow, "document.documentElement.dataset.theme === 'dark' && document.documentElement.style.getPropertyValue('--widget-brightness') === '95%'");
+    await waitFor(mainWindow, "document.documentElement.dataset.theme === 'dark'");
+    assert.equal(windowThemeCalls.at(-1), "dark");
 
     await widgetWindow.webContents.executeJavaScript(`document.querySelector('[data-task-id="overdue"] input').click()`);
     await waitFor(widgetWindow, `!document.querySelector('[data-task-id="overdue"]') && !!document.querySelector('[data-task-id="reserve"]')`);
@@ -263,6 +274,7 @@ app.whenReady().then(async () => {
     console.error(error);
     failure = error;
   } finally {
+    ipcMain.removeHandler("window:set-theme");
     registration?.dispose();
     controller?.dispose();
     for (const window of BrowserWindow.getAllWindows()) window.destroy();

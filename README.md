@@ -7,7 +7,7 @@
 <p align="center"><b>本地优先、低调简洁的 Windows 桌面任务管理器</b></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.2-315e50" alt="Version 1.4.2">
+  <img src="https://img.shields.io/badge/version-1.5.0-315e50" alt="Version 1.5.0">
   <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
   <img src="https://img.shields.io/badge/node:test-source%20review-9c473b" alt="node:test source review">
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-315e50" alt="Windows x64">
@@ -24,13 +24,13 @@
 
 SmartTodo 把主任务、子任务、提醒、附件和可选 AI 助手放在同一个本地工作台中。任务、会话、设置与 API Key 均保存在本机；不配置 AI、甚至断网时，任务管理仍可完整使用。
 
-当前版本：V1.4.2（2026-10-13，已发布 GitHub Release）。本版修复 Windows 已启用开机自启动时设置开关可能错误显示为关闭、点击后立即弹回的问题，并保留 V1.4 设置中心、完整运行数据目录迁移及点击提醒唤起主窗口。构建信息见 [`release/V1.4.2/版本说明.txt`](release/V1.4.2/版本说明.txt)。
+当前源码版本：V1.5.0（2026-10-16，Windows x64 便携版已正式发布）。本版移除主窗口顶部突兀的 Windows 默认标题栏，以透明原生窗口按钮和主题同步融入既有现代新中式界面；宽屏品牌与工具按完整 114px 顶栏居中，窄屏保留 36px 系统按钮安全区。发布信息见 [`release/V1.5.0/版本说明.txt`](release/V1.5.0/版本说明.txt)。
 
 ## 三分钟上手
 
 ### 1. 启动
 
-1. 本地核查使用 `dist/SmartTodo-1.4.2.exe`；正式发布后可从 [GitHub Releases](https://github.com/whight-autumn/SmartTodo/releases/latest) 下载同名文件。双击即可运行，无需安装。
+1. 从 [GitHub Releases](https://github.com/whight-autumn/SmartTodo/releases/latest) 下载 V1.5.0 Windows x64 便携版，双击即可运行，无需安装。
 2. 如果旧版本仍在运行，请先从系统托盘完全退出。
 3. 本项目未进行商业代码签名，首次运行时 Windows SmartScreen 可能提示“未知发布者”；请核对发布页 SHA-256 后继续。
 
@@ -151,6 +151,7 @@ AI 页保留 DeepSeek、OpenAI 和自定义 OpenAI-compatible 服务，填写 AP
 | V1.4.0 | 2026-10-13 | 打包前源码审阅：统一设置中心、Windows 开机自启动、运行数据目录迁移。 |
 | V1.4.1 | 2026-10-13 | 正式发布 V1.4 功能；点击系统任务提醒可恢复并聚焦主窗口。 |
 | V1.4.2 | 2026-10-13 | 修复 Electron 启动项参数回读缺失导致自启动开关错误回弹。 |
+| V1.5.0 | 2026-10-16 | 隐藏 Windows 默认标题栏，以主题同步的原生窗口控件融入应用界面，并优化顶部品牌与工具的比例和居中关系。 |
 
 完整演进背景、兼容策略和各版本详细改动见 [`release/版本迭代说明.md`](release/版本迭代说明.md)；面向开发者的变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
@@ -168,7 +169,7 @@ AI 页保留 DeepSeek、OpenAI 和自定义 OpenAI-compatible 服务，填写 AP
 %APPDATA%\SmartTodo\运行数据\task-attachments\<任务ID>\
 ```
 
-V1.4.2 保留既有任务、草稿、主题、AI 配置、会话、localStorage 键名和受管附件结构。默认目录的历史兼容规则由 V1.3.1 引入：优先从 `%APPDATA%\智能任务管家\运行数据` 迁移，若不存在则兼容更早的 `%APPDATA%\smart-assistant`；默认目录已有 Chromium Local Storage 时不覆盖。升级前建议备份整个“运行数据”目录，请勿分发其中的 API Key。
+V1.5.0 不改变既有任务、草稿、主题、AI 配置、会话、localStorage 键名和受管附件结构。默认目录的历史兼容规则由 V1.3.1 引入：优先从 `%APPDATA%\智能任务管家\运行数据` 迁移，若不存在则兼容更早的 `%APPDATA%\smart-assistant`；默认目录已有 Chromium Local Storage 时不覆盖。升级前建议备份整个“运行数据”目录，请勿分发其中的 API Key。
 
 存储页的“数据目录”是完整 Electron 运行配置目录，包含 Chromium Local Storage 中的任务、草稿、AI 配置、会话和界面设置，以及 `task-attachments`、`widget-preferences.json` 等运行文件；不是附件目录或 EXE 所在目录。迁移不会移动可执行文件，也不提供云同步或自动清理旧备份。
 
@@ -201,7 +202,7 @@ npm test
 npm run test:ui
 ```
 
-V1.4.2 的 `npm test` 共 307 项：305 项通过、0 项失败、2 项因当前 Windows 主机无法创建测试用文件符号链接而明确跳过。覆盖运行目录校验、复制／SHA-256 清单、备份失败与中断恢复、缺失自定义目录保护、应用目录边界、真实 Electron 启动项参数缺失回读、提醒点击唤起、设置 IPC／一次性凭证、既有任务与附件。
+V1.5.0 的 `npm test` 共 312 项：310 项通过、0 项失败、2 项因当前 Windows 环境无法创建测试用文件符号链接而跳过。测试覆盖运行目录校验、复制／SHA-256 清单、备份失败与中断恢复、缺失自定义目录保护、应用目录边界、Windows 标题栏覆盖与主题同步、顶部布局与键盘顺序、提醒点击唤起、设置 IPC／一次性凭证、既有任务与附件。
 
 Task 6 的真实 Electron 测试已通过：设置中心在 11 组尺寸／缩放、双主题下共 22 组场景（1366×768 至 2560×1440、480／639／640px 窄窗、125%／150% 缩放），验证长路径换行、零横向溢出、固定标题、可滚动内容与可达操作；并验证双入口、方向键／Home／End、ARIA 选中状态、焦点还原、Esc、Key 遮蔽和失败恢复。原工作台 8 组布局及任务笺三档缩放也通过。跨进程重启测试使用真实临时文件与生产迁移代码，但 Electron／OS 边界使用测试替身；未测试真实 Windows 自启动、用户数据或打包二进制。已记录既有开发 CSP 警告及任务笺测试中缺少部分 fixture IPC handler 的问题，没有将这些日志称为无警告通过。
 
@@ -213,7 +214,7 @@ V1.4 新增的启动路径、运行目录、登录启动和设置 IPC 模块均�
 npm run dist
 ```
 
-构建生成 `dist/SmartTodo-1.4.2.exe`。发布文件大小与 SHA-256 记录在 [`release/V1.4.2/版本说明.txt`](release/V1.4.2/版本说明.txt)；EXE 由 `.gitignore` 排除，通过 GitHub Release 分发。
+GitHub Release 已发布 `SmartTodo-1.5.0.exe`：74,064,756 字节（70.63 MiB），SHA-256 为 `78147CD2B2C1F8337BFFD0A99D7F8E069507A1ED262609D92E7D8DAD7F9E0245`。当前产物未签名；EXE 由 `.gitignore` 排除，通过 GitHub Release 分发。
 
 ### 项目结构
 

@@ -55,6 +55,11 @@ async function setAutoStart(enabled) {
   return ipcRenderer.invoke("settings:set-auto-start", { enabled });
 }
 
+async function setWindowTheme(theme) {
+  if (theme !== "light" && theme !== "dark") throw new Error("窗口主题参数无效");
+  return ipcRenderer.invoke("window:set-theme", { theme });
+}
+
 async function requestDataMigration(value) {
   const payload = validateExactPayload(value, ["selectionId"], "迁移运行数据");
   if (typeof payload.selectionId !== "string" ||
@@ -75,6 +80,7 @@ contextBridge.exposeInMainWorld("desktop", {
   notify: (title, body) => ipcRenderer.invoke("notify", { title, body }),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
   getDataPath: () => ipcRenderer.invoke("get-data-path"),
+  setWindowTheme,
   getAppSettings: () => ipcRenderer.invoke("settings:get"),
   setAutoStart,
   chooseDataDirectory: () => ipcRenderer.invoke("settings:choose-data-directory"),
@@ -117,5 +123,5 @@ contextBridge.exposeInMainWorld("desktop", {
   },
 
   // 应用版本
-  version: process.env.npm_package_version || "1.4.2"
+  version: process.env.npm_package_version || "1.5.0"
 });
