@@ -2,6 +2,8 @@
 
 <!-- impeccable:product-schema 1 -->
 
+最后更新: 2026-10-16 | 对应版本: v1.5.0
+
 ## Platform
 
 Windows desktop (Electron)
@@ -62,7 +64,7 @@ SmartTodo 是一款本地优先的桌面任务与 AI 助手。它让用户在一
 ## Evidence on Hand
 
 - 当前产品说明与功能事实：`README.md`。
-- 文件职责与安全边界：`docs/文件说明.md`。
+- 文件职责与安全边界：`docs/reference/文件说明.md`；完整架构、链路和数据流见 `PROJECT_TREE.md`。
 - 当前应用图标：`assets/icon.png` 与 `assets/icon.ico`。
 - 当前唯一界面与业务行为：`renderer/index.html`、`renderer/style.css`、`renderer/app.js`。
 - 自动化证据：`npm test` 共 312 项、310 通过、0 失败、2 跳过；`tests/*.test.js` 覆盖运行目录事务、中断恢复、缺失自定义目录保护、应用目录双向边界、真实 junction 回退、持久启动参数、OS 权威状态、固定设置 IPC、Windows 标题栏主题同步、顶部比例与焦点顺序、提醒点击唤起、凭证和迁移结果详情；两项既有附件文件符号链接测试受当前主机能力限制而跳过。

@@ -6,6 +6,8 @@
 
 <p align="center"><b>本地优先、低调简洁的 Windows 桌面任务管理器</b></p>
 
+<p align="center">最后更新: 2026-10-16 · 对应版本: v1.5.0</p>
+
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.5.0-315e50" alt="Version 1.5.0">
   <img src="https://img.shields.io/badge/Electron-31-478268?logo=electron&logoColor=white" alt="Electron 31">
@@ -208,7 +210,7 @@ Task 6 的真实 Electron 测试已通过：设置中心在 11 组尺寸／缩�
 
 ### 构建
 
-V1.4 新增的启动路径、运行目录、登录启动和设置 IPC 模块均已纳入显式打包清单：
+根入口、`src/` 主进程支持层与 preload、renderer 和 assets 均已纳入显式打包清单：
 
 ```powershell
 npm run dist
@@ -220,13 +222,11 @@ GitHub Release 已发布 `SmartTodo-1.5.0.exe`：74,064,756 字节（70.63 MiB�
 
 ```text
 SmartTodo/
-├── main.js                         # 主窗口、任务笺、托盘、通知与生命周期
-├── runtime-data-manager.js         # 引导配置、目录事务与校验恢复
-├── login-startup.js                # Windows 启动项写入和 OS 状态读取
-├── app-settings-ipc.js             # 固定设置 IPC、原生选择和迁移凭证
-├── preload.js / widget-preload.js  # 两个最小化隔离桥接
-├── widget-controller.js            # 任务笺窗口、位置与可见性
-├── task-attachment-store.js        # 受管附件事务
+├── AGENTS.md / ENGINEERING_CHARTER.md # 协作入口与工程规则正本
+├── main.js                         # 薄主入口：窗口、托盘、通知与生命周期装配
+├── src/
+│   ├── main/                       # 主进程支持层（路径、迁移、启动、设置、附件、任务笺）
+│   └── preload/                    # 主窗口与任务笺的最小隔离桥接
 ├── renderer/
 │   ├── index.html / app.js         # 主界面与业务逻辑
 │   ├── settings-controller.js      # 三模块设置、焦点、状态与安全凭证
@@ -235,12 +235,18 @@ SmartTodo/
 │   ├── task-model.js               # 任务规范化、周期刷新与筛选
 │   └── styles/                     # 令牌、布局、组件与动效
 ├── tests/                          # 单元与真实 Electron 窗口测试
-├── docs/                           # 文件索引与 README 界面截图
+├── docs/
+│   ├── 01_design/ / 02_plan/       # 当前设计与执行计划
+│   ├── reference/                  # 当前文件职责说明
+│   ├── images/                     # README 当前界面截图
+│   └── 99_archive/                 # 历史设计、报告与 UI 证据
 ├── assets/                         # 品牌源文件、字体与应用图标
+├── PROJECT_TREE.md                 # 九板块架构、链路、数据流与维护入口
+├── tests/ / scripts/               # 正式测试与可复用品牌构建脚本
 └── release/                        # 版本迭代说明与各版本发布记录
 ```
 
-逐文件职责见 [`docs/文件说明.md`](docs/文件说明.md)。
+完整架构与二次开发入口见 [`PROJECT_TREE.md`](PROJECT_TREE.md)，逐文件职责见 [`docs/reference/文件说明.md`](docs/reference/文件说明.md)。
 
 ## 安全边界
 

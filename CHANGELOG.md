@@ -20,6 +20,12 @@
 - 将主窗口与任务笺 preload 迁入 `src/preload/`，同步生产入口、正式测试及 electron-builder 文件清单；导出、IPC 通道、preload API 和数据契约不变。
 - 路径迁移后的预期 RED 为旧测试入口无法找到根模块；同步引用后，首次定向回归发现 `tests/preload.test.js` 仍有一个无扩展名旧入口。根因是初始引用检索未覆盖 `require.resolve("../preload")` 形式；修正该唯一遗漏后定向测试与完整回归通过。
 
+### T4 当前工程说明
+
+- 新建九板块 `PROJECT_TREE.md`，记录目录骨架、模块、调用链、数据流、契约、配置、工具、技术债和二次开发入口。
+- 将当前文件职责说明迁入 `docs/reference/文件说明.md`，同步 `src/main/`、`src/preload/`、测试分组和调用关系。
+- 更新 README 项目结构、构建说明与文档入口，并修正 PRODUCT 的工程证据路径；未修改产品功能或历史归档正文。
+
 ### 决策留痕
 
 | # | 决策 | 决定人 | 依据 | 影响 |
