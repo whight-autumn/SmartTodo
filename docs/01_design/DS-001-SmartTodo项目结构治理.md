@@ -1,6 +1,6 @@
 # DS-001 SmartTodo 项目结构治理（设计文档）
 
-最后更新: 2026-10-16 | 对应版本: v1.5.0 | 状态: 已确认（DS-001 v1.1，2026-10-16 11:44:14 +08:00） | 级别: L1
+最后更新: 2026-10-16 | 对应版本: v1.5.0 | 状态: 已完成（DS-001 v1.1） | 级别: L1
 
 ## 1. 目标与范围
 
@@ -284,36 +284,36 @@ SmartTodo/                                      # 更名后的项目根
 
 ### 8.1 结构
 
-- [ ] 项目目录名为 `SmartTodo`，Git 远端仍为 `whight-autumn/SmartTodo.git`。
-- [ ] 根目录只保留入口、配置、产品文档和顶层工程文档；主进程支持模块位于 `src/main/`。
-- [ ] preload 位于 `src/preload/`；renderer、tests、assets 与 scripts 保持原职责。
-- [ ] `docs/` 具备 `01_design`、`02_plan`、`reference`、`images`、`99_archive` 分层。
-- [ ] 没有空 `.worktrees/`、无主缓存或失效的绝对路径状态文件。
+- [x] 项目目录名为 `SmartTodo`，Git 远端仍为 `whight-autumn/SmartTodo.git`。
+- [x] 根目录只保留入口、配置、产品文档和顶层工程文档；主进程支持模块位于 `src/main/`。
+- [x] preload 位于 `src/preload/`；renderer、tests、assets 与 scripts 保持原职责。
+- [x] `docs/` 具备 `01_design`、`02_plan`、`reference`、`images`、`99_archive` 分层。
+- [x] 没有空 `.worktrees/`、无主缓存或失效的绝对路径状态文件。
 
 ### 8.2 功能与回归
 
-- [ ] `npm test` 结果不低于基线：0 失败；仅允许两项已知 Windows 符号链接用例跳过。
-- [ ] `npm run test:ui` 三套 Electron 流水线全部通过。
-- [ ] `_build_aux/smoke/smoke_structure_paths.py` 输出 `PASS`，随后归档且 `_build_aux/` 清空。
-- [ ] `package.json` 仍为 v1.5.0，产品名、appId、便携包名和入口契约不变。
-- [ ] 固定 IPC、preload API、数据目录、历史迁移目录和用户数据格式不变。
-- [ ] 使用 `rg` 确认旧根模块路径只存在于明确归档的历史文档，不存在于当前运行代码和测试引用中。
+- [x] `npm test` 结果不低于基线：0 失败；仅允许两项已知 Windows 符号链接用例跳过。
+- [x] `npm run test:ui` 三套 Electron 流水线全部通过。
+- [x] `_build_aux/smoke/smoke_structure_paths.py` 输出 `PASS`，随后归档且 `_build_aux/` 清空。
+- [x] `package.json` 仍为 v1.5.0，产品名、appId、便携包名和入口契约不变。
+- [x] 固定 IPC、preload API、数据目录、历史迁移目录和用户数据格式不变。
+- [x] 使用 `rg` 确认旧根模块路径只存在于明确归档的历史文档，不存在于当前运行代码和测试引用中。
 
 ### 8.3 文档
 
-- [ ] `README.md`、`CHANGELOG.md`、`PROJECT_TREE.md` 与实际结构一致。
-- [ ] `PROJECT_TREE.md` 包含宪章要求的九个板块。
-- [ ] `docs/reference/文件说明.md` 覆盖所有当前正式源码职责和关键调用链。
-- [ ] 本设计文档状态更新为已完成，并记录实际执行与设计差异。
-- [ ] 历史旧名称在兼容代码与历史发布记录中保留，并在项目树中解释其必要性。
+- [x] `README.md`、`CHANGELOG.md`、`PROJECT_TREE.md` 与实际结构一致。
+- [x] `PROJECT_TREE.md` 包含宪章要求的九个板块。
+- [x] `docs/reference/文件说明.md` 覆盖所有当前正式源码职责和关键调用链。
+- [x] 本设计文档状态更新为已完成，并记录实际执行与设计差异。
+- [x] 历史旧名称在兼容代码与历史发布记录中保留，并在项目树中解释其必要性。
 
 ### 8.4 清理
 
-- [ ] `dist/` 已删除且不在 Git 中。
-- [ ] `release/` 仅保留文本说明，不含本地 EXE。
-- [ ] `.impeccable/` 的长期价值资料已归档，重复/可再生过程产物已清除。
-- [ ] 清理前后体积差写入 `CHANGELOG.md`，预计释放约 1.25 GB。
-- [ ] `node_modules/` 保留，依赖版本未发生变化。
+- [x] `dist/` 已删除且不在 Git 中。
+- [x] `release/` 仅保留文本说明，不含本地 EXE。
+- [x] `.impeccable/` 的长期价值资料已归档，重复/可再生过程产物已清除。
+- [x] 清理前后体积差写入 `CHANGELOG.md`，预计释放约 1.25 GB。
+- [x] `node_modules/` 保留，依赖版本未发生变化。
 
 ## 9. 假设与决策
 
@@ -335,3 +335,11 @@ SmartTodo/                                      # 更名后的项目根
 |---|---|---|---|
 | Q-1 | 是否确认保留 `node_modules/`，不把依赖缓存纳入本次清理？ | A 保留 | 已确认 A |
 | Q-2 | 是否确认删除 `release/` 中所有本地旧 EXE，仅保留文本说明和 GitHub Releases？ | A 删除 | 已确认 A |
+
+## 11. 实施结果与设计偏差
+
+- T1-T7 均已按 A1 方案完成；项目目录已更名为 `SmartTodo`，主进程支持层和 preload 已归位，产品接口、数据格式和兼容路径未改变。
+- 实际清理 88 个忽略文件，共 1,311,914,080 字节（1,251.14 MiB，1.222 GiB）；`node_modules/` 保留，依赖与 lockfile 未变。
+- 结构冒烟、312 项 Node 测试及三套 Electron UI 流水线通过。UI 首次全量运行出现一次深色面板取色仍为浅色的瞬态断言失败；未修改代码，单项立即复跑和随后全量复跑均通过，未能稳定复现，因此作为验证波动留痕而非产品缺陷结论。
+- 与设计的唯一执行性差异：冒烟脚本归档后改为向上发现含 `package.json` 与 `ENGINEERING_CHARTER.md` 的项目根，使归档副本可直接复验；检查内容未变。
+- 本轮本地提交从 `e6c9dc6` 至最终 T7 交接提交；远端未推送，等待使用者验收批准。

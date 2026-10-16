@@ -126,6 +126,7 @@ localStorage 当前关键键：`smart_tasks`、`deepseek_api_key`、`deepseek_ch
 | 品牌资产构建 | 正式脚本 | 从品牌母版再生图标资产 | `node scripts/build-brand-assets.cjs` |
 | 工程宪章流程 | 文档化流程 | L1 双门禁、逐任务验证、清理与交接 | `AGENTS.md` → `ENGINEERING_CHARTER.md` → `docs/01_design/` / `docs/02_plan/` |
 | 文件职责索引 | 参考文档 | 精确定位正式文件与测试分组 | `docs/reference/文件说明.md` |
+| 结构治理冒烟 | 归档验证脚本 | 复验新路径、旧根文件清零与本地产物清理结果 | `python docs/99_archive/smoke/2026-10-16-v1.5.0/smoke_structure_paths.py` |
 
 ## 8. 已知问题与技术债
 

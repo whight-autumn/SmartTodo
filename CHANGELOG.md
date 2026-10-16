@@ -33,9 +33,21 @@
 - 删除空 `.worktrees/`；保留 `node_modules/`，未安装、升级或卸载依赖。
 - 本任务共删除 88 个本地忽略文件，释放 1,311,914,080 字节（1,251.14 MiB，1.222 GiB）。
 
+### T6 本地目录更名
+
+- 将本地项目目录从 `智能任务管理器` 更名为 `SmartTodo`；旧目录已不存在。
+- Git 分支仍为 `main`，远端仍为 `https://github.com/whight-autumn/SmartTodo.git`，未执行任何远端写操作。
+
+### T7 回归与交接
+
+- 结构冒烟脚本从临时 `_build_aux/smoke/` 执行通过后归档到 `docs/99_archive/smoke/2026-10-16-v1.5.0/`；临时 `_build_aux/` 已清空并移除。
+- `npm test` 共 312 项：310 项通过、0 项失败、2 项因 Windows 符号链接能力跳过。
+- `npm run test:ui` 最终全量通过 `ui-smoke.cjs`、`ui-layout.cjs` 与 `ui-widget.cjs`，renderer errors 为空；保留既有开发 CSP 警告记录。
+- UI 首次全量运行曾在主题切换后的面板取色断言出现一次瞬态失败；没有修改产品代码，单项立即复跑与随后全量复跑均通过，未能稳定复现。
+
 ### 清理记录
 
-- `_build_aux/` 尚未创建；T7 的结构冒烟脚本执行后将按 EC-3.7 归档并清空该目录。
+- `_build_aux/` 已在结构冒烟通过后按 EC-3.7 清空；3,133 字节的脚本已归档，可直接从归档位置再次运行。
 - `dist/`、六个旧 EXE 与空 `.worktrees/` 已清除；恢复来源分别为 `npm run dist`、GitHub Releases/发布说明以及按需重新创建的空目录。
 
 ### 决策留痕
@@ -49,7 +61,8 @@
 
 ### 偏差记录
 
-- 无。
+- 冒烟脚本归档后使用向上发现项目根的方式保持可直接复验；其验证契约与已确认设计一致。
+- UI 首次全量运行的一次瞬态主题取色失败未复现，未据此修改产品实现。
 
 ### 验证方式
 
@@ -57,6 +70,8 @@
 - `rg -n "version: 1.4.0|\\[EC v1.4.0 loaded\\]" ENGINEERING_CHARTER.md AGENTS.md`：PASS。
 - `node --test tests/preload.test.js`：10 项通过，0 失败。
 - `npm test`：312 项；310 通过、0 失败、2 项因 Windows 符号链接能力跳过。
+- `python docs/99_archive/smoke/2026-10-16-v1.5.0/smoke_structure_paths.py`：PASS。
+- `npm run test:ui`：最终全量退出码 0，三套 Electron UI 流水线通过。
 
 ### 回滚方式
 
