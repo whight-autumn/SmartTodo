@@ -5,6 +5,7 @@ node_modules/
 dist/
 out/
 win-unpacked/
+_build_aux/
 .electron-cache/
 .builder-cache/
 
@@ -26,6 +27,8 @@ Thumbs.db
 
 # Agent execution ledger and task briefs
 .superpowers/
+.codex/
 
 # Reproducible intermediate brand raster sizes
 .impeccable/build/brand/
+.impeccable/hook.cache.json
